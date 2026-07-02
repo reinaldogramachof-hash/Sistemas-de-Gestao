@@ -104,6 +104,36 @@ const getLocalIsoString = (dateObj = new Date()) => {
 const getLocalIsoDate = (dateObj = new Date()) => {
     return getLocalIsoString(dateObj).split('T')[0];
 };
+const parseLocalDate = (dateStr) => {
+    if (!dateStr) return null;
+    const parts = dateStr.split('-');
+    if (parts.length !== 3) return new Date(dateStr);
+    const y = parseInt(parts[0], 10);
+    const m = parseInt(parts[1], 10);
+    const d = parseInt(parts[2], 10);
+    return new Date(y, m - 1, d);
+};
+const compareIsoDate = (a, b) => {
+    if (!a || !b) return 0;
+    return a.localeCompare(b);
+};
+const isDateInRange = (dateStr, startStr, endStr) => {
+    if (!dateStr) return false;
+    const s = startStr || '0000-00-00';
+    const e = endStr || '9999-12-31';
+    return dateStr >= s && dateStr <= e;
+};
+const isSameLocalMonth = (dateStr, referenceDate = new Date()) => {
+    if (!dateStr) return false;
+    const refY = referenceDate.getFullYear();
+    const refM = String(referenceDate.getMonth() + 1).padStart(2, '0');
+    return dateStr.startsWith(`${refY}-${refM}`);
+};
+const isAppointmentDone = (status) => {
+    if (!status) return false;
+    const s = status.toLowerCase();
+    return s === 'done' || s === 'concluido' || s === 'concluído';
+};
 const calculatePercentage = (current, previous) => {
     if (previous === 0) return current > 0 ? 100 : 0;
     return ((current - previous) / previous * 100).toFixed(1);
@@ -128,9 +158,8 @@ async function init() {
 
         // Configurar datas padrão
         const today = getLocalIsoDate();
-        const firstDay = new Date();
-        firstDay.setDate(1);
-        const firstDayStr = firstDay.toISOString().split('T')[0];
+        const nowObj = new Date();
+        const firstDayStr = `${nowObj.getFullYear()}-${String(nowObj.getMonth() + 1).padStart(2, '0')}-01`;
 
         // Configurar inputs de data
         const dateIds = ['ap-date', 'agenda-date', 'exp-date', 'rep-start', 'rep-end', 'filter-start', 'filter-end'];
@@ -559,8 +588,9 @@ function renderDashboard() {
     document.getElementById('dash-comm-pending').innerText = fmtMoney(commissionPending);
 
     // Calcular crescimento vs ontem
-    const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1);
-    const yesterdayStr = yesterday.toISOString().split('T')[0];
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayStr = getLocalIsoDate(yesterday);
     const yesterdayIncome = db.transactions
         .filter(t => t.date === yesterdayStr && t.type === 'income' && !t.isPending)
         .reduce((sum, t) => sum + t.amount, 0);
@@ -574,7 +604,7 @@ function renderDashboard() {
     // Próximos Agendamentos
     const upcoming = db.appointments
         .filter(a => a.date >= todayStr && a.status === 'pending')
-        .sort((a, b) => new Date(a.date + 'T' + a.time) - new Date(b.date + 'T' + b.time))
+        .sort((a, b) => `${a.date}T${a.time}`.localeCompare(`${b.date}T${b.time}`))
         .slice(0, 5);
 
     const listEl = document.getElementById('upcoming-appts');
@@ -613,7 +643,7 @@ function renderDashboard() {
     const weekDays = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
     for (let i = 6; i >= 0; i--) {
         const d = new Date(); d.setDate(d.getDate() - i);
-        const isoDate = d.toISOString().split('T')[0];
+        const isoDate = getLocalIsoDate(d);
         const dayLabel = weekDays[d.getDay()];
         const rev = db.transactions.filter(t => t.date === isoDate && t.type === 'income' && !t.isPending).reduce((acc, t) => acc + t.amount, 0);
         chartValues.push(rev);
@@ -683,17 +713,27 @@ function renderAgenda() {
             html += `<div class="p-3 text-xs font-bold text-slate-500 text-center flex items-center justify-center gap-1"><i data-lucide="clock" class="w-3 h-3 text-brand-blue opacity-50"></i>${time}</div>`;
             
             db.team.forEach(pro => {
-                const appt = db.appointments.find(a => a.date === date && a.time === time && a.proId === pro.id && a.status !== 'canceled');
-                if (appt) {
-                    const isDone = appt.status === 'done' || appt.status === 'concluido';
-                    const statusColor = isDone ? 'bg-emerald-500/10 border-emerald-500 text-emerald-600 dark:text-emerald-400' : 'bg-blue-500/10 border-blue-500 text-brand-blue dark:text-brand-lightblue';
-                    const textColor = isDone ? 'text-emerald-700 dark:text-emerald-300' : 'text-blue-700 dark:text-blue-300';
+                const slotAppts = db.appointments.filter(a => a.date === date && a.time === time && a.proId === pro.id && a.status !== 'canceled');
+                if (slotAppts.length > 0) {
+                    if (slotAppts.length > 1) {
+                        console.warn(`Conflito: múltiplos agendamentos no mesmo slot (${date} ${time}, Pro: ${pro.name}):`, slotAppts.map(a => a.id));
+                    }
+                    const appt = slotAppts.find(a => a.status === 'pending') || slotAppts[0];
+                    const isConflict = slotAppts.length > 1;
+                    const isDone = isAppointmentDone(appt.status);
+
+                    let statusColor = isDone ? 'bg-emerald-500/10 border-emerald-500 text-emerald-600 dark:text-emerald-400' : 'bg-blue-500/10 border-blue-500 text-brand-blue dark:text-brand-lightblue';
+                    if (isConflict) {
+                        statusColor = 'bg-rose-500/10 border-rose-500 text-rose-600 dark:text-rose-400';
+                    }
+                    const textColor = isConflict ? 'text-rose-700 dark:text-rose-300' : (isDone ? 'text-emerald-700 dark:text-emerald-300' : 'text-blue-700 dark:text-blue-300');
 
                     html += `<div class="p-1 relative group cursor-pointer">
                         <div class="h-full w-full ${statusColor} border-l-4 rounded p-2 text-xs hover:opacity-80 transition-colors flex flex-col justify-between">
                             <div>
-                                <p class="font-bold ${textColor} truncate">${sanitizeHTML(appt.client)}</p>
+                                <p class="font-bold ${textColor} truncate">${sanitizeHTML(appt.client)} ${isConflict ? '⚠️' : ''}</p>
                                 <p class="${textColor}/70 truncate">${sanitizeHTML(appt.serviceName)}</p>
+                                ${isConflict ? `<p class="text-[9px] text-rose-500 font-bold">Conflito (${slotAppts.length} agendamentos)</p>` : ''}
                             </div>
                             <div class="flex justify-end gap-1 mt-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                                 ${!isDone ? `<button onclick="finishAppt('${appt.id}')" class="p-1 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 rounded" title="Concluir"><i data-lucide="check" class="w-3 h-3"></i></button>` : '<i data-lucide="check-circle" class="w-3 h-3 text-emerald-500"></i>'}
@@ -728,9 +768,10 @@ function openApptModalWithContext(date, time, proId) {
 
 function changeAgendaDate(days) {
     const input = document.getElementById('agenda-date');
-    const bDate = new Date(input.value + 'T12:00:00');
+    const bDate = parseLocalDate(input.value);
+    if (!bDate) return;
     bDate.setDate(bDate.getDate() + days);
-    input.value = bDate.toISOString().split('T')[0];
+    input.value = getLocalIsoDate(bDate);
     renderAgenda();
 }
 
@@ -751,7 +792,7 @@ function renderTeam() {
 
     list.innerHTML = db.team.map(t => {
         // Calculate stats
-        const servicesCount = db.appointments.filter(a => a.proId === t.id && (a.status === 'done' || a.status === 'concluido')).length;
+        const servicesCount = db.appointments.filter(a => a.proId === t.id && isAppointmentDone(a.status)).length;
 
         const pendingCommissions = db.transactions
             .filter(tr => tr.proId === t.id && tr.type === 'income' && !tr.commissionPaid)
@@ -860,14 +901,9 @@ function renderFinance() {
         return matchesTerm && matchesType && matchesDate;
     });
     // Ordenar por data (mais recente primeiro)
-    filtered.sort((a, b) => new Date(b.date) - new Date(a.date));
+    filtered.sort((a, b) => compareIsoDate(b.date, a.date));
     // Atualizar estatísticas
-    const monthTrans = db.transactions.filter(t => {
-        const today = new Date();
-        const transDate = new Date(t.date);
-        return transDate.getMonth() === today.getMonth() &&
-            transDate.getFullYear() === today.getFullYear();
-    });
+    const monthTrans = db.transactions.filter(t => isSameLocalMonth(t.date, new Date()));
     const incomeMonth = monthTrans
         .filter(t => t.type === 'income' && !t.isPending)
         .reduce((sum, t) => sum + t.amount, 0);
@@ -946,7 +982,7 @@ function renderClients() {
             .filter(t => t.clientId === client.id && t.type === 'income');
         const totalSpent = clientTrans.reduce((sum, t) => sum + t.amount, 0);
         const lastVisit = clientTrans.length > 0
-            ? clientTrans.sort((a, b) => new Date(b.date) - new Date(a.date))[0].date
+            ? clientTrans.sort((a, b) => compareIsoDate(b.date, a.date))[0].date
             : null;
 
         // WhatsApp Link Logic
@@ -1003,8 +1039,10 @@ function openClientDetails(clientId) {
     // 1. Basic Info
     document.getElementById('cd-name').textContent = client.name;
     document.getElementById('cd-phone').textContent = client.phone || 'Sem telefone';
+    document.getElementById('cd-notes').textContent = client.notes || 'Nenhuma observação registrada.';
+    document.getElementById('cd-birthday').textContent = client.birthDate ? fmtDate(client.birthDate) : '-';
 
-    // 2. Stats Calculation — apenas transações quitadas entram nas métricas
+    // 2. Stats Calculation — apenas transações quitadas e do tipo income entram nas métricas
     const clientTrans = db.transactions.filter(t => t.clientId === clientId && t.type === 'income');
     const paidTrans = clientTrans.filter(t => !t.isPending);
     const totalSpent = paidTrans.reduce((sum, t) => sum + t.amount, 0);
@@ -1015,57 +1053,45 @@ function openClientDetails(clientId) {
     document.getElementById('cd-visits').textContent = visits;
     document.getElementById('cd-avg-ticket').textContent = fmtMoney(avgTicket);
 
-    // 3. Notes & Extra Info
-    document.getElementById('cd-notes').textContent = client.notes || 'Nenhuma observação registrada.';
-    document.getElementById('cd-birthday').textContent = client.birthDate ? fmtDate(client.birthDate) : '-';
-
-    // Dates
-    const sortedDates = clientTrans.map(t => new Date(t.date)).sort((a, b) => a - b);
-    const firstVisit = sortedDates.length > 0 ? sortedDates[0] : null;
-    const lastVisit = sortedDates.length > 0 ? sortedDates[sortedDates.length - 1] : null;
-
-    document.getElementById('cd-first-visit').textContent = firstVisit ? firstVisit.toLocaleDateString('pt-BR') : '-';
-    document.getElementById('cd-last-visit').textContent = lastVisit ? lastVisit.toLocaleDateString('pt-BR') : '-';
-
-    // 4. Action Buttons
-    const btnWa = document.getElementById('cd-btn-whatsapp');
-    const rawPhone = client.phone ? client.phone.replace(/\D/g, '') : '';
-
-    if (rawPhone) {
-        btnWa.onclick = () => window.open(`https://wa.me/55${rawPhone}`, '_blank');
-        btnWa.classList.remove('opacity-50', 'cursor-not-allowed');
+    // 3. Visit Dates (using string comparison helper)
+    if (visits > 0) {
+        const sorted = [...paidTrans].sort((a, b) => compareIsoDate(a.date, b.date));
+        document.getElementById('cd-first-visit').textContent = fmtDate(sorted[0].date);
+        document.getElementById('cd-last-visit').textContent = fmtDate(sorted[sorted.length - 1].date);
     } else {
-        btnWa.onclick = null;
-        btnWa.classList.add('opacity-50', 'cursor-not-allowed');
+        document.getElementById('cd-first-visit').textContent = '-';
+        document.getElementById('cd-last-visit').textContent = '-';
     }
 
-    document.getElementById('cd-btn-schedule').onclick = () => {
-        closeModal('clientDetailsModal');
-        openApptModal(client.id);
-    };
-
-    document.getElementById('cd-btn-edit').onclick = () => {
-        closeModal('clientDetailsModal');
-        openClientModal(client); // Reuse existing edit modal
-    };
-
-    // 5. History Timeline — inclui pendentes com badge visual
-    const historyContainer = document.getElementById('cd-history-list');
-    if (clientTrans.length === 0) {
-        historyContainer.innerHTML = '<p class="text-xs text-slate-400 text-center py-4">Nenhum histórico encontrado.</p>';
+    // 4. Debt Section
+    const debtTransactions = db.transactions.filter(t => t.clientId === clientId && t.isPending);
+    const totalDebt = debtTransactions.reduce((sum, t) => sum + t.amount, 0);
+    const debtSection = document.getElementById('cd-debt-section');
+    if (totalDebt > 0) {
+        debtSection.classList.remove('hidden');
+        document.getElementById('cd-debt-amount').textContent = fmtMoney(totalDebt);
+        document.getElementById('cd-btn-pay-debt').onclick = () => payClientDebt(clientId);
     } else {
-        historyContainer.innerHTML = clientTrans
-            .sort((a, b) => new Date(b.date) - new Date(a.date))
-            .map(t => {
+        debtSection.classList.add('hidden');
+    }
+
+    // 5. History Timeline
+    const historyContainer = document.getElementById('cd-history-list');
+    if (historyContainer) {
+        if (clientTrans.length === 0) {
+            historyContainer.innerHTML = '<p class="text-xs text-slate-400 text-center py-4">Nenhum histórico encontrado.</p>';
+        } else {
+            const sortedHistory = [...clientTrans].sort((a, b) => compareIsoDate(b.date, a.date));
+            historyContainer.innerHTML = sortedHistory.map(t => {
                 const pending = t.isPending;
                 const rowBg = pending
-                    ? 'bg-rose-50 dark:bg-rose-900/20 border-rose-200 dark:border-rose-500/30'
+                    ? 'bg-rose-50 dark:bg-rose-950/20 border-rose-200 dark:border-rose-500/30'
                     : 'bg-slate-50 dark:bg-slate-800/50 border-slate-100 dark:border-white/5';
                 const amtColor = pending
                     ? 'text-rose-500 dark:text-rose-400'
                     : 'text-green-600 dark:text-green-400';
                 const badge = pending
-                    ? '<span class="ml-2 text-[10px] font-bold bg-rose-200 text-rose-700 dark:bg-rose-800 dark:text-rose-300 px-1.5 py-0.5 rounded-full">FIADO</span>'
+                    ? '<span class="ml-2 text-[10px] font-bold bg-rose-200 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300 px-1.5 py-0.5 rounded-full">FIADO</span>'
                     : '';
                 return `
                 <div class="flex justify-between items-center p-3 rounded-lg border transition-all ${rowBg}">
@@ -1076,15 +1102,57 @@ function openClientDetails(clientId) {
                     <span class="font-bold ${amtColor} text-sm">${fmtMoney(t.amount)}</span>
                 </div>`;
             }).join('');
+        }
     }
 
-    // 6. Seção de dívida ativa (integrado diretamente — não depende do override pdv.js)
-    if (typeof openClientDebtCard === 'function') openClientDebtCard(clientId);
+    // 6. Action Buttons (WhatsApp link, schedule, edit)
+    const rawPhone = client.phone ? client.phone.replace(/\D/g, '') : '';
+    const btnWa = document.getElementById('cd-btn-whatsapp');
+    if (btnWa) {
+        if (rawPhone) {
+            btnWa.onclick = () => window.open(`https://wa.me/55${rawPhone}`, '_blank');
+            btnWa.classList.remove('opacity-50', 'cursor-not-allowed');
+        } else {
+            btnWa.onclick = null;
+            btnWa.classList.add('opacity-50', 'cursor-not-allowed');
+        }
+    }
 
-    // Show Modal
-    const modal = document.getElementById('clientDetailsModal');
-    modal.classList.remove('hidden');
+    document.getElementById('cd-btn-schedule').onclick = () => {
+        closeModal('clientDetailsModal');
+        openApptModal(clientId);
+    };
+
+    document.getElementById('cd-btn-edit').onclick = () => {
+        closeModal('clientDetailsModal');
+        openClientModal(client); // Reuse existing edit modal
+    };
+
+    // 7. Show Modal & Lucide Icons
+    document.getElementById('clientDetailsModal').classList.remove('hidden');
     lucide.createIcons();
+}
+
+function payClientDebt(clientId) {
+    const debtTransactions = db.transactions.filter(t => t.clientId === clientId && t.isPending);
+    if (debtTransactions.length === 0) return;
+
+    const total = debtTransactions.reduce((sum, t) => sum + t.amount, 0);
+    const client = db.clients.find(c => c.id === clientId);
+
+    if (confirm(`Confirmar o recebimento de ${fmtMoney(total)} referente ao fiado de ${client.name}?`)) {
+        const today = getLocalIsoDate();
+        debtTransactions.forEach(t => {
+            t.isPending = false; // Quita a transação original liberando-a para o financeiro
+            t.date = today; // Move a transação para o dia atual (data real do acerto do caixa e da comissão)
+        });
+        save();
+        showNotification('Dívida quitada! Baixa gerada no caixa de hoje e comissões liberadas.', 'success');
+        closeModal('clientDetailsModal');
+        // Recarregar os elementos dependendo de qual tela está aberta
+        renderDashboard();
+        renderClients();
+    }
 }
 
 function updateClientsDatalist() {
@@ -1234,93 +1302,7 @@ function closeModal(modalId) {
     document.getElementById(modalId).classList.add('hidden');
 }
 
-function openClientDetails(id) {
-    const client = db.clients.find(c => c.id === id);
-    if (!client) return;
 
-    // Calcular estatísticas
-    const history = db.transactions.filter(t => t.clientId === id && t.type === 'income');
-    const totalSpent = history.reduce((sum, t) => sum + t.amount, 0);
-    const visits = history.length;
-    const avgTicket = visits > 0 ? totalSpent / visits : 0;
-    
-    const debtTransactions = db.transactions.filter(t => t.clientId === id && t.isPending);
-    const totalDebt = debtTransactions.reduce((sum, t) => sum + t.amount, 0);
-
-    // Preencher modal
-    document.getElementById('cd-name').textContent = client.name;
-    document.getElementById('cd-phone').textContent = client.phone || 'Sem telefone';
-    document.getElementById('cd-total-spent').textContent = fmtMoney(totalSpent);
-    document.getElementById('cd-visits').textContent = visits;
-    document.getElementById('cd-avg-ticket').textContent = fmtMoney(avgTicket);
-    document.getElementById('cd-notes').textContent = client.notes || 'Nenhuma observação.';
-    
-    // Datas de visita
-    if (visits > 0) {
-        const sorted = history.sort((a, b) => new Date(a.date) - new Date(b.date));
-        document.getElementById('cd-first-visit').textContent = fmtDate(sorted[0].date);
-        document.getElementById('cd-last-visit').textContent = fmtDate(sorted[sorted.length - 1].date);
-    } else {
-        document.getElementById('cd-first-visit').textContent = '-';
-        document.getElementById('cd-last-visit').textContent = '-';
-    }
-    
-    document.getElementById('cd-birthday').textContent = client.birthDate ? fmtDate(client.birthDate) : '-';
-
-    // Seção de Dívida
-    const debtSection = document.getElementById('cd-debt-section');
-    if (totalDebt > 0) {
-        debtSection.classList.remove('hidden');
-        document.getElementById('cd-debt-amount').textContent = fmtMoney(totalDebt);
-        document.getElementById('cd-btn-pay-debt').onclick = () => payClientDebt(id);
-    } else {
-        debtSection.classList.add('hidden');
-    }
-
-    // Botões de ação
-    const rawPhone = client.phone ? client.phone.replace(/\D/g, '') : '';
-    const btnWa = document.getElementById('cd-btn-whatsapp');
-    if (rawPhone) {
-        btnWa.closest('div').classList.remove('hidden');
-        btnWa.onclick = () => window.open(`https://wa.me/55${rawPhone}`, '_blank');
-    } else {
-        // Se desejar esconder o botão se não houver fone
-        // btnWa.closest('div').classList.add('hidden');
-    }
-
-    document.getElementById('cd-btn-schedule').onclick = () => {
-        closeModal('clientDetailsModal');
-        openApptModal(id);
-    };
-
-    document.getElementById('cd-btn-edit').onclick = () => {
-        closeModal('clientDetailsModal');
-        openClientModal(client);
-    };
-
-    document.getElementById('clientDetailsModal').classList.remove('hidden');
-    lucide.createIcons();
-}
-
-function payClientDebt(clientId) {
-    const debtTransactions = db.transactions.filter(t => t.clientId === clientId && t.isPending);
-    if (debtTransactions.length === 0) return;
-
-    const total = debtTransactions.reduce((sum, t) => sum + t.amount, 0);
-    const client = db.clients.find(c => c.id === clientId);
-
-    if (confirm(`Confirmar o recebimento de ${fmtMoney(total)} referente ao fiado de ${client.name}?`)) {
-        debtTransactions.forEach(t => {
-            t.isPending = false;
-            // Opcional: Atualizar a descrição ou manter histórico
-        });
-        save();
-        showNotification('Dívida quitada com sucesso!', 'success');
-        openClientDetails(clientId); // Recarregar modal de detalhes
-        renderClients(); // Recarregar lista (para remover badge de fiado)
-        renderDashboard(); // Atualizar faturamento se necessário
-    }
-}
 function updateApptValue() {
     const sel = document.getElementById('ap-service');
     const price = parseFloat(sel.options[sel.selectedIndex]?.getAttribute('data-price')) || 0;
@@ -1341,10 +1323,30 @@ function submitAppt(e) {
         alert('Por favor, preencha todos os campos corretamente.');
         return;
     }
+
+    // Validar conflito de horários (mesmo barbeiro, data, horário e não cancelado, ignorando o próprio agendamento)
+    const hasConflict = db.appointments.some(a => {
+        if (id && a.id === id) return false;
+        return a.date === date && a.time === time && a.proId === proId && a.status !== 'canceled';
+    });
+
+    if (hasConflict) {
+        showNotification('Horário indisponível! Já existe um agendamento para este barbeiro nesse horário.', 'error');
+        return;
+    }
     
     // Garantir que o cliente exista no banco de dados e obter o ID
     const clientId = findOrCreateClient(client);
     updateClientsDatalist(); // Atualizar lista se for um cliente novo
+
+    // Preservar status existente se for edição
+    let apptStatus = 'pending';
+    if (id) {
+        const existingAppt = db.appointments.find(a => a.id === id);
+        if (existingAppt) {
+            apptStatus = existingAppt.status;
+        }
+    }
 
     const appointment = {
         id: id || getID(),
@@ -1357,7 +1359,7 @@ function submitAppt(e) {
         proId,
         proName: professional.name,
         price: service.price,
-        status: 'pending',
+        status: apptStatus,
         commissionPct: professional.commission,
         commissionVal: service.price * (professional.commission / 100)
     };
@@ -1615,6 +1617,20 @@ function removeCheckoutApptProduct(index) {
 
 function confirmCheckoutAppt(paymentType) {
     const appt = currentCheckoutAppt;
+
+    // Validar se o checkout já foi feito (idempotência)
+    const existingTx = db.transactions.find(t => t.appointmentId === appt.id && t.type === 'income');
+    if (existingTx) {
+        showNotification('Este agendamento já foi finalizado anteriormente!', 'warning');
+        closeModal('checkoutApptModal');
+        appt.status = 'done';
+        save();
+        if (document.getElementById('view-agenda') && !document.getElementById('view-agenda').classList.contains('hide')) {
+            renderAgenda();
+        }
+        return;
+    }
+
     appt.status = 'done';
 
     if (paymentType === 'pending' && (!appt.client || !appt.client.trim())) {
@@ -1637,7 +1653,7 @@ function confirmCheckoutAppt(paymentType) {
             invItem.quantity--;
             db.stockMovements.push({
                 id: getID(),
-                date: new Date().toISOString().split('T')[0],
+                date: getLocalIsoDate(),
                 productId: p.id,
                 productName: p.name,
                 type: 'out',
@@ -1662,7 +1678,8 @@ function confirmCheckoutAppt(paymentType) {
         clientId: clientId,
         commission: (appt.commissionVal || 0) + totalProductCommission,
         isPending: isPending,
-        productsOrigin: currentCheckoutProducts.map(p => ({id: p.id, name: p.name, price: p.price}))
+        productsOrigin: currentCheckoutProducts.map(p => ({id: p.id, name: p.name, price: p.price})),
+        appointmentId: appt.id
     };
     
     db.transactions.push(t);
@@ -1745,21 +1762,13 @@ function generateReport() {
         return;
     }
 
-    const startDate = new Date(start + 'T00:00:00');
-    const endDate = new Date(end + 'T23:59:59');
-
     let income = 0;
     let expense = 0;
     let commission = 0;
     const serviceCounts = {};
 
     db.transactions.forEach(t => {
-        const tDate = new Date(t.date); // Presumes ISO string or valid date
-        if (isNaN(tDate.getTime())) return; // Skip invalid dates
-
-        // Ajuste simples de data (comparação de string também funcionaria se ISO)
-        // Mas objeto Date é mais seguro para ranges
-        if (tDate >= startDate && tDate <= endDate) {
+        if (isDateInRange(t.date, start, end)) {
             const val = parseFloat(t.amount || 0);
 
             if (t.type === 'income' && !t.isPending) {
@@ -1767,8 +1776,18 @@ function generateReport() {
                 commission += parseFloat(t.commission || 0);
 
                 // Track services
-                if (t.description && t.description.startsWith('Serviço:')) {
-                    const svcName = t.description.split(' - ')[0].replace('Serviço: ', '').trim();
+                let svcName = '';
+                if (t.serviceId) {
+                    const svc = db.services.find(s => s.id === t.serviceId);
+                    if (svc) {
+                        svcName = svc.name;
+                    }
+                }
+                if (!svcName && t.description && t.description.startsWith('Serviço:')) {
+                    svcName = t.description.split(' - ')[0].replace('Serviço: ', '').trim();
+                    svcName = svcName.split(' + ')[0].trim();
+                }
+                if (svcName) {
                     serviceCounts[svcName] = (serviceCounts[svcName] || 0) + 1;
                 }
 
@@ -1803,18 +1822,16 @@ function generateReport() {
 }
 
 function generateMonthReport() {
-    const date = new Date();
-    const firstDay = new Date(date.getFullYear(), date.getMonth(), 1);
-    const lastDay = new Date(date.getFullYear(), date.getMonth() + 1, 0);
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    const daysInMonth = new Date(y, now.getMonth() + 1, 0).getDate();
 
-    // Formato YYYY-MM-DD local
-    const toLocalISO = (d) => {
-        const offset = d.getTimezoneOffset() * 60000;
-        return new Date(d.getTime() - offset).toISOString().split('T')[0];
-    };
+    const startStr = `${y}-${m}-01`;
+    const endStr = `${y}-${m}-${String(daysInMonth).padStart(2, '0')}`;
 
-    document.getElementById('rep-start').value = toLocalISO(firstDay);
-    document.getElementById('rep-end').value = toLocalISO(lastDay);
+    document.getElementById('rep-start').value = startStr;
+    document.getElementById('rep-end').value = endStr;
 
     generateReport();
 }
@@ -2259,9 +2276,8 @@ function factoryReset() {
     }
 }
 function clearFinanceFilters() {
-    const firstDay = new Date();
-    firstDay.setDate(1);
-    const firstDayStr = firstDay.toISOString().split('T')[0];
+    const nowObj = new Date();
+    const firstDayStr = `${nowObj.getFullYear()}-${String(nowObj.getMonth() + 1).padStart(2, '0')}-01`;
     const today = getLocalIsoDate();
     document.getElementById('search-term').value = '';
     document.getElementById('filter-type').value = 'all';
@@ -2506,11 +2522,7 @@ function getInventoryStats() {
     const totalProducts = db.inventory.length;
     const totalValue = db.inventory.reduce((sum, p) => sum + (p.quantity * p.unitPrice), 0);
     const lowStock = db.inventory.filter(p => p.quantity <= p.minQuantity).length;
-    const today = new Date();
-    const movementsMonth = db.stockMovements.filter(m => {
-        const mDate = new Date(m.date);
-        return mDate.getMonth() === today.getMonth() && mDate.getFullYear() === today.getFullYear();
-    }).length;
+    const movementsMonth = db.stockMovements.filter(m => isSameLocalMonth(m.date, new Date())).length;
     return { totalProducts, totalValue, lowStock, movementsMonth };
 }
 
@@ -2611,7 +2623,7 @@ function renderRecentMovements() {
     const container = document.getElementById('inv-movements-list');
     const emptyEl = document.getElementById('inv-movements-empty');
     const recent = [...db.stockMovements]
-        .sort((a, b) => new Date(b.date) - new Date(a.date))
+        .sort((a, b) => compareIsoDate(b.date, a.date))
         .slice(0, 15);
 
     if (recent.length === 0) {

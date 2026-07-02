@@ -152,7 +152,7 @@ function finalizePDVSale() {
                 invItem.quantity--;
                 db.stockMovements.push({
                     id: getID(),
-                    date: new Date().toISOString().split('T')[0],
+                    date: getLocalIsoDate(),
                     productId: p.id,
                     productName: p.name,
                     type: 'out',
@@ -175,7 +175,7 @@ function finalizePDVSale() {
             type: 'income',
             description: `PDV [${proLabel}]: ${itemNames}`,
             amount: total,
-            date: new Date().toISOString().split('T')[0],
+            date: getLocalIsoDate(),
             proId: proId,
             proName: proName,
             serviceId: 'pdv',
@@ -199,44 +199,4 @@ function finalizePDVSale() {
     }
 }
 
-// CLIENT CRM (DEBT / FIADO LOGIC)
-function getClientDebtTotal(clientId) {
-    const pendingTrans = db.transactions.filter(t => t.clientId === clientId && t.isPending);
-    return pendingTrans.reduce((acc, t) => acc + t.amount, 0);
-}
-
-// Overwrite populateClientTable for view-clients if needed to show badge
-function openClientDebtCard(clientId) {
-    const pendingTrans = db.transactions.filter(t => t.clientId === clientId && t.isPending);
-    const amount = pendingTrans.reduce((acc, t) => acc + t.amount, 0);
-    
-    const debtSect = document.getElementById('cd-debt-section');
-    if(amount > 0) {
-        debtSect.classList.remove('hidden');
-        document.getElementById('cd-debt-amount').textContent = `R$ ${amount.toFixed(2)}`;
-        document.getElementById('cd-btn-pay-debt').onclick = () => payClientDebt(clientId);
-    } else {
-        debtSect.classList.add('hidden');
-    }
-}
-
-function payClientDebt(clientId) {
-    if(!confirm('O cliente está acertando TODA a dívida ativa em aberto?')) return;
-    
-    const pendingTrans = db.transactions.filter(t => t.clientId === clientId && t.isPending);
-    const today = new Date().toISOString().split('T')[0];
-    
-    pendingTrans.forEach(t => {
-        t.isPending = false; // Quita a transação original liberando-a para o financeiro
-        t.date = today; // Move a transação para o dia atual (data real do acerto do caixa e da comissão)
-    });
-
-    save();
-    showNotification('Dívida quitada! Baixa gerada no caixa de hoje e comissões liberadas.', 'success');
-    closeModal('clientDetailsModal');
-    renderDashboard();
-    renderClients();
-}
-
-// openClientDebtCard agora é chamado diretamente dentro de openClientDetails (app_core.js)
-// Override removido — integração feita na fonte para evitar dependência de ordem de carregamento
+// Os métodos de CRM e Fiado redundantes foram removidos e consolidados em app_core.js

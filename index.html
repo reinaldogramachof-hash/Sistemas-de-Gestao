@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Servidor - Status</title>
+    <style>
+        body {
+            background-color: #000;
+            color: #444;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            user-select: none;
+        }
+
+        .status-container {
+            text-align: center;
+        }
+
+        .server-title {
+            font-size: 14px;
+            letter-spacing: 5px;
+            text-transform: uppercase;
+            font-weight: 300;
+            margin-bottom: 20px;
+            color: #222;
+        }
+
+        .indicator-box {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            justify-content: center;
+        }
+
+        .pulse {
+            width: 8px;
+            height: 8px;
+            background-color: #10b981;
+            border-radius: 50%;
+            box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4);
+            animation: pulse-green 2s infinite;
+        }
+
+        .status-text {
+            font-size: 10px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: #10b981;
+        }
+
+        @keyframes pulse-green {
+            0% {
+                transform: scale(0.95);
+                box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+            }
+
+            70% {
+                transform: scale(1);
+                box-shadow: 0 0 0 6px rgba(16, 185, 129, 0);
+            }
+
+            100% {
+                transform: scale(0.95);
+                box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+            }
+        }
+
+        /* Gatilho Oculto Direita (Admin Geral) */
+        #hidden-trigger {
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 80px;
+            height: 80px;
+            background: transparent;
+            cursor: default;
+            z-index: 999;
+        }
+
+        /* Gatilho Oculto Esquerda (Admin Vendas) */
+        #hidden-trigger-sales {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 80px;
+            height: 80px;
+            background: transparent;
+            cursor: default;
+            z-index: 999;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Area de clique secreto no canto superior direito -->
+    <div id="hidden-trigger" title="Acesso Restrito Admin"></div>
+    <!-- Area de clique secreto no canto superior esquerdo -->
+    <div id="hidden-trigger-sales" title="Acesso Admin Vendas"></div>
+
+    <div class="status-container">
+        <h1 class="server-title">Servidor Gestão de Sistemas</h1>
+        <div class="indicator-box">
+            <div class="pulse"></div>
+            <span class="status-text">On-line</span>
+        </div>
+    </div>
+
+    <script>
+        // Redirecionamento com dois cliques campo direito (Admin Geral)
+        document.getElementById('hidden-trigger').addEventListener('dblclick', function () {
+            window.location.href = 'admin/index.html';
+        });
+
+        // Redirecionamento com dois cliques campo esquerdo (Admin Vendas)
+        document.getElementById('hidden-trigger-sales').addEventListener('dblclick', function () {
+            window.location.href = 'admin-vendas/index.html';
+        });
+
+        // Alternativa para mobile/touch (dois toques rápidos)
+        let lastClick = 0;
+        let lastClickSales = 0;
+
+        document.getElementById('hidden-trigger').addEventListener('touchstart', function (e) {
+            let date = new Date().getTime();
+            if (date - lastClick < 300) {
+                window.location.href = 'admin/index.html';
+            }
+            lastClick = date;
+        });
+
+        document.getElementById('hidden-trigger-sales').addEventListener('touchstart', function (e) {
+            let date = new Date().getTime();
+            if (date - lastClickSales < 300) {
+                window.location.href = 'admin-vendas/index.html';
+            }
+            lastClickSales = date;
+        });
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,1193 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painel de Gestão - Controle de Licenças</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        .glass {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+        }
+
+        .fade-in {
+            animation: fadeIn 0.3s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+
+            to {
+                opacity: 1;
+            }
+        }
+    </style>
+</head>
+
+<body class="bg-slate-100 min-h-screen text-slate-800 font-sans">
+
+    <!-- LOGIN MODAL -->
+    <div id="login-modal"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-8 text-center">
+            <div class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                <i data-lucide="shield-check" class="w-8 h-8 text-blue-600"></i>
+            </div>
+            <h2 class="text-2xl font-bold text-slate-800 mb-2">Acesso Restrito</h2>
+            <p class="text-slate-500 text-sm mb-6">Painel de Gestão - Acesso Restrito</p>
+
+            <form onsubmit="doLogin(event)" class="space-y-4">
+                <input type="password" id="admin-pass" placeholder="Senha de Admin"
+                    class="w-full border border-slate-300 rounded-lg px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all font-mono text-center">
+                <button type="submit"
+                    class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg transition-all shadow-lg hover:shadow-blue-200">
+                    Entrar
+                </button>
+            </form>
+            <p id="login-msg" class="text-red-500 text-xs mt-4 min-h-[1.5em]"></p>
+        </div>
+    </div>
+
+    <!-- MAIN APP -->
+    <div id="admin-panel" class="hidden flex flex-col min-h-screen">
+        <!-- Sidebar/Nav -->
+        <!-- Sidebar/Nav -->
+        <nav class="bg-white border-b border-slate-200 px-6 py-4 flex justify-between items-center sticky top-0 z-40">
+            <div class="flex items-center gap-3">
+                <div class="bg-blue-600 text-white p-2 rounded-lg">
+                    <i data-lucide="layout-dashboard" class="w-5 h-5"></i>
+                </div>
+                <h1 class="font-bold text-xl tracking-tight">Painel de Gestão</h1>
+                <div id="status-connection" class="text-[10px] font-bold uppercase tracking-tighter"></div>
+            </div>
+            <div class="flex items-center gap-6">
+                <div class="hidden md:flex gap-1 text-sm font-medium text-slate-500">
+                    <button onclick="switchTab('dashboard')"
+                        class="px-3 py-2 rounded-lg hover:bg-slate-50 text-blue-600 bg-blue-50 nav-btn"
+                        data-tab="dashboard">Dashboard</button>
+                    <button onclick="switchTab('licenses')" class="px-3 py-2 rounded-lg hover:bg-slate-50 nav-btn"
+                        data-tab="licenses">Licenças</button>
+                    <button onclick="switchTab('receipts')" class="px-3 py-2 rounded-lg hover:bg-slate-50 nav-btn"
+                        data-tab="receipts">Recibos Digitais</button>
+                    <button onclick="switchTab('logs')" class="px-3 py-2 rounded-lg hover:bg-slate-50 nav-btn"
+                        data-tab="logs">Logs do Sistema</button>
+                    <button onclick="switchTab('notifications')" class="px-3 py-2 rounded-lg hover:bg-slate-50 nav-btn"
+                        data-tab="notifications">Notificações</button>
+                </div>
+                <button onclick="downloadBackup()" class="text-slate-400 hover:text-blue-600 transition-colors"
+                    title="Fazer Backup do Banco de Dados">
+                    <i data-lucide="database" class="w-5 h-5"></i>
+                </button>
+                <button onclick="logout()" class="text-slate-400 hover:text-red-500 transition-colors" title="Sair">
+                    <i data-lucide="log-out" class="w-5 h-5"></i>
+                </button>
+            </div>
+        </nav>
+
+        <!-- Content -->
+        <main class="flex-1 p-6 max-w-7xl mx-auto w-full">
+
+            <!-- DASHBOARD TAB -->
+            <div id="tab-dashboard" class="tab-content fade-in">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                    <!-- Stats Cards -->
+                    <div
+                        class="bg-white p-8 rounded-2xl border border-slate-100 shadow-lg group hover:scale-[1.02] transition-transform">
+                        <div class="flex justify-between items-start mb-4">
+                            <div class="p-3 bg-green-100 text-green-600 rounded-xl">
+                                <i data-lucide="trending-up" class="w-6 h-6"></i>
+                            </div>
+                        </div>
+                        <p class="text-sm font-bold text-slate-400 uppercase tracking-wider">Total Vendido</p>
+                        <h3 class="text-3xl font-black text-slate-800 mt-2" id="stat-revenue">R$ 0,00</h3>
+                    </div>
+
+                    <div
+                        class="bg-white p-8 rounded-2xl border border-slate-100 shadow-lg group hover:scale-[1.02] transition-transform">
+                        <div class="flex justify-between items-start mb-4">
+                            <div class="p-3 bg-blue-100 text-blue-600 rounded-xl">
+                                <i data-lucide="shield-check" class="w-6 h-6"></i>
+                            </div>
+                        </div>
+                        <p class="text-sm font-bold text-slate-400 uppercase tracking-wider">Licenças Ativas</p>
+                        <h3 class="text-3xl font-black text-blue-600 mt-2" id="stat-active">0</h3>
+                    </div>
+
+                    <div
+                        class="bg-white p-8 rounded-2xl border border-slate-100 shadow-lg group hover:scale-[1.02] transition-transform">
+                        <div class="flex justify-between items-start mb-4">
+                            <div class="p-3 bg-amber-100 text-amber-600 rounded-xl">
+                                <i data-lucide="clock" class="w-6 h-6"></i>
+                            </div>
+                        </div>
+                        <p class="text-sm font-bold text-slate-400 uppercase tracking-wider">Aguardando Ativação</p>
+                        <h3 class="text-3xl font-black text-amber-500 mt-2" id="stat-pending">0</h3>
+                    </div>
+                </div>
+
+                <div class="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+                    <h3 class="font-bold text-lg mb-4">Top Produtos</h3>
+                    <div id="top-products-list" class="space-y-3">
+                        <!-- Dynamic -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- LICENSES TAB -->
+            <div id="tab-licenses" class="tab-content hidden fade-in">
+                <div class="flex justify-between items-center mb-6">
+                    <div class="flex items-center">
+                        <h2 class="text-2xl font-bold">Gerenciar Licenças</h2>
+                        <button onclick="openGenerateModal()"
+                            class="bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-green-700 ml-4 flex items-center gap-2">
+                            <i data-lucide="plus-circle" class="w-4 h-4"></i> Nova Licença
+                        </button>
+                    </div>
+                    <div class="flex gap-2">
+                        <input type="text" id="search-lic" placeholder="Buscar cliente ou chave..."
+                            class="border rounded-lg px-4 py-2 text-sm w-64 focus:ring-2 focus:ring-blue-500 outline-none">
+                        <button onclick="loadLicenses()"
+                            class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-blue-700">
+                            <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm text-left">
+                            <thead class="bg-slate-50 text-slate-500 font-bold uppercase text-xs">
+                                <tr>
+                                    <th class="px-6 py-4">Data</th>
+                                    <th class="px-6 py-4">Cliente</th>
+                                    <th class="px-6 py-4">Produto</th>
+                                    <th class="px-6 py-4">Licença</th>
+                                    <th class="px-6 py-4">Status</th>
+                                    <th class="px-6 py-4">Dispositivo</th>
+                                    <th class="px-6 py-4">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="licenses-table" class="divide-y divide-slate-100">
+                                <!-- Dynamic -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- RECEIPTS TAB -->
+            <div id="tab-receipts" class="tab-content hidden fade-in">
+                <div class="flex justify-between items-center mb-6">
+                    <div>
+                        <h2 class="text-2xl font-bold">Recibos Digitais (Auditoria)</h2>
+                        <p class="text-slate-500 text-sm">Provas de entrega e aceite de termos.</p>
+                    </div>
+                    <button onclick="loadReceipts()"
+                        class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-blue-700">
+                        <i data-lucide="refresh-cw" class="w-4 h-4"></i> Atualizar
+                    </button>
+                </div>
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm text-left">
+                            <thead class="bg-slate-50 text-slate-500 font-bold uppercase text-xs">
+                                <tr>
+                                    <th class="px-6 py-4">Data/Hora</th>
+                                    <th class="px-6 py-4">IP</th>
+                                    <th class="px-6 py-4">Cliente (Licença)</th>
+                                    <th class="px-6 py-4">Declaração</th>
+                                </tr>
+                            </thead>
+                            <tbody id="receipts-table" class="divide-y divide-slate-100">
+                                <!-- Dynamic -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- LOGS TAB -->
+            <div id="tab-logs" class="tab-content hidden fade-in">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-2xl font-bold">Logs de Auditoria</h2>
+                    <button onclick="loadLogs()"
+                        class="bg-slate-800 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-slate-900 flex items-center gap-2">
+                        <i data-lucide="refresh-cw" class="w-4 h-4"></i> Atualizar Logs
+                    </button>
+                </div>
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-xs text-left">
+                            <thead class="bg-slate-900 text-slate-400 font-bold uppercase">
+                                <tr>
+                                    <th class="px-6 py-3">Timestamp</th>
+                                    <th class="px-6 py-3">Tipo</th>
+                                    <th class="px-6 py-3">Evento</th>
+                                    <th class="px-6 py-3">IP</th>
+                                </tr>
+                            </thead>
+                            <tbody id="logs-table" class="divide-y divide-slate-100 font-mono">
+                                <!-- Dynamic -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- NOTIFICATIONS TAB -->
+            <div id="tab-notifications" class="tab-content hidden fade-in">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-2xl font-bold">Central de Notificações</h2>
+                    <button onclick="openNotifModal()"
+                        class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-blue-700 flex items-center gap-2">
+                        <i data-lucide="bell-plus" class="w-4 h-4"></i> Nova Notificação
+                    </button>
+                </div>
+                <div class="space-y-4" id="notifications-list">
+                    <!-- Dynamic -->
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- GENERATE LICENSE MODAL -->
+    <div id="generate-modal"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm hidden p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+            <div class="bg-slate-50 px-6 py-4 border-b border-slate-100 flex justify-between items-center">
+                <h3 class="font-bold text-lg text-slate-800">Gerar Nova Licença</h3>
+                <button onclick="document.getElementById('generate-modal').classList.add('hidden')"
+                    class="text-slate-400 hover:text-red-500">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+            <div class="p-6 space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Produto</label>
+                    <select id="gen-product"
+                        class="w-full border border-slate-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="Gestão Barbearia" selected>Gestão Barbearia</option>
+                        <option value="Gestão Pizzaria">Gestão Pizzaria</option>
+                        <option value="Gestão PDV">Gestão PDV</option>
+                        <option value="Gestão Aluguéis">Gestão Aluguéis</option>
+                        <option value="Gestão Artesanato">Gestão Artesanato</option>
+                        <option value="Gestão Assistência">Gestão Assistência</option>
+                        <option value="Gestão Beleza">Gestão Beleza</option>
+                        <option value="Gestão Card">Gestão Card</option>
+                        <option value="Gestão Checklist">Gestão Checklist</option>
+                        <option value="Gestão Controle">Gestão Controle</option>
+                        <option value="Gestão Delivery">Gestão Delivery</option>
+                        <option value="Gestão Distribuidora">Gestão Distribuidora</option>
+                        <option value="Gestão Driver">Gestão Driver</option>
+                        <option value="Gestão Entregas">Gestão Entregas</option>
+                        <option value="Gestão Estoque">Gestão Estoque</option>
+                        <option value="Gestão Feirante">Gestão Feirante</option>
+                        <option value="Gestão Finanças">Gestão Finanças</option>
+                        <option value="Gestão Fit">Gestão Fit</option>
+                        <option value="Gestão Frota">Gestão Frota</option>
+                        <option value="Gestão Hamburgueria">Gestão Hamburgueria</option>
+                        <option value="Gestão Marmita">Gestão Marmita</option>
+                        <option value="Gestão Motoboy">Gestão Motoboy</option>
+                        <option value="Gestão Motorista">Gestão Motorista</option>
+                        <option value="Gestão Nutri">Gestão Nutri</option>
+                        <option value="Gestão Obras">Gestão Obras</option>
+                        <option value="Gestão Odonto">Gestão Odonto</option>
+                        <option value="Gestão Orçamentos">Gestão Orçamentos</option>
+                        <option value="Gestão Sorveteria">Gestão Sorveteria</option>
+                        <option value="Gestão Terapia">Gestão Terapia</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Cliente (Opcional)</label>
+                    <input type="text" id="gen-client" placeholder="Nome ou Email do Cliente"
+                        class="w-full border border-slate-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Preço (R$)</label>
+                    <input type="number" id="gen-price" value="97.00" step="0.01"
+                        class="w-full border border-slate-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+
+                <div class="bg-orange-50 p-3 rounded-lg border border-orange-100 space-y-2">
+                    <div class="flex items-center gap-2">
+                        <input type="checkbox" id="gen-trial" class="w-4 h-4 text-orange-600 rounded focus:ring-orange-500" onchange="toggleTrialDays()">
+                        <div>
+                            <label for="gen-trial" class="block text-sm font-bold text-slate-700">Licença de Teste (Trial)</label>
+                            <p class="text-xs text-slate-500">Expira automaticamente após o período definido abaixo.</p>
+                        </div>
+                    </div>
+                    <div id="trial-days-wrapper" class="hidden flex items-center gap-2 pt-1">
+                        <label class="text-xs font-bold text-slate-500 uppercase whitespace-nowrap">Duração (dias):</label>
+                        <input type="number" id="gen-trial-days" value="3" min="1" max="30"
+                            class="w-20 border border-orange-200 rounded-lg px-2 py-1 text-sm text-center outline-none focus:ring-2 focus:ring-orange-400 bg-white">
+                        <span class="text-xs text-slate-400">Ex: 3 = 72h, 1 = 24h</span>
+                    </div>
+                </div>
+
+                <div class="pt-2">
+                    <button onclick="confirmGenerate()"
+                        class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-lg shadow-lg hover:shadow-green-200 transition-all">
+                        Gerar Agora
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- DELIVERY SUCCESS MODAL -->
+    <div id="delivery-modal"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm hidden p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]">
+            <div class="bg-green-600 px-6 py-4 flex justify-between items-center">
+                <h3 class="font-bold text-lg text-white flex items-center gap-2">
+                    <i data-lucide="check-circle" class="w-6 h-6"></i> Venda Processada!
+                </h3>
+                <button onclick="document.getElementById('delivery-modal').classList.add('hidden')"
+                    class="text-white hover:text-green-100">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <div class="p-6 space-y-4 flex-1 overflow-y-auto">
+                <p class="text-sm text-slate-500">Copie a mensagem abaixo e envie no chat do Mercado Livre:</p>
+
+                <textarea id="delivery-text" readonly
+                    class="w-full h-64 p-4 bg-slate-50 border border-slate-200 rounded-lg text-sm font-mono text-slate-700 focus:outline-none resize-none"></textarea>
+
+                <button onclick="copyDeliveryMessage()"
+                    class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-xl shadow-lg hover:shadow-blue-200 transition-all flex items-center justify-center gap-2 group">
+                    <i data-lucide="copy" class="w-5 h-5 group-hover:scale-110 transition-transform"></i>
+                    Copiar Mensagem Completa
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- NOTIF MODAL -->
+    <div id="notif-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm hidden p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-3xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div class="bg-slate-50 px-6 py-4 border-b border-slate-100 flex justify-between items-center">
+                <h3 class="font-bold text-lg text-slate-800">Nova Notificação</h3>
+                <button onclick="document.getElementById('notif-modal').classList.add('hidden')"
+                    class="text-slate-400 hover:text-red-500">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+            <div class="p-6 overflow-y-auto flex-1 grid md:grid-cols-2 gap-6">
+                <div class="space-y-4">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Tipo</label>
+                            <select id="notif-type" onchange="updateNotifPreview()" class="w-full border border-slate-300 rounded-lg px-3 py-2 outline-none">
+                                <option value="update">Update</option>
+                                <option value="security">Security</option>
+                                <option value="backup">Backup</option>
+                                <option value="info">Info</option>
+                                <option value="promo">Promo</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Prioridade</label>
+                            <select id="notif-priority" class="w-full border border-slate-300 rounded-lg px-3 py-2 outline-none">
+                                <option value="normal">Normal</option>
+                                <option value="high">High</option>
+                                <option value="low">Low</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Título</label>
+                        <input type="text" id="notif-title" required oninput="updateNotifPreview()" class="w-full border border-slate-300 rounded-lg px-3 py-2 outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Corpo</label>
+                        <textarea id="notif-body" required rows="2" oninput="updateNotifPreview()" class="w-full border border-slate-300 rounded-lg px-3 py-2 outline-none resize-none"></textarea>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Detalhes (Opcional)</label>
+                        <textarea id="notif-details" rows="2" class="w-full border border-slate-300 rounded-lg px-3 py-2 outline-none resize-none"></textarea>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Expira em</label>
+                            <input type="datetime-local" id="notif-expires" class="w-full border border-slate-300 rounded-lg px-3 py-2 outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Versão (Opcional)</label>
+                            <input type="text" id="notif-version" placeholder="ex: 4.2" class="w-full border border-slate-300 rounded-lg px-3 py-2 outline-none">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Sistema Alvo (Target)</label>
+                        <select id="notif-target-select" class="w-full border border-slate-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="all">🚀 Todos os Sistemas</option>
+                            <option value="" disabled>--- Sistemas Específicos ---</option>
+                            <option value="barbearia">Gestão Barbearia</option>
+                            <option value="sorveteria">Gestão Sorveteria</option>
+                            <option value="assistencia">Gestão Assistência</option>
+                            <option value="pizzaria">Gestão Pizzaria</option>
+                            <option value="hamburgueria">Gestão Hamburgueria</option>
+                            <option value="delivery">Gestão Delivery</option>
+                            <option value="marmita">Gestão Marmita</option>
+                            <option value="estoque">Gestão Estoque</option>
+                            <option value="financas">Gestão Finanças</option>
+                            <option value="beleza">Gestão Beleza</option>
+                            <option value="odonto">Gestão Odonto</option>
+                            <option value="terapia">Gestão Terapia</option>
+                            <option value="frota">Gestão Frota</option>
+                            <option value="motorista">Gestão Motorista</option>
+                            <option value="motoboy">Gestão Motoboy</option>
+                            <option value="driver">Gestão Driver</option>
+                            <option value="feirante">Gestão Feirante</option>
+                            <option value="fit">Gestão Fit</option>
+                            <option value="nutri">Gestão Nutri</option>
+                            <option value="obras">Gestão Obras</option>
+                            <option value="orcamentos">Gestão Orçamentos</option>
+                            <option value="artesanato">Gestão Artesanato</option>
+                            <option value="alugueis">Gestão Aluguéis</option>
+                            <option value="controle">Gestão Controle</option>
+                            <option value="checklist">Gestão Checklist</option>
+                            <option value="card">Gestão Card</option>
+                            <option value="entregas">Gestão Entregas</option>
+                            <option value="distribuidora">Gestão Distribuidora</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="bg-slate-50 p-6 rounded-2xl border border-slate-200 flex flex-col items-center">
+                    <h4 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4 w-full text-center">Preview em Tempo Real</h4>
+                    
+                    <div class="w-full max-w-sm bg-white rounded-2xl shadow-lg border border-slate-100 overflow-hidden relative">
+                        <div id="preview-badge" class="absolute top-4 right-4 w-2 h-2 rounded-full bg-blue-500"></div>
+                        <div class="p-5">
+                            <div class="flex items-center gap-3 mb-3">
+                                <div id="preview-icon-container" class="p-2 bg-blue-50 text-blue-600 rounded-lg">
+                                    <i id="preview-icon" data-lucide="bell" class="w-5 h-5"></i>
+                                </div>
+                                <div>
+                                    <h4 id="preview-title" class="font-bold text-slate-800 text-base leading-tight">Título da Notificação</h4>
+                                    <span class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Agora mesmo</span>
+                                </div>
+                            </div>
+                            <p id="preview-body" class="text-slate-600 text-sm leading-relaxed mb-4">
+                                Este é um resumo da mensagem que o cliente verá no card...
+                            </p>
+                            <button class="w-full border border-slate-200 text-slate-600 font-bold py-2 rounded-xl text-sm hover:bg-slate-50 transition-colors">
+                                Ver Detalhes
+                            </button>
+                        </div>
+                    </div>
+
+                    <button onclick="createNotification()" class="w-full mt-auto bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-lg shadow-lg transition-all flex items-center justify-center gap-2">
+                        <i data-lucide="check" class="w-5 h-5"></i>
+                        Confirmar e Enviar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const AUTH_API = "../api_admin_auth.php";
+        const API_URL = "../api_licenca_ml.php";
+        const NOTIF_ADMIN_API = "../api_notificacoes_admin.php";
+        let AUTH_SECRET = "";
+
+        // --- CONFIGURAÇÃO DE DOMÍNIO ---
+        const BASE_URL = "https://sistemasdegestao.tech/";
+
+        // Mapeamento dos Produtos (Garante o link limpo)
+        const PRODUCT_SLUGS = {
+            'Gestão Barbearia': 'gestao-barbearia',
+            'Gestão Pizzaria': 'gestao-pizzaria',
+            'Gestão PDV': 'gestao-pdv',
+            'Gestão Aluguéis': 'gestao-alugueis',
+            'Gestão Artesanato': 'gestao-artesanato',
+            'Gestão Assistência': 'gestao-assistencia',
+            'Gestão Beleza': 'gestao-beleza',
+            'Gestão Card': 'gestao-card',
+            'Gestão Checklist': 'gestao-checklist',
+            'Gestão Controle': 'gestao-controle',
+            'Gestão Delivery': 'gestao-delivery',
+            'Gestão Distribuidora': 'gestao-distribuidora',
+            'Gestão Driver': 'gestao-driver',
+            'Gestão Entregas': 'gestao-entregas',
+            'Gestão Estoque': 'gestao-estoque',
+            'Gestão Feirante': 'gestao-feirante',
+            'Gestão Finanças': 'gestao-financas',
+            'Gestão Fit': 'gestao-fit',
+            'Gestão Frota': 'gestao-frota',
+            'Gestão Hamburgueria': 'gestao-hamburgueria',
+            'Gestão Marmita': 'gestao-marmita',
+            'Gestão Motoboy': 'gestao-motoboy',
+            'Gestão Motorista': 'gestao-motorista',
+            'Gestão Nutri': 'gestao-nutri',
+            'Gestão Obras': 'gestao-obras',
+            'Gestão Odonto': 'gestao-odonto',
+            'Gestão Orçamentos': 'gestao-orcamentos',
+            'Gestão Sorveteria': 'gestao-sorveteria',
+            'Gestão Terapia': 'gestao-terapia'
+        };
+
+        // INIT
+        document.addEventListener('DOMContentLoaded', () => {
+            lucide.createIcons();
+            const savedToken = sessionStorage.getItem('admin_token');
+            if (savedToken) {
+                AUTH_SECRET = savedToken;
+                validateAndLogin();
+            }
+
+            // Auto-Refresh Global (10s)
+            setInterval(() => {
+                if (!document.getElementById('admin-panel').classList.contains('hidden')) {
+                    loadDashboard();
+                    loadLicenses();
+                    loadReceipts();
+                    loadLogs();
+                    if (!document.getElementById('tab-notifications').classList.contains('hidden')) {
+                        loadNotifications();
+                    }
+                }
+            }, 10000);
+        });
+
+        // Valida token salvo e entra direto
+        async function validateAndLogin() {
+            try {
+                const res = await fetch(AUTH_API, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'validate', token: AUTH_SECRET })
+                });
+                const data = await res.json();
+                if (data.valid) {
+                    document.getElementById('login-modal').classList.add('hidden');
+                    document.getElementById('admin-panel').classList.remove('hidden');
+                    testConnection();
+                } else {
+                    sessionStorage.removeItem('admin_token');
+                    AUTH_SECRET = '';
+                }
+            } catch (e) {
+                sessionStorage.removeItem('admin_token');
+                AUTH_SECRET = '';
+            }
+        }
+
+        async function doLogin(e) {
+            if (e) e.preventDefault();
+            const pass = document.getElementById('admin-pass')?.value;
+            if (!pass) return;
+
+            try {
+                const res = await fetch(AUTH_API, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'login', password: pass })
+                });
+                const data = await res.json();
+
+                if (data.status === 'success' && data.token) {
+                    AUTH_SECRET = data.token;
+                    sessionStorage.setItem('admin_token', data.token);
+                    document.getElementById('login-modal').classList.add('hidden');
+                    document.getElementById('admin-panel').classList.remove('hidden');
+                    testConnection();
+                } else {
+                    document.getElementById('login-msg').innerText = 'Senha incorreta.';
+                }
+            } catch (err) {
+                document.getElementById('login-msg').innerText = 'Erro de conexão com servidor.';
+            }
+        }
+
+        async function testConnection() {
+            const statusEl = document.getElementById('status-connection');
+            statusEl.innerHTML = '<span class="text-amber-500 animate-pulse">● Conectando...</span>';
+
+            try {
+                const res = await fetch(API_URL + "?action=ping");
+                const text = await res.text();
+                try {
+                    const json = JSON.parse(text);
+                    if (json.status === 'success') {
+                        statusEl.innerHTML = '<span class="text-green-600">● Cérebro Online (V11.2)</span>';
+                        loadDashboard(); // Carrega dados se conectou
+                    }
+                } catch (e) {
+                    statusEl.innerHTML = '<span class="text-red-600">● Erro de Resposta (JSON)</span>';
+                    console.error("Resposta não é JSON:", text);
+                }
+            } catch (e) {
+                statusEl.innerHTML = '<span class="text-red-600">● Cérebro Offline</span>';
+                console.error("Erro de Rede:", e);
+            }
+        }
+
+        function logout() {
+            sessionStorage.removeItem('admin_token');
+            AUTH_SECRET = '';
+            location.reload();
+        }
+
+        async function downloadBackup() {
+            try {
+                const res = await fetch(API_URL + '?action=backup', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ secret: AUTH_SECRET, action: 'backup' })
+                });
+                if (!res.ok) { alert('Erro ao baixar backup'); return; }
+                const blob = await res.blob();
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `backup_licencas_${new Date().toISOString().slice(0, 10)}.json`;
+                a.click();
+                URL.revokeObjectURL(url);
+            } catch (e) { alert('Erro ao baixar backup'); }
+        }
+
+        // Função genérica para chamar a API
+        async function apiCall(action, payload = {}) {
+            const url = `${API_URL}?action=${action}`;
+
+            // Sempre inclui o secret no payload para as rotas que exigem
+            const body = {
+                ...payload,
+                secret: AUTH_SECRET,
+                action: action // V10.1 aceita action no body também
+            };
+
+            try {
+                const res = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                });
+
+                if (res.status === 403) return null;
+                return await res.json();
+            } catch (e) {
+                console.error("Erro API:", e);
+                return null;
+            }
+        }
+
+        // TABS LOGIC
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.getElementById('tab-' + tabId).classList.remove('hidden');
+
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                if (btn.dataset.tab === tabId) {
+                    btn.classList.add('text-blue-600', 'bg-blue-50');
+                } else {
+                    btn.classList.remove('text-blue-600', 'bg-blue-50');
+                }
+            });
+
+            if (tabId === 'dashboard') loadDashboard();
+            if (tabId === 'licenses') loadLicenses();
+            if (tabId === 'receipts') loadReceipts();
+            if (tabId === 'logs') loadLogs();
+            if (tabId === 'notifications') loadNotifications();
+        }
+
+        // DATA LOADING
+        async function loadDashboard() {
+            const data = await apiCall('dashboard_stats');
+            if (!data) return false;
+
+            // Compute Pending licenses manually if not in data, or expect it
+            const licenses = await apiCall('list');
+            const pending = licenses ? licenses.filter(l => l.status === 'pending').length : 0;
+            const active = licenses ? licenses.filter(l => l.status === 'active').length : 0;
+            const trial = licenses ? licenses.filter(l => l.type === 'trial' || l.is_trial).length : 0;
+
+            const revenue = licenses ? licenses.filter(l => l.type !== 'trial').reduce((sum, l) => sum + (l.price || 0), 0) : 0;
+
+            document.getElementById('stat-revenue').innerText = fmtMoney(revenue);
+            document.getElementById('stat-active').innerText = active;
+            document.getElementById('stat-pending').innerText = pending + trial; // Pendentes + Trial contam
+
+            const topProd = document.getElementById('top-products-list');
+            topProd.innerHTML = Object.entries(data.top_products || {}).map(([name, count]) => `
+                <div class="flex justify-between items-center p-3 bg-slate-50 rounded-lg">
+                    <span class="font-medium">${name}</span>
+                    <span class="bg-blue-100 text-blue-800 text-xs font-bold px-2 py-1 rounded-full">${count} ativos</span>
+                </div>
+            `).join('');
+
+            return true;
+        }
+
+        async function loadLicenses() {
+            const list = await apiCall('list');
+            if (!list) return;
+
+            const term = document.getElementById('search-lic').value.toLowerCase();
+            const filtered = list.filter(l =>
+                (l.client && l.client.toLowerCase().includes(term)) ||
+                (l.key && l.key.toLowerCase().includes(term))
+            );
+
+            const tbody = document.getElementById('licenses-table');
+            tbody.innerHTML = filtered.map((l, index) => {
+                let badgeClass = '';
+                let statusText = '';
+                let isExpired = false;
+
+                // Logic for Badge
+                if (l.status === 'active') {
+                    // Check if trial active
+                    if (l.is_trial || l.type === 'trial') {
+                        statusText = 'TESTE (ATIVO)';
+                        badgeClass = 'bg-blue-100 text-blue-700 border border-blue-200';
+
+                        if (l.expiration_date) {
+                            const exp = new Date(l.expiration_date);
+                            if (new Date() > exp) {
+                                statusText = 'TESTE (EXPIRADO)';
+                                badgeClass = 'bg-slate-200 text-slate-500 border border-slate-300';
+                                isExpired = true;
+                            }
+                        }
+                    } else {
+                        statusText = 'ATIVO';
+                        badgeClass = 'bg-green-100 text-green-700 border border-green-200';
+                    }
+                } else if (l.status === 'blocked') {
+                    statusText = 'BLOQUEADO';
+                    badgeClass = 'bg-red-100 text-red-700 border border-red-200';
+                } else {
+                    statusText = 'PENDENTE';
+                    badgeClass = 'bg-amber-100 text-amber-700 border border-amber-200';
+                    if (l.is_trial || l.type === 'trial') statusText = 'TESTE (PENDENTE)';
+                }
+
+                return `
+                <tr class="transition-colors ${index % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'} hover:bg-blue-50/30">
+                    <td class="px-6 py-4 font-mono text-[11px] text-slate-400">
+                        ${l.created_at?.substring(0, 16).replace('T', ' ')}
+                        ${l.expiration_date ? `<div class="text-[9px] text-red-400 font-bold mt-1">Exp: ${l.expiration_date.substring(0, 16)}</div>` : ''}
+                    </td>
+                    <td class="px-6 py-4">
+                        <div class="font-bold text-slate-800">${l.client || 'Mercado Livre'}</div>
+                        <div class="text-[10px] text-slate-400 uppercase tracking-tighter">${l.type || 'venda'} ${l.is_trial ? '⚡' : ''}</div>
+                        ${l.email_activation ? `<div class="text-[10px] text-blue-600 font-bold mt-1" title="Email de Ativação">📧 ${l.email_activation}</div>` : ''}
+                    </td>
+                    <td class="px-6 py-4 text-slate-600 font-medium">${l.product || 'N/A'}</td>
+                    <td class="px-6 py-4 font-mono text-[11px] text-blue-600 bg-blue-50/50 rounded-md py-1 px-2 border border-blue-100/50">${l.key.substring(0, 18)}...</td>
+                    <td class="px-6 py-4">
+                        <span class="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${badgeClass}">
+                            ${statusText}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 font-mono text-[10px] text-slate-400">
+                        ${l.device_id ? `<span title="${l.device_id}" class="bg-slate-100 px-2 py-1 rounded border border-slate-200 font-bold text-slate-600">${l.device_id.substring(0, 10)}...</span>` : '<span class="text-slate-300 italic">Disponível</span>'}
+                    </td>
+                    <td class="px-6 py-4">
+                        <div class="flex gap-2">
+                            <button onclick="copyToClip('${l.key}')" class="p-2 bg-slate-100 text-slate-600 hover:bg-blue-600 hover:text-white rounded-lg transition-all shadow-sm" title="Copiar Chave">
+                                <i data-lucide="copy" class="w-4 h-4"></i>
+                            </button>
+                            ${(l.is_trial || l.type === 'trial') && l.status !== 'blocked' ?
+                        `<button onclick="convertTrial('${l.key}')" class="p-2 bg-purple-50 text-purple-600 hover:bg-purple-600 hover:text-white rounded-lg transition-all shadow-sm" title="Converter para Vitalício">
+                                <i data-lucide="gem" class="w-4 h-4"></i>
+                            </button>` : ''}
+                            ${l.status !== 'blocked' ?
+                        `<button onclick="blockLicense('${l.key}')" class="p-2 bg-red-50 text-red-600 hover:bg-red-600 hover:text-white rounded-lg transition-all shadow-sm" title="Bloquear Acesso">
+                                <i data-lucide="ban" class="w-4 h-4"></i>
+                            </button>` :
+                        `<button onclick="unblockLicense('${l.key}')" class="p-2 bg-green-50 text-green-600 hover:bg-green-600 hover:text-white rounded-lg transition-all shadow-sm" title="Desbloquear Acesso">
+                                <i data-lucide="check" class="w-4 h-4"></i>
+                            </button>`
+                    }
+                            ${l.device_id ? `<button onclick="resetDevice('${l.key}')" class="p-2 bg-amber-50 text-amber-600 hover:bg-amber-600 hover:text-white rounded-lg transition-all shadow-sm" title="Resetar Dispositivo">
+                                <i data-lucide="smartphone-off" class="w-4 h-4"></i>
+                            </button>` : ''}
+                        </div>
+                    </td>
+                </tr>
+            `}).join('');
+            lucide.createIcons();
+        }
+
+        async function loadReceipts() {
+            const list = await apiCall('get_receipts');
+            if (!list) return;
+
+            const tbody = document.getElementById('receipts-table');
+            tbody.innerHTML = list.map(r => `
+                <tr class="hover:bg-slate-50 transition-colors">
+                    <td class="px-6 py-4 font-mono text-xs text-slate-500">${r.timestamp}</td>
+                    <td class="px-6 py-4 font-mono text-xs">${r.ip}</td>
+                    <td class="px-6 py-4">
+                        <div class="text-sm font-bold text-slate-800">${r.client_email}</div>
+                        <div class="text-xs font-mono text-slate-400">${r.license_key}</div>
+                    </td>
+                    <td class="px-6 py-4 text-xs italic text-slate-600 max-w-xs truncate" title="${r.confirmation_text}">
+                        ${r.confirmation_text}
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        async function loadLogs() {
+            const res = await apiCall('read_logs');
+            if (!res) return;
+
+            const tbody = document.getElementById('logs-table');
+            const logs = [...res.logs].reverse(); // Reverse for most recent first
+
+            tbody.innerHTML = logs.map(l => `
+                <tr class="hover:bg-slate-50">
+                    <td class="px-6 py-3 text-slate-500">${l.timestamp}</td>
+                    <td class="px-6 py-3">
+                        <span class="px-2 py-1 rounded text-[10px] font-bold uppercase ${l.type === 'error' ? 'bg-red-100 text-red-700' : (l.type === 'warning' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700')}">
+                            ${l.type}
+                        </span>
+                    </td>
+                    <td class="px-6 py-3 text-slate-700">${l.msg || l.message}</td>
+                    <td class="px-6 py-3 text-slate-400">${l.ip || '-'}</td>
+                </tr>
+            `).join('');
+            lucide.createIcons();
+        }
+
+        async function notifAdminCall(action, payload = {}) {
+            const url = `${NOTIF_ADMIN_API}?action=${action}`;
+            const body = { ...payload, secret: AUTH_SECRET, action: action };
+            try {
+                const res = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                });
+                if (res.status === 403) return { error: 'Forbidden' };
+                const text = await res.text();
+                try {
+                    return JSON.parse(text);
+                } catch (pe) {
+                    console.error("JSON parse error:", pe, "Raw Response:", text);
+                    return { error: 'JSON parse error: ' + text };
+                }
+            } catch (e) {
+                console.error("Erro Notif API:", e);
+                return { error: 'Fetch failed: ' + e.message };
+            }
+        }
+
+        async function loadNotifications() {
+            const list = await notifAdminCall('list');
+            const container = document.getElementById('notifications-list');
+            
+            if (!list || !Array.isArray(list) || list.length === 0) {
+                container.innerHTML = '<p class="text-slate-500 text-sm py-6">Nenhuma notificação ativa.</p>';
+                return;
+            }
+
+            // Ordena da mais recente para a mais antiga (topo = mais recente)
+            list.sort((a, b) => new Date(b.published) - new Date(a.published));
+
+            const colors = { update: 'blue', security: 'red', backup: 'amber', info: 'slate', promo: 'green' };
+
+            container.innerHTML = list.map(n => {
+                const c = colors[n.type] || 'slate';
+                const targets = n.targets.includes('all') ? 'Todos os sistemas' : n.targets.join(', ');
+                const pubDate = new Date(n.published).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+                const expDate = n.expires ? new Date(n.expires).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
+
+                return `
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5 flex items-start gap-4">
+                    <div class="p-3 bg-${c}-50 text-${c}-600 rounded-xl shrink-0 mt-1">
+                        <i data-lucide="bell" class="w-6 h-6"></i>
+                    </div>
+                    <div class="flex-1">
+                        <div class="flex items-center gap-2 mb-1">
+                            <span class="bg-${c}-100 text-${c}-700 text-[10px] uppercase font-bold tracking-wider px-2 py-1 rounded-full">${n.type}</span>
+                            <span class="text-[10px] text-slate-400 font-mono">${(n.version ? 'v'+n.version : '')}</span>
+                        </div>
+                        <h4 class="font-bold text-lg text-slate-800 mb-1">${n.title}</h4>
+                        <p class="text-sm text-slate-600 mb-3">${n.body}</p>
+                        <div class="flex items-center gap-4 text-[11px] font-medium text-slate-400">
+                            <div class="flex items-center gap-1"><i data-lucide="target" class="w-3 h-3"></i> <span class="truncate max-w-[200px] capitalize">${targets}</span></div>
+                            <div class="flex items-center gap-1"><i data-lucide="calendar" class="w-3 h-3"></i> ${pubDate}</div>
+                            ${n.expires ? `<div class="flex items-center gap-1"><i data-lucide="clock" class="w-3 h-3"></i> Expira: ${expDate}</div>` : ''}
+                        </div>
+                    </div>
+                    <button onclick="deleteNotification('${n.id}')" class="text-slate-400 hover:text-red-500 transition-colors p-2 shrink-0">
+                        <i data-lucide="trash-2" class="w-5 h-5"></i>
+                    </button>
+                </div>
+                `;
+            }).join('');
+            lucide.createIcons();
+        }
+
+        async function deleteNotification(id) {
+            if (!confirm('Deseja excluir esta notificação?')) return;
+            const res = await notifAdminCall('delete', { id });
+            if (res && res.ok) {
+                loadNotifications();
+            } else {
+                alert('Erro ao excluir notificação');
+            }
+        }
+
+        // Removed toggleTargetsAll
+
+        function openNotifModal() {
+            document.getElementById('notif-title').value = '';
+            document.getElementById('notif-body').value = '';
+            document.getElementById('notif-details').value = '';
+            document.getElementById('notif-expires').value = '';
+            document.getElementById('notif-version').value = '';
+            document.getElementById('notif-target-select').value = 'all';
+
+            updateNotifPreview();
+            document.getElementById('notif-modal').classList.remove('hidden');
+        }
+
+        function updateNotifPreview() {
+            const title = document.getElementById('notif-title').value || 'Título da Notificação';
+            const body = document.getElementById('notif-body').value || 'Este é um resumo da mensagem que o cliente verá no card...';
+            const type = document.getElementById('notif-type').value;
+
+            document.getElementById('preview-title').innerText = title;
+            document.getElementById('preview-body').innerText = body;
+
+            const cmap = { update: 'blue', security: 'red', backup: 'amber', info: 'slate', promo: 'green' };
+            const c = cmap[type] || 'slate';
+            
+            const badge = document.getElementById('preview-badge');
+            // Remove previous color classes carefully or just re-assign
+            badge.className = `absolute top-4 right-4 w-2 h-2 rounded-full bg-${c}-500`;
+
+            const iconContainer = document.getElementById('preview-icon-container');
+            iconContainer.className = `p-2 bg-${c}-50 text-${c}-600 rounded-lg`;
+        }
+
+        function generateNotifId() {
+            const dateStr = new Date().toISOString().slice(0,10).replace(/-/g, '');
+            const rand = Math.random().toString(36).substring(2, 6);
+            return 'notif_' + dateStr + '_' + rand;
+        }
+
+        async function createNotification() {
+            const title = document.getElementById('notif-title').value.trim();
+            const body = document.getElementById('notif-body').value.trim();
+            if (!title || !body) return alert('Título e Corpo são obrigatórios.');
+
+            const targetVal = document.getElementById('notif-target-select').value;
+            if (!targetVal) return alert('Selecione um sistema alvo válido.');
+            const targets = [targetVal];
+
+            const expires = document.getElementById('notif-expires').value;
+
+            const payload = {
+                id: generateNotifId(),
+                type: document.getElementById('notif-type').value,
+                priority: document.getElementById('notif-priority').value,
+                title,
+                body,
+                details: document.getElementById('notif-details').value.trim(),
+                published: new Date().toISOString(),
+                expires: expires ? new Date(expires).toISOString() : null,
+                targets,
+                version: document.getElementById('notif-version').value.trim()
+            };
+
+            const res = await notifAdminCall('create', payload);
+            if (res && res.ok) {
+                document.getElementById('notif-modal').classList.add('hidden');
+                loadNotifications();
+            } else {
+                alert('Erro ao criar notificação. Detalhes: ' + (res?.error || JSON.stringify(res)));
+            }
+        }
+
+        // ACTIONS
+        async function convertTrial(key) {
+            if (!confirm('Converter esta licença de TESTE para VITALÍCIA?\n\nA data de expiração será removida e o cliente terá acesso permanente.')) return;
+            const res = await apiCall('convert_trial', { key: key });
+            if (res && res.success) {
+                alert('Licença convertida para vitalícia com sucesso!');
+                loadLicenses();
+            } else {
+                alert('Erro: ' + (res?.message || 'Desconhecido'));
+            }
+        }
+
+        async function resetDevice(key) {
+            if (!confirm('Tem certeza que deseja desvincular o dispositivo desta licença?')) return;
+            const res = await apiCall('update_status', { key: key, status: 'reset_device' });
+            if (res && res.success) {
+                alert('Dispositivo desvinculado!');
+                loadLicenses();
+            }
+        }
+
+        async function blockLicense(key) {
+            if (!confirm('Tem certeza que deseja BLOQUEAR esta licença? O cliente perderá acesso imediato.')) return;
+            const res = await apiCall('update_status', { key: key, status: 'blocked' });
+            if (res && res.success) {
+                alert('Licença bloqueada com sucesso!');
+                loadLicenses();
+            }
+        }
+
+        async function unblockLicense(key) {
+            if (!confirm('Tem certeza que deseja DESBLOQUEAR esta licença?')) return;
+            // Ao desbloquear, volta para 'active' se já tinha device, ou 'pending' se não tinha. 
+            // Simplificação: volta para 'active' e deixa o device cuidar, ou 'pending' resetado.
+            // Melhor: Voltamos para 'active' pois geralmente é um cliente que pagou novamente.
+            const res = await apiCall('update_status', { key: key, status: 'active' });
+            if (res && res.success) {
+                alert('Licença desbloqueada!');
+                loadLicenses();
+            }
+        }
+
+        function toggleTrialDays() {
+            const isTrial = document.getElementById('gen-trial').checked;
+            document.getElementById('trial-days-wrapper').classList.toggle('hidden', !isTrial);
+        }
+
+        function openGenerateModal() {
+            document.getElementById('generate-modal').classList.remove('hidden');
+        }
+
+        async function confirmGenerate() {
+            const product = document.getElementById('gen-product').value;
+            const client = document.getElementById('gen-client').value || 'Cliente';
+            const price = document.getElementById('gen-price').value;
+            const isTrial = document.getElementById('gen-trial').checked;
+
+            if (!product) return alert('Selecione um produto.');
+
+            const trialDays = isTrial ? (parseInt(document.getElementById('gen-trial-days').value) || 3) : 3;
+
+            const res = await apiCall('generate', {
+                product: product,
+                client: client,
+                price: price,
+                quantity: 1,
+                trial: isTrial,
+                trial_days: trialDays
+            });
+
+            if (res && res.status === 'success' && res.keys && res.keys.length > 0) {
+                const key = res.keys[0];
+                document.getElementById('generate-modal').classList.add('hidden');
+                loadLicenses();
+
+                // Lógica de Identificação de Link e Slug
+                const productSlug = PRODUCT_SLUGS[product] || 'app';
+                // O link final será: https://sistemasdegestao.tech/gestao-barbearia/
+                const appLink = BASE_URL + productSlug + '/';
+
+                let message = '';
+
+                if (isTrial) {
+                    const trialHours = trialDays * 24;
+                    message = `Olá, ${client}! 🧪
+Esta é sua *Licença de Teste Gratuito (${trialDays} ${trialDays === 1 ? 'Dia' : 'Dias'})* para o sistema:
+
+📱 *Acesso ao Sistema:*
+${appLink}
+
+🔑 *Sua Chave de Teste:*
+${key}
+
+*Instruções:*
+1. Acesse o link.
+2. Insira a chave acima.
+3. Aproveite todas as funcionalidades por ${trialHours}h!
+
+O sistema irá travar automaticamente após o período. Para liberar a versão vitalícia sem perder seus dados, me chame pelo WhatsApp: (12) 99219-1018
+
+Qualquer dúvida, estou à disposição!`;
+
+                } else {
+                    message = `Olá, ${client}! 🚀
+Obrigado pela sua compra. Aqui está o acesso vitalício ao seu sistema:
+
+📱 *Acesso ao Sistema:*
+${appLink}
+
+🔑 *Sua Licença de Ativação:*
+${key}
+
+⚠️ *IMPORTANTE: 1 Dispositivo por Licença*
+Aplique esta licença EXCLUSIVAMENTE no dispositivo (celular ou computador) onde for utilizar o sistema.
+
+*Instruções de Ativação:*
+1. Clique no link acima para abrir o sistema.
+2. Copie e cole sua licença na tela inicial.
+3. Confirme o recebimento do produto na tela de boas-vindas para liberar o acesso total.
+
+📚 *Primeiros Passos:*
+Assim que entrar, acesse o menu *Manual de Uso* para aprender a extrair o máximo do seu sistema.
+
+💾 *BACKUP DE SEGURANÇA (VITAL)*
+Os dados ficam salvos no seu dispositivo. Crie imediatamente uma pasta "Backup Sistema" e use a função de Backup (Configurações) regularmente para garantir sua segurança!
+
+📞 *Suporte Técnico:*
+Seg a Sex: 08h às 18h | Sáb: 09h às 14h
+
+Qualquer dúvida, estamos à disposição!`;
+                }
+
+                document.getElementById('delivery-text').value = message;
+                document.getElementById('delivery-modal').classList.remove('hidden');
+                lucide.createIcons();
+
+            } else {
+                alert('Erro ao gerar licença: ' + (res?.message || 'Desconhecido'));
+            }
+        }
+
+        function copyDeliveryMessage() {
+            const copyText = document.getElementById("delivery-text");
+            copyText.select();
+            copyText.setSelectionRange(0, 99999);
+            navigator.clipboard.writeText(copyText.value);
+
+            // Visual feedback
+            const btn = document.querySelector('#delivery-modal button.bg-blue-600');
+            if (btn) {
+                const originalHTML = btn.innerHTML;
+                btn.innerHTML = '<i data-lucide="check" class="w-5 h-5"></i> Copiado!';
+                btn.classList.remove('bg-blue-600', 'hover:bg-blue-700');
+                btn.classList.add('bg-green-600', 'hover:bg-green-700');
+                lucide.createIcons();
+
+                setTimeout(() => {
+                    btn.innerHTML = originalHTML;
+                    btn.classList.add('bg-blue-600', 'hover:bg-blue-700');
+                    btn.classList.remove('bg-green-600', 'hover:bg-green-700');
+                    lucide.createIcons();
+                }, 2000);
+            }
+        }
+
+        function copyToClip(text) {
+            navigator.clipboard.writeText(text);
+            alert('Copiado!');
+        }
+
+        function fmtMoney(val) {
+            return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
+        }
+    </script>
+</body>
+
+</html>

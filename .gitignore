@@ -1,0 +1,21 @@
+.env
+error_log
+*.crdownload
+env (1)
+htaccess (2)
+README (2).md
+index (6).html
+
+# Bancos de dados JSON locais e logs (Contém PII - LGPD)
+api_data/*.json
+!api_data/apps_config.json
+!api_data/finance_transactions.json
+!api_data/leads_crm.json
+!api_data/notifications_system.json
+!api_data/parceiros.json
+!api_data/products_catalog.json
+!api_data/reports_history.json
+!api_data/sales_transactions.json
+!api_data/team_members.json
+notifications_data.json
+api_data/debug_log.txt

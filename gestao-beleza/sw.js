@@ -4,8 +4,10 @@ const ASSETS_TO_CACHE = [
     './css/styles.css',
     './js/app_core.js',
     './manifest.json',
-    'https://unpkg.com/lucide@latest',
-    'https://cdn.tailwindcss.com'
+    './assets/libs/lucide.js',
+    './assets/libs/tailwindcss.js',
+    './assets/icon-192.png',
+    './assets/icon-512.png'
 ];
 
 // Install Event

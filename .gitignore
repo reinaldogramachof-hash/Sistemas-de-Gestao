@@ -19,3 +19,6 @@ api_data/*.json
 !api_data/team_members.json
 notifications_data.json
 api_data/debug_log.txt
+
+# Artefatos de deploy
+*.zip

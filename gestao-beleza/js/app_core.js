@@ -133,7 +133,7 @@ function router(view) {
     document.querySelectorAll('.nav-item').forEach(el => { el.classList.remove('active-nav', 'text-white'); el.classList.add('text-slate-400'); });
     const navEl = document.getElementById(`nav-${view}`);
     if (navEl) { navEl.classList.add('active-nav', 'text-white'); navEl.classList.remove('text-slate-400'); }
-    const titles = { dashboard: 'Visão Geral', agenda: 'Agenda', team: 'Profissionais', services: 'Serviços', finance: 'Financeiro', clients: 'Clientes', reports: 'Relatórios', inventory: 'Estoque', instructions: 'Manual de Uso', settings: 'Configurações' };
+    const titles = { dashboard: 'Visão Geral', agenda: 'Agenda', team: 'Profissionais', services: 'Serviços', finance: 'Financeiro', clients: 'Clientes', reports: 'Relatórios', inventory: 'Estoque', instructions: 'Manual de Uso', settings: 'Configurações', evolution: 'Central de Evolução' };
     document.getElementById('page-title').textContent = titles[view] || 'Gestão Beleza';
     const isDesktop = window.innerWidth >= 1024;
     if (!isDesktop) {
@@ -190,6 +190,14 @@ function updateDateDisplay() {
 
 // ── Availability ────────────────────────────
 function checkAvailability(date, time, proId) { return !db.appointments.find(a => a.date === date && a.time === time && a.proId === proId && a.status !== 'canceled'); }
+
+function showEvolutionToast() {
+    if (typeof showToast === 'function') {
+        showToast("Este recurso fará parte das próximas evoluções premium.", "info");
+    } else {
+        alert("Este recurso fará parte das próximas evoluções premium.");
+    }
+}
 
 // ── Weekly Chart ────────────────────────────
 function renderWeeklyChart(data) {
@@ -260,6 +268,11 @@ function cancelAppointment(id) {
 function completeAppointment(id) {
     const idx = db.appointments.findIndex(a => a.id === id);
     if (idx === -1) return;
+
+    if (db.appointments[idx].status === 'done') {
+        showToast('Este agendamento já foi finalizado anteriormente!', 'warning');
+        return;
+    }
 
     // Update appointment status
     db.appointments[idx].status = 'done';
@@ -774,9 +787,9 @@ function printClosing() {
             <h2 style="text-align: center; margin: 0 0 10px 0; font-size: 16px;">${salonName.toUpperCase()}</h2>
             <p style="text-align: center; margin: 0 0 5px 0; font-size: 12px; font-weight: bold;">FECHAMENTO DE CAIXA</p>
             <p style="text-align: center; margin: 0 0 10px 0; font-size: 11px;">${dateFmt} - ${timeFmt}</p>
-            
+
             <div style="border-bottom: 1px dashed #000; margin-bottom: 10px;"></div>
-            
+
             <table style="width: 100%; font-size: 12px;">
                 <tr><td colspan="2" style="padding-bottom: 5px;"><strong>RESUMO</strong></td></tr>
                 <tr><td>Atendimentos:</td><td style="text-align: right;">${todayAppts.length}</td></tr>
@@ -786,14 +799,14 @@ function printClosing() {
                 <tr><td colspan="2" style="border-bottom: 1px dashed #000; padding: 5px 0;"></td></tr>
                 ${row('LUCRO LÍQUIDO:', net, true)}
             </table>
-            
+
             <div style="border-bottom: 1px dashed #000; margin: 15px 0;"></div>
-            
+
             <div style="text-align: center; margin-top: 30px;">
                 <div style="border-top: 1px solid #000; width: 80%; margin: 0 auto 5px auto;"></div>
                 <p style="font-size: 10px; margin: 0;">RESPONSÁVEL</p>
             </div>
-            
+
             <p style="text-align: center; font-size: 9px; margin-top: 20px;">Sistema Gestão Beleza</p>
         </div>
     `;
@@ -887,18 +900,18 @@ function printCommissionReceipt() {
         <div style="font-family: 'Courier New', monospace; padding: 10px; max-width: 300px; margin: 0 auto; border: 1px dashed #000; margin-bottom: 20px;">
             <h2 style="text-align: center; margin: 0; font-size: 18px;">${salonName.toUpperCase()}</h2>
             <p style="text-align: center; font-size: 12px; margin: 5px 0 15px 0; border-bottom: 1px solid #000; padding-bottom: 5px;">${title}</p>
-            
+
             <p style="margin: 5px 0; font-size: 12px;"><strong>DATA:</strong> ${date} ${time}</p>
             <p style="margin: 5px 0; font-size: 12px;"><strong>PROFISSIONAL:</strong><br>${currentCommissionData.proName}</p>
             <p style="margin: 5px 0; font-size: 12px;"><strong>TIPO:</strong> COMISSÃO DE SERVIÇOS</p>
-            
+
             <table style="width: 100%; margin-top: 15px; border-top: 1px dashed #000;">
                 <tr>
                     <td style="font-size: 16px; padding-top: 5px;"><strong>TOTAL PAGO:</strong></td>
                     <td style="font-size: 16px; text-align: right; padding-top: 5px;"><strong>${fmtMoney(currentCommissionData.amount)}</strong></td>
                 </tr>
             </table>
-            
+
             <div style="margin-top: 30px; text-align: center;">
                 <div style="border-top: 1px solid #000; margin-bottom: 5px;"></div>
                 <p style="font-size: 10px; margin: 0;">ASSINATURA DO PROFISSIONAL</p>
@@ -908,7 +921,7 @@ function printCommissionReceipt() {
                 <div style="border-top: 1px solid #000; margin-bottom: 5px;"></div>
                 <p style="font-size: 10px; margin: 0;">ASSINATURA DO RESPONSÁVEL</p>
             </div>
-            
+
             <p style="text-align: center; font-size: 9px; margin-top: 15px; color: #666;">Sistema Gestão Beleza</p>
         </div>
     `;
@@ -927,14 +940,41 @@ function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
 // ── Form Submissions ────────────────────────
 function submitAppt(e) {
     e.preventDefault();
+    const idEl = document.getElementById('ap-id');
+    const id = idEl ? idEl.value : null;
     const client = document.getElementById('ap-client').value, sId = document.getElementById('ap-service').value, pId = document.getElementById('ap-pro').value, date = document.getElementById('ap-date').value, time = document.getElementById('ap-time').value;
-    if (!checkAvailability(date, time, pId)) { showToast('Horário indisponível para este profissional!', 'error'); return; }
+
+    const hasConflict = db.appointments.some(a => {
+        if (id && a.id === id) return false;
+        return a.date === date && a.time === time && a.proId === pId && a.status !== 'canceled';
+    });
+    if (hasConflict) { showToast('Horário indisponível! Já existe um agendamento para este profissional nesse horário.', 'error'); return; }
     if (!db.clients.find(c => c.name.toLowerCase() === client.toLowerCase())) db.clients.push({ id: getID(), name: client, phone: '', notes: 'Novo cliente' });
     const s = db.services.find(x => x.id === sId), p = db.team.find(x => x.id === pId);
-    const apptId = getID(), transId = getID();
-    const appt = { id: apptId, client, serviceId: sId, serviceName: s.name, proId: pId, proName: p.name, date, time, price: s.price, status: 'pending', commission: s.price * (p.commission / 100), transactionId: transId };
-    const trans = { id: transId, date, description: `Serviço: ${s.name} (${client})`, type: 'income', amount: s.price, commission: appt.commission, commissionPaid: false, apptId: apptId, proId: pId, proName: p.name };
-    db.appointments.push(appt); db.transactions.push(trans);
+
+    if (id) {
+        const aIdx = db.appointments.findIndex(a => a.id === id);
+        if (aIdx > -1) {
+            const appt = db.appointments[aIdx];
+            appt.client = client; appt.serviceId = sId; appt.serviceName = s.name;
+            appt.proId = pId; appt.proName = p.name; appt.date = date; appt.time = time;
+            appt.price = s.price; appt.commission = s.price * (p.commission / 100);
+
+            const tIdx = db.transactions.findIndex(t => t.id === appt.transactionId);
+            if (tIdx > -1) {
+                const trans = db.transactions[tIdx];
+                trans.date = date; trans.description = `Serviço: ${s.name} (${client})`;
+                trans.amount = s.price; trans.commission = appt.commission;
+                trans.proId = pId; trans.proName = p.name;
+            }
+        }
+    } else {
+        const apptId = getID(), transId = getID();
+        const appt = { id: apptId, client, serviceId: sId, serviceName: s.name, proId: pId, proName: p.name, date, time, price: s.price, status: 'pending', commission: s.price * (p.commission / 100), transactionId: transId };
+        const trans = { id: transId, date, description: `Serviço: ${s.name} (${client})`, type: 'income', amount: s.price, commission: appt.commission, commissionPaid: false, apptId: apptId, proId: pId, proName: p.name };
+        db.appointments.push(appt); db.transactions.push(trans);
+    }
+
     save(); closeModal('apptModal'); renderDashboard(); renderAgenda(); e.target.reset(); showToast('Agendamento confirmado!');
 }
 

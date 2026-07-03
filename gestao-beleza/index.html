@@ -187,6 +187,16 @@
                         <span>Manual de Uso</span>
                     </button>
                 </div>
+
+                <div class="px-4 mb-1 mt-3 sidebar-section-divider">
+                    <span class="text-[10px] font-bold text-amber-500/70 uppercase tracking-wider">Evolução</span>
+                </div>
+                <button onclick="router('evolution')"
+                    class="nav-item w-full flex items-center px-4 py-2 rounded-xl hover:bg-white/10 transition-all group mt-1 bg-gradient-to-r from-amber-500/10 to-amber-600/5 border border-amber-500/20"
+                    id="nav-evolution">
+                    <i data-lucide="rocket" class="w-5 h-5 mr-3 text-amber-400 group-hover:text-amber-300"></i>
+                    <span class="font-medium sidebar-label text-amber-50">Central de Evolução</span>
+                </button>
             </nav>
 
             <!-- Footer - DNA Plena -->
@@ -351,6 +361,103 @@
                             <div class="flex-1 p-6 flex items-end justify-center pb-2 relative min-h-[200px]"
                                 id="mini-chart-container">
                                 <!-- SVG Chart Injected Here -->
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Evolution View -->
+                <section id="view-evolution" class="view-section hide fade-in max-w-6xl mx-auto">
+                    <div class="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div>
+                            <h2 class="text-2xl font-bold text-white dark:text-white">Central de Evolução</h2>
+                            <p class="text-slate-400 mt-1">Recursos premium para levar seu salão para o próximo nível.</p>
+                        </div>
+                    </div>
+
+                    <div class="bg-blue-900/20 border border-blue-900/30 rounded-xl p-5 mb-8 flex items-start gap-4">
+                        <i data-lucide="info" class="w-6 h-6 text-brand flex-shrink-0 mt-0.5"></i>
+                        <p class="text-sm text-slate-300">
+                            Seu sistema atual é vitalício e local. Os recursos abaixo farão parte das futuras evoluções online e poderão ser contratados separadamente quando lançados. Nenhuma das suas funcionalidades atuais será afetada.
+                        </p>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        <!-- Card 1 -->
+                        <div class="bg-surface-card dark:bg-slate-900/60 rounded-2xl p-6 shadow-sm border border-white/5 flex flex-col">
+                            <div class="w-12 h-12 bg-blue-900/30 rounded-xl flex items-center justify-center mb-4">
+                                <i data-lucide="smartphone" class="w-6 h-6 text-blue-400"></i>
+                            </div>
+                            <h3 class="font-bold text-lg text-white mb-2">Agenda Online para Clientes</h3>
+                            <p class="text-sm text-slate-400 mb-4 flex-1">Permita que seus clientes escolham horários disponíveis pelo celular.</p>
+                            <div class="flex items-center justify-between mt-auto pt-4 border-t border-white/5">
+                                <span class="text-[10px] font-bold px-2 py-1 bg-amber-900/30 text-amber-400 rounded-full uppercase tracking-wide">Premium Online</span>
+                                <button onclick="showEvolutionToast()" class="text-sm font-bold text-brand hover:text-brand-dark transition-colors">Conhecer recurso</button>
+                            </div>
+                        </div>
+
+                        <!-- Card 2 -->
+                        <div class="bg-surface-card dark:bg-slate-900/60 rounded-2xl p-6 shadow-sm border border-white/5 flex flex-col">
+                            <div class="w-12 h-12 bg-indigo-900/30 rounded-xl flex items-center justify-center mb-4">
+                                <i data-lucide="cloud" class="w-6 h-6 text-indigo-400"></i>
+                            </div>
+                            <h3 class="font-bold text-lg text-white mb-2">Backup em Nuvem</h3>
+                            <p class="text-sm text-slate-400 mb-4 flex-1">Proteja os dados do salão com sincronização segura fora do computador.</p>
+                            <div class="flex items-center justify-between mt-auto pt-4 border-t border-white/5">
+                                <span class="text-[10px] font-bold px-2 py-1 bg-slate-800 text-slate-400 rounded-full uppercase tracking-wide">Em breve</span>
+                                <button onclick="showEvolutionToast()" class="text-sm font-bold text-brand hover:text-brand-dark transition-colors">Conhecer recurso</button>
+                            </div>
+                        </div>
+
+                        <!-- Card 3 -->
+                        <div class="bg-surface-card dark:bg-slate-900/60 rounded-2xl p-6 shadow-sm border border-white/5 flex flex-col">
+                            <div class="w-12 h-12 bg-purple-900/30 rounded-xl flex items-center justify-center mb-4">
+                                <i data-lucide="users" class="w-6 h-6 text-purple-400"></i>
+                            </div>
+                            <h3 class="font-bold text-lg text-white mb-2">Multiusuário</h3>
+                            <p class="text-sm text-slate-400 mb-4 flex-1">Dê acesso para recepção, profissionais e gestores com permissões separadas.</p>
+                            <div class="flex items-center justify-between mt-auto pt-4 border-t border-white/5">
+                                <span class="text-[10px] font-bold px-2 py-1 bg-blue-900/30 text-blue-400 rounded-full uppercase tracking-wide">Pro/Premium</span>
+                                <button onclick="showEvolutionToast()" class="text-sm font-bold text-brand hover:text-brand-dark transition-colors">Conhecer recurso</button>
+                            </div>
+                        </div>
+
+                        <!-- Card 4 -->
+                        <div class="bg-surface-card dark:bg-slate-900/60 rounded-2xl p-6 shadow-sm border border-white/5 flex flex-col">
+                            <div class="w-12 h-12 bg-green-900/30 rounded-xl flex items-center justify-center mb-4">
+                                <i data-lucide="message-circle" class="w-6 h-6 text-green-400"></i>
+                            </div>
+                            <h3 class="font-bold text-lg text-white mb-2">WhatsApp Automático</h3>
+                            <p class="text-sm text-slate-400 mb-4 flex-1">Envie lembretes e confirmações automáticas de agendamento pelo WhatsApp.</p>
+                            <div class="flex items-center justify-between mt-auto pt-4 border-t border-white/5">
+                                <span class="text-[10px] font-bold px-2 py-1 bg-amber-900/30 text-amber-400 rounded-full uppercase tracking-wide">Premium Online</span>
+                                <button onclick="showEvolutionToast()" class="text-sm font-bold text-brand hover:text-brand-dark transition-colors">Conhecer recurso</button>
+                            </div>
+                        </div>
+
+                        <!-- Card 5 -->
+                        <div class="bg-surface-card dark:bg-slate-900/60 rounded-2xl p-6 shadow-sm border border-white/5 flex flex-col">
+                            <div class="w-12 h-12 bg-pink-900/30 rounded-xl flex items-center justify-center mb-4">
+                                <i data-lucide="globe" class="w-6 h-6 text-pink-400"></i>
+                            </div>
+                            <h3 class="font-bold text-lg text-white mb-2">Página Pública</h3>
+                            <p class="text-sm text-slate-400 mb-4 flex-1">Uma vitrine online para seu salão com portfólio, serviços e link de agenda.</p>
+                            <div class="flex items-center justify-between mt-auto pt-4 border-t border-white/5">
+                                <span class="text-[10px] font-bold px-2 py-1 bg-amber-900/30 text-amber-400 rounded-full uppercase tracking-wide">Premium Online</span>
+                                <button onclick="showEvolutionToast()" class="text-sm font-bold text-brand hover:text-brand-dark transition-colors">Conhecer recurso</button>
+                            </div>
+                        </div>
+
+                        <!-- Card 6 -->
+                        <div class="bg-surface-card dark:bg-slate-900/60 rounded-2xl p-6 shadow-sm border border-white/5 flex flex-col">
+                            <div class="w-12 h-12 bg-cyan-900/30 rounded-xl flex items-center justify-center mb-4">
+                                <i data-lucide="pie-chart" class="w-6 h-6 text-cyan-400"></i>
+                            </div>
+                            <h3 class="font-bold text-lg text-white mb-2">Relatórios Avançados</h3>
+                            <p class="text-sm text-slate-400 mb-4 flex-1">Análise de métricas, desempenho de profissionais e metas de faturamento.</p>
+                            <div class="flex items-center justify-between mt-auto pt-4 border-t border-white/5">
+                                <span class="text-[10px] font-bold px-2 py-1 bg-blue-900/30 text-blue-400 rounded-full uppercase tracking-wide">Pro/Premium</span>
+                                <button onclick="showEvolutionToast()" class="text-sm font-bold text-brand hover:text-brand-dark transition-colors">Conhecer recurso</button>
                             </div>
                         </div>
                     </div>

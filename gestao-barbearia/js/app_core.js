@@ -2066,7 +2066,7 @@ function printClosing() {
                     </div>
                     <div style="margin-top: 50px;">
                         <div style="border: 1px solid #000; padding: 15px; font-size: 12px; text-align: center; margin-bottom: 50px;">
-                            <p style="font-weight: bold; margin-bottom: 5px;">DECLARAÇÃO DE CONFERÃŠNCIA</p>
+                            <p style="font-weight: bold; margin-bottom: 5px;">DECLARAÇÃO DE CONFERÊNCIA</p>
                             <p>Declaro que os valores acima conferem com o numerário físico e comprovantes em caixa nesta data.</p>
                         </div>
                         <div style="display: flex; justify-content: space-between; gap: 40px;">

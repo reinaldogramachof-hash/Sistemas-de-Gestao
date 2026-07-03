@@ -1,7 +1,5 @@
-
-const CACHE_NAME = 'app-cache-v4.0';
-const urlsToCache = [
-  './',
+const CACHE_NAME = 'gestao-barbearia-v5';
+const ASSETS_TO_CACHE = [
   './index.html',
   './manifest.json',
   './css/styles.css',
@@ -16,7 +14,7 @@ self.addEventListener('install', event => {
   self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME)
-      .then(cache => cache.addAll(urlsToCache))
+      .then(cache => cache.addAll(ASSETS_TO_CACHE))
   );
 });
 
@@ -53,25 +51,26 @@ self.addEventListener('fetch', event => {
     return;
   }
 
+  // Network First para navegação
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request).catch(() => caches.match('./index.html'))
+    );
+    return;
+  }
+
+  // Stale While Revalidate para assets locais
   event.respondWith(
-    caches.match(event.request)
-      .then(response => {
-        if (response) {
-          return response;
+    caches.match(event.request).then(cachedResponse => {
+      const fetchPromise = fetch(event.request).then(networkResponse => {
+        if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
+          caches.open(CACHE_NAME).then(cache => {
+            cache.put(event.request, networkResponse.clone());
+          });
         }
-        return fetch(event.request).then(
-          function (response) {
-            if (!response || response.status !== 200 || response.type !== 'basic') {
-              return response;
-            }
-            var responseToCache = response.clone();
-            caches.open(CACHE_NAME)
-              .then(function (cache) {
-                cache.put(event.request, responseToCache);
-              });
-            return response;
-          }
-        );
-      })
+        return networkResponse;
+      });
+      return cachedResponse || fetchPromise;
+    })
   );
 });

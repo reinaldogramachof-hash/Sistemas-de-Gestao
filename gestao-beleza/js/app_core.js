@@ -129,6 +129,7 @@ function router(view) {
             updateTutorialProgress();
             updateChecklist();
         }
+        if (view === 'evolution') renderEvolutionCenter();
     }
     document.querySelectorAll('.nav-item').forEach(el => { el.classList.remove('active-nav', 'text-white'); el.classList.add('text-slate-400'); });
     const navEl = document.getElementById(`nav-${view}`);
@@ -191,11 +192,81 @@ function updateDateDisplay() {
 // ── Availability ────────────────────────────
 function checkAvailability(date, time, proId) { return !db.appointments.find(a => a.date === date && a.time === time && a.proId === proId && a.status !== 'canceled'); }
 
-function showEvolutionToast() {
+const EVOLUTION_FEATURES = {
+    onlineAgenda: { status: 'premium', plan: 'premium_monthly', title: 'Agenda Online para Clientes', description: 'Permita que seus clientes escolham horários disponíveis pelo celular.', icon: 'smartphone', cta: 'Conhecer recurso', message: 'Este recurso fará parte da evolução Premium Online Mensal.' },
+    cloudBackup: { status: 'premium', plan: 'premium_monthly', title: 'Backup em Nuvem', description: 'Proteja os dados do salão com sincronização segura fora do computador.', icon: 'cloud', cta: 'Conhecer recurso', message: 'Este recurso fará parte da evolução Premium Online Mensal.' },
+    multiUser: { status: 'premium', plan: 'premium_monthly', title: 'Multiusuário', description: 'Dê acesso para recepção, profissionais e gestores com permissões separadas.', icon: 'users', cta: 'Conhecer recurso', message: 'Este recurso fará parte da evolução Premium Online Mensal.' },
+    whatsappAuto: { status: 'premium', plan: 'premium_monthly', title: 'WhatsApp Automático', description: 'Envie lembretes e confirmações automáticas de agendamento pelo WhatsApp.', icon: 'message-circle', cta: 'Conhecer recurso', message: 'Este recurso fará parte da evolução Premium Online Mensal.' },
+    publicPage: { status: 'premium', plan: 'premium_monthly', title: 'Página Pública', description: 'Uma vitrine online para seu salão com portfólio, serviços e link de agenda.', icon: 'globe', cta: 'Conhecer recurso', message: 'Este recurso fará parte da evolução Premium Online Mensal.' },
+    advReports: { status: 'premium', plan: 'premium_monthly', title: 'Relatórios Avançados Online', description: 'Análise de métricas e metas de faturamento sincronizadas na nuvem.', icon: 'pie-chart', cta: 'Conhecer recurso', message: 'Este recurso fará parte da evolução Premium Online Mensal.' }
+};
+
+function renderEvolutionCenter() {
+    const container = document.getElementById('evolution-cards');
+    if (!container) return;
+
+    const themeColors = {
+        bg: 'bg-surface-card dark:bg-slate-900/60',
+        border: 'border-white/5',
+        textTitle: 'text-white',
+        textDesc: 'text-slate-400',
+        cta: 'text-brand hover:text-brand-dark'
+    };
+    const iconColors = {
+        onlineAgenda: 'bg-blue-900/30 text-blue-400',
+        cloudBackup: 'bg-indigo-900/30 text-indigo-400',
+        multiUser: 'bg-purple-900/30 text-purple-400',
+        whatsappAuto: 'bg-green-900/30 text-green-400',
+        publicPage: 'bg-pink-900/30 text-pink-400',
+        advReports: 'bg-cyan-900/30 text-cyan-400'
+    };
+
+    let html = '';
+    for (const [key, feature] of Object.entries(EVOLUTION_FEATURES)) {
+        let badgeHtml = '';
+        if (feature.status === 'premium') {
+            badgeHtml = `<span class="text-[10px] font-bold px-2 py-1 bg-amber-900/30 text-amber-400 rounded-full uppercase tracking-wide">${feature.plan === 'pro_lifetime' ? 'Pro/Premium' : 'Premium Online'}</span>`;
+        } else if (feature.status === 'soon') {
+            badgeHtml = '<span class="text-[10px] font-bold px-2 py-1 bg-slate-800 text-slate-400 rounded-full uppercase tracking-wide">Em breve</span>';
+        } else if (feature.status === 'available') {
+            badgeHtml = '<span class="text-[10px] font-bold px-2 py-1 bg-emerald-900/30 text-emerald-400 rounded-full uppercase tracking-wide">Disponível</span>';
+        } else if (feature.status === 'optional') {
+            badgeHtml = '<span class="text-[10px] font-bold px-2 py-1 bg-blue-900/30 text-blue-400 rounded-full uppercase tracking-wide">Opcional</span>';
+        }
+
+        const iColor = iconColors[key] || 'bg-slate-800 text-slate-400';
+
+        html += `
+        <div class="${themeColors.bg} rounded-2xl p-6 shadow-sm border ${themeColors.border} flex flex-col">
+            <div class="w-12 h-12 ${iColor} rounded-xl flex items-center justify-center mb-4">
+                <i data-lucide="${feature.icon}" class="w-6 h-6"></i>
+            </div>
+            <h3 class="font-bold text-lg ${themeColors.textTitle} mb-2">${feature.title}</h3>
+            <p class="text-sm ${themeColors.textDesc} mb-4 flex-1">${feature.description}</p>
+            <div class="flex items-center justify-between mt-auto pt-4 border-t ${themeColors.border}">
+                ${badgeHtml}
+                <button onclick="showEvolutionToast('${key}')" class="text-sm font-bold ${themeColors.cta} transition-colors">${feature.cta}</button>
+            </div>
+        </div>`;
+    }
+
+    container.innerHTML = html;
+
+    if (typeof lucide !== 'undefined') {
+        lucide.createIcons();
+    }
+}
+
+function showEvolutionToast(featureKey) {
+    let msg = "Este recurso fará parte das próximas evoluções premium.";
+    if (featureKey && EVOLUTION_FEATURES[featureKey]) {
+        msg = EVOLUTION_FEATURES[featureKey].message || msg;
+    }
+
     if (typeof showToast === 'function') {
-        showToast("Este recurso fará parte das próximas evoluções premium.", "info");
+        showToast(msg, "info");
     } else {
-        alert("Este recurso fará parte das próximas evoluções premium.");
+        alert(msg);
     }
 }
 

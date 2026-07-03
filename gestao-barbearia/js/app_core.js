@@ -494,17 +494,81 @@ function router(view) {
     }
 }
 
+const EVOLUTION_FEATURES = {
+    onlineAgenda: { status: 'premium', plan: 'premium_monthly', title: 'Agenda Online para Clientes', description: 'Permita que seus clientes escolham horários disponíveis pelo celular.', icon: 'smartphone', cta: 'Conhecer recurso', message: 'Este recurso fará parte da evolução Premium Online Mensal.' },
+    cloudBackup: { status: 'premium', plan: 'premium_monthly', title: 'Backup em Nuvem', description: 'Proteja os dados da barbearia com sincronização segura fora do computador.', icon: 'cloud', cta: 'Conhecer recurso', message: 'Este recurso fará parte da evolução Premium Online Mensal.' },
+    multiUser: { status: 'premium', plan: 'premium_monthly', title: 'Multiusuário', description: 'Dê acesso para recepção, barbeiros e gestores com permissões separadas.', icon: 'users', cta: 'Conhecer recurso', message: 'Este recurso fará parte da evolução Premium Online Mensal.' },
+    whatsappAuto: { status: 'premium', plan: 'premium_monthly', title: 'WhatsApp Automático', description: 'Envie lembretes, confirmações e mensagens de retorno para clientes.', icon: 'message-circle', cta: 'Conhecer recurso', message: 'Este recurso fará parte da evolução Premium Online Mensal.' },
+    publicPage: { status: 'premium', plan: 'premium_monthly', title: 'Página Pública da Barbearia', description: 'Tenha uma página online com serviços, horários e link de agendamento.', icon: 'globe', cta: 'Conhecer recurso', message: 'Este recurso fará parte da evolução Premium Online Mensal.' },
+    advReports: { status: 'premium', plan: 'premium_monthly', title: 'Relatórios Avançados Online', description: 'Compare períodos e acompanhe métricas da equipe na nuvem.', icon: 'bar-chart', cta: 'Conhecer recurso', message: 'Este recurso fará parte da evolução Premium Online Mensal.' }
+};
+
 function renderEvolutionCenter() {
+    const container = document.getElementById('evolution-cards');
+    if (!container) return;
+
+    const themeColors = {
+        bg: 'bg-white dark:bg-barber-card',
+        border: 'border-slate-100 dark:border-white/5',
+        textTitle: 'text-slate-800 dark:text-white',
+        textDesc: 'text-slate-600 dark:text-slate-400',
+        cta: 'text-brand-blue hover:text-brand-dark'
+    };
+    const iconColors = {
+        onlineAgenda: 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400',
+        cloudBackup: 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400',
+        multiUser: 'bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400',
+        whatsappAuto: 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400',
+        publicPage: 'bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400',
+        advReports: 'bg-teal-100 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400'
+    };
+
+    let html = '';
+    for (const [key, feature] of Object.entries(EVOLUTION_FEATURES)) {
+        let badgeHtml = '';
+        if (feature.status === 'premium') {
+            badgeHtml = `<span class="text-[10px] font-bold px-2 py-1 bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 rounded-full uppercase tracking-wide">${feature.plan === 'pro_lifetime' ? 'Pro/Premium' : 'Premium Online'}</span>`;
+        } else if (feature.status === 'soon') {
+            badgeHtml = '<span class="text-[10px] font-bold px-2 py-1 bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400 rounded-full uppercase tracking-wide">Em breve</span>';
+        } else if (feature.status === 'available') {
+            badgeHtml = '<span class="text-[10px] font-bold px-2 py-1 bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 rounded-full uppercase tracking-wide">Disponível</span>';
+        } else if (feature.status === 'optional') {
+            badgeHtml = '<span class="text-[10px] font-bold px-2 py-1 bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 rounded-full uppercase tracking-wide">Opcional</span>';
+        }
+
+        const iColor = iconColors[key] || 'bg-slate-100 dark:bg-slate-900/30 text-slate-600 dark:text-slate-400';
+
+        html += `
+        <div class="${themeColors.bg} rounded-2xl p-6 shadow-sm border ${themeColors.border} flex flex-col">
+            <div class="w-12 h-12 ${iColor} rounded-xl flex items-center justify-center mb-4">
+                <i data-lucide="${feature.icon}" class="w-6 h-6"></i>
+            </div>
+            <h3 class="font-bold text-lg ${themeColors.textTitle} mb-2">${feature.title}</h3>
+            <p class="text-sm ${themeColors.textDesc} mb-4 flex-1">${feature.description}</p>
+            <div class="flex items-center justify-between mt-auto pt-4 border-t ${themeColors.border}">
+                ${badgeHtml}
+                <button onclick="showEvolutionToast('${key}')" class="text-sm font-bold ${themeColors.cta} transition-colors">${feature.cta}</button>
+            </div>
+        </div>`;
+    }
+
+    container.innerHTML = html;
+
     if (typeof lucide !== 'undefined') {
         lucide.createIcons();
     }
 }
 
-function showEvolutionToast() {
+function showEvolutionToast(featureKey) {
+    let msg = "Este recurso fará parte das próximas evoluções premium.";
+    if (featureKey && EVOLUTION_FEATURES[featureKey]) {
+        msg = EVOLUTION_FEATURES[featureKey].message || msg;
+    }
+
     if (typeof showNotification === 'function') {
-        showNotification("Este recurso fará parte das próximas evoluções premium.", "info");
+        showNotification(msg, "info");
     } else {
-        alert("Este recurso fará parte das próximas evoluções premium.");
+        alert(msg);
     }
 }
 function toggleSidebar() {

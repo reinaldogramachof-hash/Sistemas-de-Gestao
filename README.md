@@ -17,8 +17,8 @@ Transformar aplicações complexas em produtos digitais **autônomos**, **seguro
 
 ```text
 /Sistemas-de-Gestao
-  ├── Gestão Barbearia/          # App Standalone de Barbearia (HTML/CSS/JS local + lock.js)
-  ├── Gestão Beleza/             # App Standalone de Salão de Beleza (HTML/CSS/JS local + lock.js)
+  ├── gestao-barbearia/          # App Standalone de Barbearia (HTML/CSS/JS local + lock.js)
+  ├── gestao-beleza/             # App Standalone de Salão de Beleza (HTML/CSS/JS local + lock.js)
   │
   ├── api_admin_auth.php         # API de autenticação do painel administrativo
   ├── api_licenca_ml.php         # API de validação, ativação e expiração de licenças

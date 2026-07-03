@@ -6,7 +6,52 @@
 const DB_KEY = 'brand_beauty_pro_v2';
 const getID = () => Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
 const fmtMoney = (v) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-const fmtDate = (d) => new Date(d + 'T00:00:00').toLocaleDateString('pt-BR');
+const fmtDate = (d) => {
+    if (!d) return '--/--/--';
+    if (typeof d === 'string' && d.includes('-')) {
+        const [y, m, day] = d.split('-');
+        if (y.length === 4) return `${day}/${m}/${y}`;
+    }
+    const date = new Date(d);
+    return date.toLocaleDateString('pt-BR');
+};
+const getLocalIsoString = (dateObj = new Date()) => {
+    const offset = dateObj.getTimezoneOffset() * 60000;
+    return (new Date(dateObj.getTime() - offset)).toISOString().slice(0, -1);
+};
+const getLocalIsoDate = (dateObj = new Date()) => {
+    return getLocalIsoString(dateObj).split('T')[0];
+};
+const parseLocalDate = (dateStr) => {
+    if (!dateStr) return null;
+    const parts = dateStr.split('-');
+    if (parts.length !== 3) return new Date(dateStr);
+    const y = parseInt(parts[0], 10);
+    const m = parseInt(parts[1], 10);
+    const d = parseInt(parts[2], 10);
+    return new Date(y, m - 1, d);
+};
+const compareIsoDate = (a, b) => {
+    if (!a || !b) return 0;
+    return a.localeCompare(b);
+};
+const isDateInRange = (dateStr, startStr, endStr) => {
+    if (!dateStr) return false;
+    const s = startStr || '0000-00-00';
+    const e = endStr || '9999-12-31';
+    return dateStr >= s && dateStr <= e;
+};
+const isSameLocalMonth = (dateStr, referenceDate = new Date()) => {
+    if (!dateStr) return false;
+    const refY = referenceDate.getFullYear();
+    const refM = String(referenceDate.getMonth() + 1).padStart(2, '0');
+    return dateStr.startsWith(`${refY}-${refM}`);
+};
+const isAppointmentDone = (status) => {
+    if (!status) return false;
+    const s = status.toLowerCase();
+    return s === 'done' || s === 'concluido' || s === 'concluído';
+};
 function sanitizeHTML(str) { const div = document.createElement('div'); div.textContent = str; return div.innerHTML; }
 
 const defaultDB = {
@@ -52,8 +97,10 @@ function init() {
     });
     save(); // Save repaired data
     lucide.createIcons(); updateDateDisplay(); router('dashboard');
-    const today = new Date().toISOString().split('T')[0];
-    document.getElementById('rep-start').value = today.slice(0, 8) + '01';
+    const today = getLocalIsoDate();
+    const nowObj = new Date();
+    const firstDayStr = `${nowObj.getFullYear()}-${String(nowObj.getMonth() + 1).padStart(2, '0')}-01`;
+    document.getElementById('rep-start').value = firstDayStr;
     document.getElementById('rep-end').value = today;
     document.getElementById('exp-date').value = today;
     document.getElementById('agenda-date').value = today;
@@ -88,11 +135,46 @@ function router(view) {
     if (navEl) { navEl.classList.add('active-nav', 'text-white'); navEl.classList.remove('text-slate-400'); }
     const titles = { dashboard: 'Visão Geral', agenda: 'Agenda', team: 'Profissionais', services: 'Serviços', finance: 'Financeiro', clients: 'Clientes', reports: 'Relatórios', inventory: 'Estoque', instructions: 'Manual de Uso', settings: 'Configurações' };
     document.getElementById('page-title').textContent = titles[view] || 'Gestão Beleza';
-    if (window.innerWidth < 1024) document.getElementById('sidebar').classList.add('-translate-x-full');
-    document.getElementById('overlay').classList.add('hidden');
+    const isDesktop = window.innerWidth >= 1024;
+    if (!isDesktop) {
+        document.getElementById('sidebar').classList.remove('open');
+        document.getElementById('overlay').classList.add('hidden');
+    }
 }
 
-function toggleSidebar() { document.getElementById('sidebar').classList.toggle('-translate-x-full'); document.getElementById('overlay').classList.toggle('hidden'); }
+function toggleSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('overlay');
+    const isOpen = sidebar.classList.toggle('open');
+    const isDesktop = window.innerWidth >= 1024;
+
+    // Overlay: mostrar sempre que abrir (em mobile e desktop)
+    // No desktop, overlay é mais sutil para não bloquear a experiência
+    if (isOpen) {
+        if (!isDesktop) overlay.classList.remove('hidden');
+        document.body.classList.add('sidebar-open');
+        document.body.style.overflow = isDesktop ? '' : 'hidden';
+    } else {
+        overlay.classList.add('hidden');
+        document.body.classList.remove('sidebar-open');
+        document.body.style.overflow = '';
+    }
+
+    // Persistir preferência no localStorage
+    localStorage.setItem('beleza_sidebar_open', isOpen ? '1' : '0');
+}
+
+function initSidebar() {
+    const saved = localStorage.getItem('beleza_sidebar_open');
+    const isDesktop = window.innerWidth >= 1024;
+    // Desktop: abrir por padrão se não houver preferência salva
+    const shouldOpen = saved !== null ? saved === '1' : isDesktop;
+
+    if (shouldOpen) {
+        document.getElementById('sidebar').classList.add('open');
+        document.body.classList.add('sidebar-open');
+    }
+}
 function updateDateDisplay() {
     const update = () => {
         const now = new Date();
@@ -122,14 +204,14 @@ function renderWeeklyChart(data) {
 
 // ── Dashboard ───────────────────────────────
 function renderDashboard() {
-    const today = new Date().toISOString().split('T')[0];
+    const today = getLocalIsoDate();
     const todayAppts = db.appointments.filter(a => a.date === today && a.status !== 'canceled');
     const revenueToday = db.transactions.filter(t => t.date === today && t.type === 'income').reduce((acc, t) => acc + t.amount, 0);
     const commPending = db.transactions.filter(t => t.type === 'income' && !t.commissionPaid).reduce((acc, t) => acc + (t.commission || 0), 0);
     document.getElementById('dash-appt-today').textContent = todayAppts.length;
     document.getElementById('dash-rev-today').textContent = fmtMoney(revenueToday);
     document.getElementById('dash-comm-pending').textContent = fmtMoney(commPending);
-    const upcoming = db.appointments.filter(a => a.date >= today && a.status === 'pending').sort((a, b) => new Date(a.date + 'T' + a.time) - new Date(b.date + 'T' + b.time)).slice(0, 5);
+    const upcoming = db.appointments.filter(a => a.date >= today && a.status === 'pending').sort((a, b) => `${a.date}T${a.time}`.localeCompare(`${b.date}T${b.time}`)).slice(0, 5);
     const listEl = document.getElementById('upcoming-appts');
     listEl.innerHTML = upcoming.length === 0
         ? `<div class="text-center py-8 text-slate-600 flex flex-col items-center"><i data-lucide="coffee" class="w-8 h-8 mb-2 opacity-50"></i><span class="text-xs">Tudo tranquilo por hoje</span></div>`
@@ -155,7 +237,14 @@ function renderDashboard() {
             </div>
         </div>`).join('');
     lucide.createIcons();
-    const chartData = []; for (let i = 6; i >= 0; i--) { const d = new Date(); d.setDate(d.getDate() - i); const isoDate = d.toISOString().split('T')[0]; const rev = db.transactions.filter(t => t.date === isoDate && t.type === 'income').reduce((acc, t) => acc + t.amount, 0); chartData.push(rev); }
+    const chartData = [];
+    for (let i = 6; i >= 0; i--) {
+        const d = new Date();
+        d.setDate(d.getDate() - i);
+        const isoDate = getLocalIsoDate(d);
+        const rev = db.transactions.filter(t => t.date === isoDate && t.type === 'income').reduce((acc, t) => acc + t.amount, 0);
+        chartData.push(rev);
+    }
     renderWeeklyChart(chartData);
 }
 
@@ -186,7 +275,14 @@ function completeAppointment(id) {
 }
 
 
-function changeAgendaDate(days) { const input = document.getElementById('agenda-date'); const date = new Date(input.value + 'T00:00:00'); date.setDate(date.getDate() + days); input.value = date.toISOString().split('T')[0]; renderAgenda(); }
+function changeAgendaDate(days) {
+    const input = document.getElementById('agenda-date');
+    const bDate = parseLocalDate(input.value);
+    if (!bDate) return;
+    bDate.setDate(bDate.getDate() + days);
+    input.value = getLocalIsoDate(bDate);
+    renderAgenda();
+}
 
 function renderAgenda() {
     const date = document.getElementById('agenda-date').value; const headerEl = document.getElementById('agenda-header'); const bodyEl = document.getElementById('agenda-body');
@@ -198,17 +294,26 @@ function renderAgenda() {
         html += `<div class="grid divide-x divide-white/5 border-b border-white/5 hover:bg-white/[0.02] transition-colors" style="grid-template-columns: 100px repeat(${db.team.length}, 1fr)">`;
         html += `<div class="p-3 text-xs font-bold text-slate-500 text-center flex items-center justify-center gap-1"><i data-lucide="clock" class="w-3 h-3 text-rose-400 opacity-50"></i>${time}</div>`;
         db.team.forEach(pro => {
-            const appt = db.appointments.find(a => a.date === date && a.time === time && a.proId === pro.id && a.status !== 'canceled');
-            if (appt) {
-                const isDone = appt.status === 'done' || appt.status === 'concluido';
-                const statusColor = isDone ? 'bg-emerald-500/10 border-emerald-500' : 'bg-rose-500/10 border-rose-500';
-                const textColor = isDone ? 'text-emerald-300' : 'text-rose-300';
+            const slotAppts = db.appointments.filter(a => a.date === date && a.time === time && a.proId === pro.id && a.status !== 'canceled');
+            if (slotAppts.length > 0) {
+                if (slotAppts.length > 1) {
+                    console.warn(`Conflito: múltiplos agendamentos no mesmo slot (${date} ${time}, Pro: ${pro.name}):`, slotAppts.map(a => a.id));
+                }
+                const appt = slotAppts.find(a => a.status === 'pending') || slotAppts[0];
+                const isConflict = slotAppts.length > 1;
+                const isDone = isAppointmentDone(appt.status);
+                let statusColor = isDone ? 'bg-emerald-500/10 border-emerald-500 text-emerald-300' : 'bg-rose-500/10 border-rose-500 text-rose-300';
+                if (isConflict) {
+                    statusColor = 'bg-rose-500/15 border-rose-600 text-rose-300';
+                }
+                const textColor = isConflict ? 'text-rose-400 font-bold' : (isDone ? 'text-emerald-300' : 'text-rose-300');
 
                 html += `<div class="p-1 relative group cursor-pointer">
                     <div class="h-full w-full ${statusColor} border-l-4 rounded p-2 text-xs hover:opacity-80 transition-colors flex flex-col justify-between">
                         <div>
-                            <p class="font-bold ${textColor} truncate">${sanitizeHTML(appt.client)}</p>
+                            <p class="font-bold ${textColor} truncate">${sanitizeHTML(appt.client)} ${isConflict ? '⚠️' : ''}</p>
                             <p class="${textColor}/60 truncate">${sanitizeHTML(appt.serviceName)}</p>
+                            ${isConflict ? `<p class="text-[9px] text-rose-400 font-bold">Conflito (${slotAppts.length} agendamentos)</p>` : ''}
                         </div>
                         <div class="flex justify-end gap-1 mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
                             ${!isDone ? `<button onclick="completeAppointment('${appt.id}')" class="p-1 text-emerald-400 hover:bg-emerald-500/20 rounded" title="Concluir"><i data-lucide="check" class="w-3 h-3"></i></button>` : '<i data-lucide="check-circle" class="w-3 h-3 text-emerald-500"></i>'}
@@ -225,7 +330,9 @@ function renderAgenda() {
     bodyEl.innerHTML = html; lucide.createIcons();
 }
 
-function openApptModalWithContext(date, time, proId) { document.getElementById('ap-date').value = date; document.getElementById('ap-time').value = time; document.getElementById('ap-pro').value = proId; openApptModal(); }
+function openApptModalWithContext(date, time, proId) {
+    openApptModal({ date, time, proId });
+}
 
 // ── Render Functions ────────────────────────
 function renderTeam() {
@@ -294,14 +401,10 @@ function renderFinance() {
         const matchesDate = (!start || t.date >= start) && (!end || t.date <= end);
         return matchesTerm && matchesType && matchesDate;
     });
-    filtered.sort((a, b) => new Date(b.date) - new Date(a.date));
+    filtered.sort((a, b) => compareIsoDate(b.date, a.date));
 
     // Monthly summary cards
-    const today = new Date();
-    const monthTrans = db.transactions.filter(t => {
-        const td = new Date(t.date);
-        return td.getMonth() === today.getMonth() && td.getFullYear() === today.getFullYear();
-    });
+    const monthTrans = db.transactions.filter(t => isSameLocalMonth(t.date, new Date()));
     const incomeMonth = monthTrans.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
     const expenseMonth = monthTrans.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
     const commissionMonth = monthTrans.filter(t => t.type === 'income').reduce((s, t) => s + (t.commission || 0), 0);
@@ -343,7 +446,7 @@ function renderClients() {
         const clientAppts = db.appointments.filter(a => a.client && a.client.toLowerCase() === c.name.toLowerCase());
         const completedAppts = clientAppts.filter(a => a.status !== 'canceled');
         const totalSpent = db.transactions.filter(t => t.description && t.description.toLowerCase().includes(c.name.toLowerCase()) && t.type === 'income').reduce((s, t) => s + t.amount, 0);
-        const lastVisit = completedAppts.length > 0 ? completedAppts.sort((a, b) => new Date(b.date) - new Date(a.date))[0].date : null;
+        const lastVisit = completedAppts.length > 0 ? completedAppts.sort((a, b) => compareIsoDate(b.date, a.date))[0].date : null;
         const rawPhone = c.phone ? c.phone.replace(/\D/g, '') : '';
         const waLink = rawPhone ? `https://wa.me/55${rawPhone}` : null;
         return `<div class="bg-surface-card p-6 rounded-2xl border border-white/5 shadow-sm flex flex-col justify-between h-full card-hover cursor-pointer" onclick="openClientDetails('${c.id}')">
@@ -375,11 +478,11 @@ function openClientDetails(clientId) {
     const clientAppts = db.appointments.filter(a => a.client && a.client.toLowerCase() === c.name.toLowerCase() && a.status !== 'canceled');
     const totalSpent = db.transactions.filter(t => t.description && t.description.toLowerCase().includes(c.name.toLowerCase()) && t.type === 'income').reduce((s, t) => s + t.amount, 0);
     const avgTicket = clientAppts.length > 0 ? totalSpent / clientAppts.length : 0;
-    const lastVisit = clientAppts.length > 0 ? clientAppts.sort((a, b) => new Date(b.date) - new Date(a.date))[0] : null;
+    const lastVisit = clientAppts.length > 0 ? clientAppts.sort((a, b) => compareIsoDate(b.date, a.date))[0] : null;
     const rawPhone = c.phone ? c.phone.replace(/\D/g, '') : '';
     const waLink = rawPhone ? `https://wa.me/55${rawPhone}` : null;
 
-    const recentHistory = clientAppts.sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 10);
+    const recentHistory = clientAppts.sort((a, b) => compareIsoDate(b.date, a.date)).slice(0, 10);
 
     const content = document.getElementById('client-details-content');
     content.innerHTML = `
@@ -423,8 +526,8 @@ function generateReport() {
     const end = document.getElementById('rep-end').value;
     if (!start || !end) { showToast('Selecione o período', 'info'); return; }
 
-    const filteredTrans = db.transactions.filter(t => t.date >= start && t.date <= end);
-    const filteredAppts = db.appointments.filter(a => a.date >= start && a.date <= end && a.status !== 'canceled');
+    const filteredTrans = db.transactions.filter(t => isDateInRange(t.date, start, end));
+    const filteredAppts = db.appointments.filter(a => isDateInRange(a.date, start, end) && a.status !== 'canceled');
 
     // Financials
     const totalRev = filteredTrans.filter(t => t.type === 'income').reduce((acc, t) => acc + t.amount, 0);
@@ -493,11 +596,16 @@ function generateReport() {
 }
 
 function generateMonthReport() {
-    const date = new Date();
-    const firstDay = new Date(date.getFullYear(), date.getMonth(), 1).toISOString().split('T')[0];
-    const lastDay = new Date(date.getFullYear(), date.getMonth() + 1, 0).toISOString().split('T')[0];
-    document.getElementById('rep-start').value = firstDay;
-    document.getElementById('rep-end').value = lastDay;
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    const daysInMonth = new Date(y, now.getMonth() + 1, 0).getDate();
+
+    const startStr = `${y}-${m}-01`;
+    const endStr = `${y}-${m}-${String(daysInMonth).padStart(2, '0')}`;
+
+    document.getElementById('rep-start').value = startStr;
+    document.getElementById('rep-end').value = endStr;
     generateReport();
 }
 
@@ -506,7 +614,7 @@ function shareReport() {
     const end = document.getElementById('rep-end').value;
     if (!start || !end) { showToast('Gere um relatório primeiro', 'info'); return; }
 
-    const filteredTrans = db.transactions.filter(t => t.date >= start && t.date <= end);
+    const filteredTrans = db.transactions.filter(t => isDateInRange(t.date, start, end));
     const totalRev = filteredTrans.filter(t => t.type === 'income').reduce((acc, t) => acc + t.amount, 0);
     const totalExp = filteredTrans.filter(t => t.type === 'expense').reduce((acc, t) => acc + t.amount, 0);
     const net = totalRev - totalExp;
@@ -518,7 +626,15 @@ function shareReport() {
 
 // ── Modal Helpers ───────────────────────────
 function setupModalSelects() { const svcEl = document.getElementById('ap-service'); if (svcEl) svcEl.innerHTML = db.services.map(s => `<option value="${s.id}">${s.name} - ${fmtMoney(s.price)}</option>`).join(''); const proEl = document.getElementById('ap-pro'); if (proEl) proEl.innerHTML = db.team.map(p => `<option value="${p.id}">${p.name}</option>`).join(''); }
-function openApptModal() { setupModalSelects(); document.getElementById('apptModal').classList.remove('hidden'); }
+function openApptModal(context = null) {
+    setupModalSelects();
+    if (context) {
+        if (context.date) document.getElementById('ap-date').value = context.date;
+        if (context.time) document.getElementById('ap-time').value = context.time;
+        if (context.proId) document.getElementById('ap-pro').value = context.proId;
+    }
+    document.getElementById('apptModal').classList.remove('hidden');
+}
 function openTeamModal(pro = null) {
     if (pro) {
         document.getElementById('tm-id').value = pro.id;
@@ -542,7 +658,7 @@ function openExpenseModal() {
     document.querySelector('#expenseModal form').reset();
     document.getElementById('exp-id').value = '';
     document.getElementById('exp-type').value = 'expense';
-    document.getElementById('exp-date').value = new Date().toISOString().split('T')[0];
+    document.getElementById('exp-date').value = getLocalIsoDate();
     document.getElementById('expense-modal-title').textContent = 'Lançar Movimentação';
     document.getElementById('expense-submit-btn').textContent = 'Salvar Lançamento';
     document.getElementById('expenseModal').classList.remove('hidden');
@@ -561,10 +677,13 @@ function editTransaction(id) {
     document.getElementById('expenseModal').classList.remove('hidden');
 }
 function clearFinanceFilters() {
+    const today = getLocalIsoDate();
+    const nowObj = new Date();
+    const firstDayStr = `${nowObj.getFullYear()}-${String(nowObj.getMonth() + 1).padStart(2, '0')}-01`;
     document.getElementById('search-term').value = '';
     document.getElementById('filter-type').value = 'all';
-    document.getElementById('filter-start').value = '';
-    document.getElementById('filter-end').value = '';
+    document.getElementById('filter-start').value = firstDayStr;
+    document.getElementById('filter-end').value = today;
     renderFinance();
 }
 function openClientModal(client = null) {
@@ -588,7 +707,7 @@ function openClientModal(client = null) {
     document.getElementById('clientModal').classList.remove('hidden');
 }
 function openClosingModal() {
-    const today = new Date().toISOString().split('T')[0];
+    const today = getLocalIsoDate();
     const todayTrans = db.transactions.filter(t => t.date === today);
     const todayAppts = db.appointments.filter(a => a.date === today && a.status !== 'canceled');
     const income = todayTrans.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
@@ -610,7 +729,7 @@ function openClosingModal() {
     lucide.createIcons();
 }
 function shareClosing() {
-    const today = new Date().toISOString().split('T')[0];
+    const today = getLocalIsoDate();
     const todayTrans = db.transactions.filter(t => t.date === today);
     const todayAppts = db.appointments.filter(a => a.date === today && a.status !== 'canceled');
     const income = todayTrans.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
@@ -626,7 +745,7 @@ function shareClosing() {
 }
 
 function printClosing() {
-    const today = new Date().toISOString().split('T')[0];
+    const today = getLocalIsoDate();
     const todayTrans = db.transactions.filter(t => t.date === today);
     const todayAppts = db.appointments.filter(a => a.date === today && a.status !== 'canceled');
 
@@ -723,7 +842,13 @@ function payCommission(proId) {
     if (pendingTransactions.length === 0) { showToast('Não há comissões pendentes!', 'info'); return; }
     const totalCommission = pendingTransactions.reduce((sum, t) => sum + (t.commission || 0), 0);
     const professional = db.team.find(t => t.id === proId);
-    currentCommissionData = { proId, proName: professional.name, amount: totalCommission, date: new Date().toISOString().split('T')[0] };
+    currentCommissionData = {
+        proId,
+        proName: professional.name,
+        amount: totalCommission,
+        date: getLocalIsoDate(),
+        transactionIds: pendingTransactions.map(t => t.id)
+    };
     document.getElementById('comm-pro-name').textContent = professional.name;
     document.getElementById('comm-value').textContent = fmtMoney(totalCommission);
     document.getElementById('commissionModal').classList.remove('hidden');
@@ -732,7 +857,12 @@ function payCommission(proId) {
 function confirmCommissionPayment() {
     if (!currentCommissionData) return;
     db.transactions.push({ id: getID(), description: `Pagamento Comissão: ${currentCommissionData.proName}`, amount: currentCommissionData.amount, date: currentCommissionData.date, type: 'expense', category: 'comissao' });
-    db.transactions.forEach(t => { if (t.proId === currentCommissionData.proId && t.type === 'income' && !t.commissionPaid) { t.commissionPaid = true; t.commissionPaidDate = currentCommissionData.date; } });
+    db.transactions.forEach(t => {
+        if (currentCommissionData.transactionIds.includes(t.id)) {
+            t.commissionPaid = true;
+            t.commissionPaidDate = currentCommissionData.date;
+        }
+    });
     save(); renderFinance(); renderTeam(); closeModal('commissionModal');
     showToast('Comissão paga com sucesso!');
     currentCommissionData = null;
@@ -948,7 +1078,7 @@ function renderInventory() {
 
     // Movements history
     const movList = document.getElementById('stock-movements-list');
-    const recentMov = [...db.stockMovements].sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 15);
+    const recentMov = [...db.stockMovements].sort((a, b) => compareIsoDate(b.date, a.date)).slice(0, 15);
     if (recentMov.length === 0) {
         movList.innerHTML = `<tr><td colspan="5" class="p-8 text-center text-slate-600 text-sm">Sem movimentações registradas</td></tr>`;
     } else {
@@ -1046,7 +1176,7 @@ function submitStockMovement(e) {
     // Update quantity
     if (type === 'in') { product.quantity += quantity; } else { product.quantity -= quantity; }
 
-    const today = new Date().toISOString().split('T')[0];
+    const today = getLocalIsoDate();
     const movementId = getID();
 
     db.stockMovements.push({ id: movementId, productId, type, quantity, reason, notes, date: today });
@@ -1205,4 +1335,7 @@ function updateTutorialProgress() {
 }
 
 // ── Boot ────────────────────────────────────
-document.addEventListener('DOMContentLoaded', init);
+document.addEventListener('DOMContentLoaded', () => {
+    initSidebar();
+    init();
+});

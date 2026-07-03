@@ -462,7 +462,8 @@ function router(view) {
         settings: 'Configurações',
         instructions: 'Manual de Uso',
         notifications: 'Notificações',
-        about: 'Sobre'
+        about: 'Sobre',
+        evolution: 'Central de Evolução'
     };
     document.getElementById('page-title').innerText = titles[view] || 'Gestão Barbearia';
     // Fechar sidebar no mobile
@@ -488,6 +489,22 @@ function router(view) {
         if(typeof renderPDV === 'function') renderPDV();
     } else if (view === 'notifications') {
         if(typeof renderNotifications === 'function') renderNotifications();
+    } else if (view === 'evolution') {
+        if(typeof renderEvolutionCenter === 'function') renderEvolutionCenter();
+    }
+}
+
+function renderEvolutionCenter() {
+    if (typeof lucide !== 'undefined') {
+        lucide.createIcons();
+    }
+}
+
+function showEvolutionToast() {
+    if (typeof showNotification === 'function') {
+        showNotification("Este recurso fará parte das próximas evoluções premium.", "info");
+    } else {
+        alert("Este recurso fará parte das próximas evoluções premium.");
     }
 }
 function toggleSidebar() {

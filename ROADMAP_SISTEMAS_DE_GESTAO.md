@@ -80,6 +80,14 @@ Papel na estratégia:
 
 ## 3. Canais e Preços
 
+> **NOTA IMPORTANTE:** A estratégia de planos foi formalizada e a matriz oficial atualizada encontra-se em: [docs/ESTRATEGIA_PLANOS_VITALICIO_PREMIUM.md](docs/ESTRATEGIA_PLANOS_VITALICIO_PREMIUM.md).
+>
+> A diretriz principal estabelece que:
+> - O plano **ML Vitalício** permanece como produto local/offline pronto para venda.
+> - O **Pro Vitalício** deve melhorar recursos offline, sem criar dependência de nuvem.
+> - O **Premium Online Mensal** fica reservado para agenda online, backup em nuvem, multiusuário, múltiplos dispositivos, página pública, automações e Supabase/API.
+> - O piloto recomendado permanece: **Gestão Barbearia Premium Online** com **Agenda Online para Clientes**.
+
 ### Mercado Livre - Entrada
 
 Preço de referência: **R$97,00**.

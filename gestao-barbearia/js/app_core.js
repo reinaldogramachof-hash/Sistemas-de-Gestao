@@ -182,11 +182,11 @@ async function init() {
         if (document.getElementById('agenda-interval')) document.getElementById('agenda-interval').value = db.settings.agendaInterval || 60;
         if (document.getElementById('hour-start-week')) document.getElementById('hour-start-week').value = db.settings.businessStart || 8;
         if (document.getElementById('hour-end-week')) document.getElementById('hour-end-week').value = db.settings.businessEnd || 20;
-        
+
         if (db.settings.workDays) {
             const sat = db.settings.workDays.saturday;
             const sun = db.settings.workDays.sunday;
-            
+
             if (document.getElementById('closed-sat')) {
                 document.getElementById('closed-sat').checked = !sat.active;
                 document.getElementById('hour-start-sat').value = sat.start;
@@ -583,9 +583,9 @@ function toggleSidebar() {
 function renderWeeklyChart(data, labels = []) {
     const container = document.getElementById('mini-chart-container');
     if (!container) return;
-    if (data.length < 2 || data.every(v => v === 0)) { 
-        container.innerHTML = '<div class="flex flex-col items-center justify-center h-full text-slate-500"><i data-lucide="bar-chart-2" class="w-8 h-8 mb-2 opacity-50 text-slate-400"></i><span class="text-xs">Sem dados suficientes</span></div>'; 
-        lucide.createIcons(); return; 
+    if (data.length < 2 || data.every(v => v === 0)) {
+        container.innerHTML = '<div class="flex flex-col items-center justify-center h-full text-slate-500"><i data-lucide="bar-chart-2" class="w-8 h-8 mb-2 opacity-50 text-slate-400"></i><span class="text-xs">Sem dados suficientes</span></div>';
+        lucide.createIcons(); return;
     }
     const maxVal = Math.max(...data) * 1.1 || 100;
     const barWidth = 8;
@@ -608,11 +608,11 @@ function renderWeeklyChart(data, labels = []) {
             const barHeight = (val / maxVal) * 90;
             const y = 100 - barHeight;
             const isToday = i === data.length - 1;
-            
+
             return `
             <g class="cursor-pointer group">
-                <rect x="${x}" y="${y}" width="${barWidth}" height="${barHeight}" rx="2.5" 
-                    fill="url(#barGrad)" filter="${isToday ? 'url(#glow)' : ''}" 
+                <rect x="${x}" y="${y}" width="${barWidth}" height="${barHeight}" rx="2.5"
+                    fill="url(#barGrad)" filter="${isToday ? 'url(#glow)' : ''}"
                     class="transition-all duration-300 opacity-80 group-hover:opacity-100 group-hover:brightness-110">
                     <title>${labels[i]}: ${fmtMoney(val)}</title>
                 </rect>
@@ -635,7 +635,7 @@ function renderDashboard() {
     // Calcular estatísticas
     const todayStr = getLocalIsoDate();
     const todayTrans = db.transactions.filter(t => t.date === todayStr);
-    
+
     const incomeToday = todayTrans
         .filter(t => t.type === 'income' && !t.isPending)
         .reduce((sum, t) => sum + t.amount, 0);
@@ -655,13 +655,13 @@ function renderDashboard() {
     // Atualizar KPI cards
     document.getElementById('dash-appt-today').innerText = db.appointments
         .filter(a => a.date === todayStr && a.status === 'pending').length;
-    
+
     document.getElementById('dash-rev-today').innerText = fmtMoney(incomeToday);
-    
+
     const revGrowthEl = document.getElementById('rev-growth');
     const revSubtextEl = document.getElementById('dash-rev-subtext');
     if (revSubtextEl) {
-        revSubtextEl.innerHTML = pendingToday > 0 
+        revSubtextEl.innerHTML = pendingToday > 0
             ? `<span class="text-rose-500 font-bold">+ ${fmtMoney(pendingToday)} em fiados</span>`
             : `<span class="text-slate-400">Tudo recebido hoje</span>`;
     }
@@ -675,7 +675,7 @@ function renderDashboard() {
     const yesterdayIncome = db.transactions
         .filter(t => t.date === yesterdayStr && t.type === 'income' && !t.isPending)
         .reduce((sum, t) => sum + t.amount, 0);
-    
+
     const growth = calculatePercentage(incomeToday, yesterdayIncome);
     if (revGrowthEl) {
         revGrowthEl.innerText = `${growth >= 0 ? '+' : ''}${growth}%`;
@@ -746,7 +746,7 @@ function renderAgenda() {
     // Determinar horários de hoje
     const dateObj = new Date(date + 'T12:00:00');
     const dayOfWeek = dateObj.getDay(); // 0 = Domingo, 6 = Sábado
-    
+
     let startHour = db.settings.businessStart || 8;
     let endHour = db.settings.businessEnd || 20;
     let isActive = true;
@@ -785,14 +785,14 @@ function renderAgenda() {
 
     for (let h = startHour; h <= endHour; h++) {
         const slots = interval === 30 ? [`${h.toString().padStart(2, '0')}:00`, `${h.toString().padStart(2, '0')}:30`] : [`${h.toString().padStart(2, '0')}:00`];
-        
+
         slots.forEach(time => {
-            // Se for o último horário e for :30 em um intervalo de 30 min, e h for igual ao endHour, 
+            // Se for o último horário e for :30 em um intervalo de 30 min, e h for igual ao endHour,
             // talvez devêssemos parar. Mas geralmente o endHour é o último horário disponível para agendamento.
-            
+
             html += `<div class="grid divide-x divide-slate-100 dark:divide-white/5 border-b border-slate-100 dark:border-white/5 hover:bg-slate-50/50 dark:hover:bg-white/[0.02] transition-colors" style="grid-template-columns: 100px repeat(${db.team.length}, 1fr)">`;
             html += `<div class="p-3 text-xs font-bold text-slate-500 text-center flex items-center justify-center gap-1"><i data-lucide="clock" class="w-3 h-3 text-brand-blue opacity-50"></i>${time}</div>`;
-            
+
             db.team.forEach(pro => {
                 const slotAppts = db.appointments.filter(a => a.date === date && a.time === time && a.proId === pro.id && a.status !== 'canceled');
                 if (slotAppts.length > 0) {
@@ -837,12 +837,12 @@ function renderAgenda() {
 function openApptModalWithContext(date, time, proId) {
     // Primeiro abre o modal para carregar os selects de serviços e barbeiros
     openApptModal();
-    
+
     // Define os valores de contexto
     if (date) document.getElementById('ap-date').value = date;
     if (time) document.getElementById('ap-time').value = time;
     if (proId) document.getElementById('ap-pro').value = proId;
-    
+
     // Garante que o título do modal reflita o novo agendamento
     document.querySelector('#apptModal h3').textContent = 'Novo Agendamento';
 }
@@ -898,7 +898,7 @@ function renderTeam() {
                 </div>
                 <h3 class="font-bold text-lg text-slate-800 dark:text-white mb-1">${sanitizeHTML(t.name)}</h3>
                 ${t.startDate ? `<p class="text-[10px] text-slate-400 dark:text-slate-500 mb-4 flex items-center"><i data-lucide="calendar" class="w-3 h-3 mr-1"></i> Desde ${fmtDate(t.startDate)}</p>` : '<div class="mb-4"></div>'}
-                
+
                 <div class="space-y-2 mt-4">
                     <div class="flex justify-between text-sm">
                         <span class="text-slate-500 dark:text-slate-400">Serviços realizados:</span>
@@ -912,7 +912,7 @@ function renderTeam() {
             </div>
 
             <div class="mt-6 pt-4 border-t border-slate-50 dark:border-white/5 flex gap-2">
-                <button onclick="payCommission('${t.id}')" 
+                <button onclick="payCommission('${t.id}')"
                     class="flex-1 py-2 text-sm font-bold rounded-lg transition-colors ${pendingCommissions > 0 ? 'bg-blue-50 dark:bg-blue-900/30 text-brand-blue dark:text-brand-lightblue hover:bg-blue-100 dark:hover:bg-blue-900/50' : 'bg-slate-50 dark:bg-slate-800 text-slate-300 dark:text-slate-600 cursor-not-allowed'}"
                     ${pendingCommissions === 0 ? 'disabled' : ''}>
                     Pagar Comissão
@@ -957,7 +957,7 @@ function renderServices() {
                         </div>
                         <div class="flex items-center gap-3">
                             <span class="font-bold text-brand-blue dark:text-brand-lightblue">${fmtMoney(service.price)}</span>
-                            <button onclick="editService('${service.id}')" 
+                            <button onclick="editService('${service.id}')"
                                     class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors">
                                 <i data-lucide="edit" class="w-4 h-4"></i>
                             </button>
@@ -1094,7 +1094,7 @@ function renderClients() {
                         <a href="${waLink}" target="_blank" class="p-2 text-green-500 hover:bg-green-50 dark:hover:bg-green-950/30 rounded-lg transition-colors" title="Chamar no WhatsApp">
                             <i data-lucide="message-circle" class="w-4 h-4"></i>
                         </a>` : ''}
-                        
+
                         <!-- Quick Schedule -->
                         <button onclick="openApptModal('${client.id}')" class="p-2 text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-colors" title="Novo Agendamento">
                             <i data-lucide="calendar-plus" class="w-4 h-4"></i>
@@ -1272,7 +1272,7 @@ function openApptModal(clientId = null) {
     document.getElementById('ap-client').value = '';
     document.getElementById('ap-time').value = '';
     document.getElementById('ap-display-val').textContent = 'R$ 0,00';
-    
+
     // Se passar clientId, preenche o nome e bloqueia se desejar (ou apenas preenche)
     if (clientId) {
         const client = db.clients.find(c => c.id === clientId);
@@ -1415,7 +1415,7 @@ function submitAppt(e) {
         showNotification('Horário indisponível! Já existe um agendamento para este barbeiro nesse horário.', 'error');
         return;
     }
-    
+
     // Garantir que o cliente exista no banco de dados e obter o ID
     const clientId = findOrCreateClient(client);
     updateClientsDatalist(); // Atualizar lista se for um cliente novo
@@ -1458,7 +1458,7 @@ function submitAppt(e) {
     closeModal('apptModal');
     renderDashboard();
     renderDashboard();
-    
+
     // Atualizar Agenda se ativa
     const agendaView = document.getElementById('view-agenda');
     if (agendaView && !agendaView.classList.contains('hide')) {
@@ -1630,14 +1630,14 @@ function finishAppt(id) {
     if (!appt) return;
     currentCheckoutAppt = appt;
     currentCheckoutProducts = [];
-    
+
     document.getElementById('co-appt-id').value = id;
     document.getElementById('co-client-name').textContent = appt.client;
     document.getElementById('co-service-name').textContent = appt.serviceName;
     document.getElementById('co-service-price').textContent = `R$ ${appt.price.toFixed(2)}`;
-    
+
     updateCheckoutApptModal();
-    
+
     // Popular select de produtos
     const sel = document.getElementById('co-product-select');
     sel.innerHTML = '<option value="">Selecione um produto...</option>';
@@ -1654,7 +1654,7 @@ function updateCheckoutApptModal() {
     const list = document.getElementById('co-products-list');
     list.innerHTML = '';
     let totalProd = 0;
-    
+
     currentCheckoutProducts.forEach((p, idx) => {
         totalProd += p.price;
         list.innerHTML += `
@@ -1670,7 +1670,7 @@ function updateCheckoutApptModal() {
         `;
     });
     lucide.createIcons();
-    
+
     const finalTotal = currentCheckoutAppt.price + totalProd;
     document.getElementById('co-total-price').textContent = `R$ ${finalTotal.toFixed(2)}`;
 }
@@ -1678,7 +1678,7 @@ function updateCheckoutApptModal() {
 function addCheckoutApptProduct() {
     const sel = document.getElementById('co-product-select');
     if(!sel.value) return;
-    
+
     const product = db.inventory.find(i => i.id === sel.value);
     if(product) {
         currentCheckoutProducts.push({
@@ -1727,7 +1727,7 @@ function confirmCheckoutAppt(paymentType) {
     currentCheckoutProducts.forEach(p => {
         totalProductsPrice += p.price;
         totalProductCommission += (p.price * globalCommPercent / 100);
-        
+
         // Baixa no estoque
         const invItem = db.inventory.find(i => i.id === p.id);
         if(invItem && invItem.quantity > 0) {
@@ -1746,7 +1746,7 @@ function confirmCheckoutAppt(paymentType) {
     });
 
     const isPending = (paymentType === 'pending');
-    
+
     const t = {
         id: getID(),
         type: 'income',
@@ -1762,7 +1762,7 @@ function confirmCheckoutAppt(paymentType) {
         productsOrigin: currentCheckoutProducts.map(p => ({id: p.id, name: p.name, price: p.price})),
         appointmentId: appt.id
     };
-    
+
     db.transactions.push(t);
     save();
     renderDashboard();
@@ -1770,7 +1770,7 @@ function confirmCheckoutAppt(paymentType) {
         renderAgenda();
     }
     closeModal('checkoutApptModal');
-    
+
     if(isPending) {
         showNotification('Fiado lançado na ficha do cliente!', 'warning');
     } else {
@@ -1828,7 +1828,7 @@ function editAppt(id) {
     document.getElementById('ap-time').value = appt.time;
     document.getElementById('ap-service').value = appt.serviceId;
     document.getElementById('ap-pro').value = appt.proId;
-    
+
     // Atualizar valor exibido
     updateApptValue();
 }
@@ -2037,18 +2037,18 @@ function printCommissionReceipt() {
         <div style="font-family: 'Courier New', monospace; padding: 10px; max-width: 300px; margin: 0 auto; border: 1px dashed #000; margin-bottom: 20px;">
             <h2 style="text-align: center; margin: 0; font-size: 18px;">${salonName.toUpperCase()}</h2>
             <p style="text-align: center; font-size: 12px; margin: 5px 0 15px 0; border-bottom: 1px solid #000; padding-bottom: 5px;">${title}</p>
-            
+
             <p style="margin: 5px 0; font-size: 12px;"><strong>DATA:</strong> ${date} ${time}</p>
             <p style="margin: 5px 0; font-size: 12px;"><strong>PROFISSIONAL:</strong><br>${currentCommissionData.proName}</p>
             <p style="margin: 5px 0; font-size: 12px;"><strong>TIPO:</strong> COMISSÃO DE SERVIÇOS</p>
-            
+
             <table style="width: 100%; margin-top: 15px; border-top: 1px dashed #000;">
                 <tr>
                     <td style="font-size: 16px; padding-top: 5px;"><strong>TOTAL PAGO:</strong></td>
                     <td style="font-size: 16px; text-align: right; padding-top: 5px;"><strong>${fmtMoney(currentCommissionData.amount)}</strong></td>
                 </tr>
             </table>
-            
+
             <div style="margin-top: 30px; text-align: center;">
                 <div style="border-top: 1px solid #000; margin-bottom: 5px;"></div>
                 <p style="font-size: 10px; margin: 0;">ASSINATURA DO PROFISSIONAL</p>
@@ -2058,7 +2058,7 @@ function printCommissionReceipt() {
                 <div style="border-top: 1px solid #000; margin-bottom: 5px;"></div>
                 <p style="font-size: 10px; margin: 0;">ASSINATURA DO RESPONSÁVEL</p>
             </div>
-            
+
             <p style="text-align: center; font-size: 9px; margin-top: 15px; color: #666;">Sistema de Gestão - ${new Date().getFullYear()}</p>
         </div>
     `;
@@ -2210,7 +2210,7 @@ function saveBusinessInfo() {
     db.settings.businessOwner = document.getElementById('biz-owner').value;
     db.settings.businessDoc = document.getElementById('biz-doc').value;
     // db.settings.businessHours = document.getElementById('biz-hours').value; // Deprecated
-    
+
     db.settings.agendaInterval = parseInt(document.getElementById('agenda-interval').value) || 60;
     db.settings.businessStart = parseInt(document.getElementById('hour-start-week').value) || 8;
     db.settings.businessEnd = parseInt(document.getElementById('hour-end-week').value) || 20;
@@ -2289,6 +2289,7 @@ function showNotification(message, type = 'info') {
         setTimeout(() => notification.remove(), 300);
     }, 3500);
 }
+
 function restoreBackup(input) {
     const file = input.files[0];
     if (!file) return;
@@ -2297,18 +2298,26 @@ function restoreBackup(input) {
         try {
             const backup = JSON.parse(e.target.result);
 
-            // Validação de estrutura básica
-            if (!backup.settings || !Array.isArray(backup.appointments)) {
-                showNotification('Arquivo inválido: Estrutura irreconhecível.', 'error');
+            // Validação de estrutura básica (Security Audit)
+            const isValidBackupStructure =
+                backup &&
+                typeof backup === 'object' &&
+                !Array.isArray(backup) &&
+                backup.settings &&
+                typeof backup.settings === 'object' &&
+                !Array.isArray(backup.settings) &&
+                Array.isArray(backup.appointments);
+
+            if (!isValidBackupStructure) {
+                showNotification('Arquivo inválido: Estrutura irreconhecível ou incompleta.', 'error');
                 return;
             }
 
             // Validação rigorosa de tipos (Security Audit)
-            const arrayKeys = ['appointments', 'team', 'services', 'transactions', 'clients'];
-            const objectKeys = ['settings'];
+            const arrayKeys = ['appointments', 'team', 'services', 'transactions', 'clients', 'inventory', 'stockMovements'];
 
             const isArraysValid = arrayKeys.every(key => Array.isArray(backup[key] || [])); // Allow missing keys as empty arrays
-            const isObjectsValid = objectKeys.every(key => typeof (backup[key] || {}) === 'object');
+            const isObjectsValid = backup.settings && typeof backup.settings === 'object' && !Array.isArray(backup.settings);
 
             if (isArraysValid && isObjectsValid) {
                 // Sanitização profunda do backup antes de carregar
@@ -2324,8 +2333,19 @@ function restoreBackup(input) {
                     return obj;
                 };
 
-                // Merge seguro: mantém padrão se chave faltar
-                db = { ...defaultDB, ...sanitizeObj(backup) };
+                const sanitized = sanitizeObj(backup);
+
+                // Merge seguro com fallback a partir do defaultDB
+                db = {
+                    appointments: sanitized.appointments || [],
+                    team: sanitized.team || JSON.parse(JSON.stringify(defaultDB.team)),
+                    services: sanitized.services || JSON.parse(JSON.stringify(defaultDB.services)),
+                    clients: sanitized.clients || [],
+                    transactions: sanitized.transactions || [],
+                    inventory: sanitized.inventory || [],
+                    stockMovements: sanitized.stockMovements || [],
+                    settings: { ...defaultDB.settings, ...(sanitized.settings || {}) }
+                };
 
                 save();
                 showNotification('Backup restaurado com sucesso! Atualizando...', 'success');
@@ -2340,6 +2360,7 @@ function restoreBackup(input) {
     };
     reader.readAsText(file);
 }
+
 function clearAllData() {
     if (confirm('Tem certeza que deseja limpar TODOS os dados? Esta ação é irreversível!')) {
         db.appointments = [];

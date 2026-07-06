@@ -1,8 +1,10 @@
-const CACHE_NAME = 'gestao-beleza-v2';
+const CACHE_NAME = 'gestao-beleza-v3';
 const ASSETS_TO_CACHE = [
     './index.html',
     './css/styles.css',
     './js/app_core.js',
+    './js/notif_logic.js',
+    './js/tailwind_config.js',
     './manifest.json',
     './assets/libs/lucide.js',
     './assets/libs/tailwindcss.js',

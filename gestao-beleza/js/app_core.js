@@ -1125,7 +1125,77 @@ function editClient(id) { const c = db.clients.find(x => x.id === id); if (c) op
 
 // ── Backup / Restore / Reset ────────────────
 function downloadBackup() { const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(db)); const a = document.createElement('a'); a.href = dataStr; a.download = "gestao_beleza_backup.json"; document.body.appendChild(a); a.click(); a.remove(); showToast('Backup realizado!'); }
-function restoreBackup(input) { const file = input.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = function (e) { try { const data = JSON.parse(e.target.result); if (data.appointments && data.team) { db = data; save(); init(); showToast('Dados restaurados com sucesso!'); } else { showToast('Arquivo inválido!', 'error'); } } catch (err) { showToast('Erro ao ler arquivo', 'error'); } }; reader.readAsText(file); }
+function restoreBackup(input) {
+    const file = input.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function (e) {
+        try {
+            const backup = JSON.parse(e.target.result);
+
+            // Validação de estrutura básica (Security Audit)
+            const isValidBackupStructure =
+                backup &&
+                typeof backup === 'object' &&
+                !Array.isArray(backup) &&
+                backup.settings &&
+                typeof backup.settings === 'object' &&
+                !Array.isArray(backup.settings) &&
+                Array.isArray(backup.appointments);
+
+            if (!isValidBackupStructure) {
+                showToast('Arquivo inválido: Estrutura irreconhecível ou incompleta.', 'error');
+                return;
+            }
+
+            // Validação rigorosa de tipos (Security Audit)
+            const arrayKeys = ['appointments', 'team', 'services', 'transactions', 'clients', 'inventory', 'stockMovements'];
+
+            const isArraysValid = arrayKeys.every(key => Array.isArray(backup[key] || []));
+            const isObjectsValid = backup.settings && typeof backup.settings === 'object' && !Array.isArray(backup.settings);
+
+            if (isArraysValid && isObjectsValid) {
+                // Sanitização profunda do backup antes de carregar
+                const sanitizeObj = (obj) => {
+                    if (typeof obj === 'string') return sanitizeHTML(obj);
+                    if (Array.isArray(obj)) return obj.map(sanitizeObj);
+                    if (typeof obj === 'object' && obj !== null) {
+                        Object.keys(obj).forEach(key => {
+                            obj[key] = sanitizeObj(obj[key]);
+                        });
+                        return obj;
+                    }
+                    return obj;
+                };
+
+                const sanitized = sanitizeObj(backup);
+
+                // Merge seguro com fallback a partir do defaultDB
+                db = {
+                    appointments: sanitized.appointments || [],
+                    team: sanitized.team || JSON.parse(JSON.stringify(defaultDB.team)),
+                    services: sanitized.services || JSON.parse(JSON.stringify(defaultDB.services)),
+                    clients: sanitized.clients || [],
+                    transactions: sanitized.transactions || [],
+                    inventory: sanitized.inventory || [],
+                    stockMovements: sanitized.stockMovements || [],
+                    settings: { ...defaultDB.settings, ...(sanitized.settings || {}) }
+                };
+
+                save();
+                init();
+                showToast('Dados restaurados com sucesso!');
+                setTimeout(() => location.reload(), 1500);
+            } else {
+                showToast('Arquivo corrompido ou formato incompatível.', 'error');
+            }
+        } catch (err) {
+            console.error(err);
+            showToast('Erro ao ler arquivo', 'error');
+        }
+    };
+    reader.readAsText(file);
+}
 function clearAllData() {
     if (confirm('Tem certeza? Isso apagará TODOS os clientes, agendamentos e cadastros, mas manterá as configurações do seu negócio e links úteis.')) {
         db.appointments = [];

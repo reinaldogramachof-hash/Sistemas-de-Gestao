@@ -1,9 +1,11 @@
-const CACHE_NAME = 'gestao-barbearia-v5';
+const CACHE_NAME = 'gestao-barbearia-v6';
 const ASSETS_TO_CACHE = [
   './index.html',
   './manifest.json',
   './css/styles.css',
   './js/app_core.js',
+  './js/notif_logic.js',
+  './js/pdv.js',
   './js/tailwind_config.js',
   './assets/libs/tailwindcss.js',
   './assets/libs/lucide.js',

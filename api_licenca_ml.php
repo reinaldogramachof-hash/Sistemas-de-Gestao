@@ -37,6 +37,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 // 1. CONFIG
 $ADMIN_SECRET = env('ADMIN_SECRET');
 $fileLicenses = __DIR__ . '/api_data/database_licenses_secure.json';
+$fileArchivedLicenses = __DIR__ . '/api_data/database_licenses_archived.json';
 $fileLogs = __DIR__ . '/api_data/system_logs.json';
 $fileReceipts = __DIR__ . '/api_data/receipts_log.json';
 
@@ -82,6 +83,21 @@ function validateSecret($data, $secret)
     return ($data['secret'] === $secret || $data['secret'] === $token);
 }
 
+function isArchiveCandidate(array $license)
+{
+    $protectedStatuses = ['active', 'pending'];
+    if (in_array($license['status'] ?? '', $protectedStatuses)) {
+        return false;
+    }
+    $isTrial = !empty($license['is_trial']) || ($license['type'] ?? '') === 'trial';
+    if ($isTrial && !empty($license['expiration_date'])) {
+        if (time() < strtotime($license['expiration_date'])) {
+            return false;
+        }
+    }
+    return true;
+}
+
 function addLog($msg, $type = 'info', $file = '')
 {
     global $fileLogs;
@@ -120,6 +136,115 @@ if ($action === 'list' || $action === 'get_licenses') {
         $response[] = array_merge(['key' => $k], $v);
     }
     echo json_encode($response);
+    exit;
+}
+
+if ($action === 'list_archived') {
+    if (!validateSecret($jsonData, $ADMIN_SECRET)) {
+        http_response_code(403);
+        echo json_encode(['status' => 'error', 'message' => 'Acesso Negado']);
+        exit;
+    }
+    if (!file_exists($fileArchivedLicenses)) {
+        echo json_encode([]);
+        exit;
+    }
+    $db = getDB($fileArchivedLicenses);
+    $response = [];
+    foreach ($db as $k => $v) {
+        $response[] = array_merge(['key' => $k], $v);
+    }
+    echo json_encode($response);
+    exit;
+}
+
+if ($action === 'archive_inactive_preview') {
+    if (!validateSecret($jsonData, $ADMIN_SECRET)) {
+        http_response_code(403);
+        exit;
+    }
+    $db = getDB($fileLicenses);
+    $candidates = [];
+    foreach ($db as $k => $v) {
+        if (isArchiveCandidate($v)) {
+            $candidates[] = array_merge(['key' => $k], $v);
+        }
+    }
+    echo json_encode(['status' => 'success', 'candidates' => $candidates]);
+    exit;
+}
+
+if ($action === 'archive_inactive') {
+    if (!validateSecret($jsonData, $ADMIN_SECRET)) {
+        http_response_code(403);
+        exit;
+    }
+    $db = getDB($fileLicenses);
+    $archivedDb = getDB($fileArchivedLicenses);
+
+    $archivedCount = 0;
+    $newDb = [];
+    foreach ($db as $k => $v) {
+        if (isArchiveCandidate($v)) {
+            $v['archived_at'] = date('Y-m-d H:i:s');
+            $v['archive_reason'] = 'Auto-arquivamento de inativas';
+            $archivedDb[$k] = $v;
+            $archivedCount++;
+        } else {
+            $newDb[$k] = $v;
+        }
+    }
+
+    if ($archivedCount > 0) {
+        saveDB($fileArchivedLicenses, $archivedDb);
+        saveDB($fileLicenses, $newDb);
+        addLog("Arquivamento em lote: $archivedCount licenças inativas movidas para o arquivo", 'warning');
+    }
+
+    echo json_encode(['status' => 'success', 'archived_count' => $archivedCount]);
+    exit;
+}
+
+if ($action === 'archive_selected') {
+    if (!validateSecret($jsonData, $ADMIN_SECRET)) {
+        http_response_code(403);
+        exit;
+    }
+    $requestedKeys = $jsonData['keys'] ?? [];
+    $db = getDB($fileLicenses);
+    $archivedDb = getDB($fileArchivedLicenses);
+
+    $archivedCount = 0;
+    $skippedKeys = [];
+
+    foreach ($requestedKeys as $key) {
+        if (isset($db[$key])) {
+            $license = $db[$key];
+            if (isArchiveCandidate($license)) {
+                $license['archived_at'] = date('Y-m-d H:i:s');
+                $license['archive_reason'] = 'Arquivamento selecionado pelo administrador';
+                $archivedDb[$key] = $license;
+                unset($db[$key]);
+                $archivedCount++;
+            } else {
+                $skippedKeys[] = $key;
+            }
+        } else {
+            $skippedKeys[] = $key;
+        }
+    }
+
+    if ($archivedCount > 0) {
+        saveDB($fileArchivedLicenses, $archivedDb);
+        saveDB($fileLicenses, $db);
+        addLog("Arquivamento selecionado: $archivedCount licenças movidas para o arquivo", 'warning');
+    }
+
+    echo json_encode([
+        'status' => 'success',
+        'selected_count' => $archivedCount,
+        'skipped_keys' => $skippedKeys
+    ]);
     exit;
 }
 
@@ -164,6 +289,18 @@ if ($action === 'generate') {
     $isTrial = !empty($jsonData['trial']);
     $trialDays = (int) ($jsonData['trial_days'] ?? 3);
 
+    $canonicalPlans = [
+        'ml_lifetime' => ['name' => 'ML Vitalício', 'billing' => 'one_time', 'channel' => 'mercado_livre', 'version' => 'standalone_ml'],
+        'direct_lifetime' => ['name' => 'Direto Vitalício', 'billing' => 'one_time', 'channel' => 'venda_direta', 'version' => 'standalone_direct'],
+        'pro_lifetime' => ['name' => 'Pro Vitalício', 'billing' => 'one_time', 'channel' => 'venda_direta', 'version' => 'standalone_pro'],
+        'premium_monthly' => ['name' => 'Premium Online Mensal', 'billing' => 'recurring', 'channel' => 'premium_online', 'version' => 'premium_online']
+    ];
+    $reqPlanCode = $jsonData['plan_code'] ?? 'ml_lifetime';
+    if (!isset($canonicalPlans[$reqPlanCode])) {
+        $reqPlanCode = 'ml_lifetime';
+    }
+    $planMeta = $canonicalPlans[$reqPlanCode];
+
     $keys = [];
 
     for ($i = 0; $i < $qty; $i++) {
@@ -176,7 +313,13 @@ if ($action === 'generate') {
             'price' => (float) ($jsonData['price'] ?? 0),
             'status' => 'pending',
             'created_at' => date('Y-m-d H:i:s'),
-            'type' => $isTrial ? 'trial' : 'venda_ml'
+            'type' => $isTrial ? 'trial' : 'venda_ml',
+            'plan_code' => $reqPlanCode,
+            'plan_name' => $planMeta['name'],
+            'billing_model' => $planMeta['billing'],
+            'sales_channel' => $planMeta['channel'],
+            'system_version' => $planMeta['version'],
+            'package_version' => $planMeta['version']
         ];
 
         if ($isTrial) {
@@ -207,15 +350,50 @@ if ($action === 'update_status') {
     $status = $jsonData['status'] ?? '';
     $db = getDB($fileLicenses);
 
+    $allowedStatuses = ['active', 'pending', 'blocked', 'cancelled', 'expired'];
+
     if (isset($db[$key])) {
         if ($status === 'reset_device') {
             $db[$key]['device_id'] = '';
             $db[$key]['status'] = 'pending';
             addLog("Dispositivo resetado para chave $key", 'warning');
-        } else {
+        } elseif (in_array($status, $allowedStatuses)) {
             $db[$key]['status'] = $status;
+        } else {
+            echo json_encode(['status' => 'error', 'message' => 'Status inválido']);
+            exit;
         }
         saveDB($fileLicenses, $db);
+        echo json_encode(['status' => 'success', 'success' => true]);
+    } else {
+        echo json_encode(['status' => 'error', 'message' => 'Chave não encontrada']);
+    }
+    exit;
+}
+
+if ($action === 'convert_trial') {
+    if (!validateSecret($jsonData, $ADMIN_SECRET)) {
+        http_response_code(403);
+        exit;
+    }
+    $key = $jsonData['key'] ?? '';
+    $db = getDB($fileLicenses);
+
+    if (isset($db[$key])) {
+        $db[$key]['is_trial'] = false;
+        $db[$key]['type'] = 'venda_ml';
+        unset($db[$key]['expiration_date']);
+        unset($db[$key]['trial_duration_days']);
+
+        $db[$key]['plan_code'] = 'ml_lifetime';
+        $db[$key]['plan_name'] = 'ML Vitalício';
+        $db[$key]['billing_model'] = 'one_time';
+        $db[$key]['sales_channel'] = 'mercado_livre';
+        $db[$key]['system_version'] = 'standalone_ml';
+        $db[$key]['package_version'] = 'standalone_ml';
+
+        saveDB($fileLicenses, $db);
+        addLog("Conversão de teste: chave $key convertida para vitalício", 'info');
         echo json_encode(['status' => 'success', 'success' => true]);
     } else {
         echo json_encode(['status' => 'error', 'message' => 'Chave não encontrada']);
@@ -255,8 +433,10 @@ if ($action === 'activate') {
     $db = getDB($fileLicenses);
 
     if (isset($db[$key])) {
+        $isMasterLicense = !empty($db[$key]['is_master']);
+
         // --- EXPIRATION CHECK (V11.7) ---
-        if (!empty($db[$key]['expiration_date'])) {
+        if (!$isMasterLicense && !empty($db[$key]['expiration_date'])) {
             $exp = strtotime($db[$key]['expiration_date']);
             if (time() > $exp) {
                 echo json_encode(['status' => 'expired', 'message' => 'Período de teste expirado. Adquira a versão vitalícia.']);
@@ -265,6 +445,7 @@ if ($action === 'activate') {
         }
 
         if (
+            !$isMasterLicense &&
             $db[$key]['status'] === 'active' &&
             !empty($db[$key]['device_id']) &&
             $db[$key]['device_id'] !== $device
@@ -296,7 +477,7 @@ if ($action === 'activate') {
         }
 
         $db[$key]['status'] = 'active';
-        $db[$key]['device_id'] = $device;
+        $db[$key]['device_id'] = $isMasterLicense ? '' : $device;
         $db[$key]['activated_at'] = date('Y-m-d H:i:s');
         $db[$key]['last_ip'] = $_SERVER['REMOTE_ADDR'];
         // V11.6 - Capture Email provided by App
@@ -310,6 +491,9 @@ if ($action === 'activate') {
         if (!empty($db[$key]['expiration_date'])) {
             $response['expiration_date'] = $db[$key]['expiration_date'];
             $response['is_trial'] = true;
+        }
+        if ($isMasterLicense) {
+            $response['is_master'] = true;
         }
 
         addLog("Sucesso: Chave $key ativada no device $device", 'info');

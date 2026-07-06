@@ -3363,14 +3363,12 @@
                             alert('Sistema Liberado! Bem-vindo(a) ' + (data.client || ''));
                         } else {
                             if (data.status === 'expired') {
-                                const _waMsg = encodeURIComponent('Ola! Meu periodo de teste expirou e gostaria de adquirir a versao vitalicia do sistema. Pode me ajudar?');
-                                const _waLink = 'https://wa.me/5512992191018?text=' + _waMsg;
                                 var errEl = document.getElementById('activation-error');
                                 if (errEl) {
-                                    errEl.innerHTML = '<div style="text-align:center;padding:10px 0"><p style="font-weight:bold;color:#dc2626;margin-bottom:6px">Periodo de teste encerrado!</p><p style="font-size:13px;color:#475569;margin-bottom:12px">Para liberar a versao vitalicia com todos os seus dados, entre em contato:</p><a href="' + _waLink + '" target="_blank" style="display:inline-flex;align-items:center;gap:6px;background:#16a34a;color:white;font-weight:bold;padding:10px 20px;border-radius:8px;text-decoration:none;font-size:14px">Quero a Versao Vitalicia</a></div>';
+                                    errEl.innerHTML = '<div style="text-align:center;padding:10px 0"><p style="font-weight:bold;color:#dc2626;margin-bottom:6px">Periodo de teste encerrado!</p><p style="font-size:13px;color:#475569;margin-bottom:12px">Para continuar usando o sistema sem perder seus dados, adquira a versão completa na plataforma onde iniciou seu teste (ex: Mercado Livre).</p></div>';
                                     errEl.classList.remove('hidden');
                                 } else {
-                                    window.open(_waLink, '_blank');
+                                    alert('Período de teste encerrado! Adquira a versão completa na plataforma.');
                                 }
                             } else {
                                 var errEl = document.getElementById('activation-error');

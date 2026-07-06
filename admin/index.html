@@ -147,8 +147,22 @@
                             class="bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-green-700 ml-4 flex items-center gap-2">
                             <i data-lucide="plus-circle" class="w-4 h-4"></i> Nova Licença
                         </button>
+                        <button id="btn-preview-archive" onclick="previewArchiveInactive()"
+                            class="bg-amber-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-amber-700 ml-2 flex items-center gap-2">
+                            <i data-lucide="archive" class="w-4 h-4"></i> Arquivar Inativas
+                        </button>
+                        <button id="btn-archive-selected" onclick="archiveSelectedLicenses()"
+                            class="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-indigo-700 ml-2 flex items-center gap-2 hidden">
+                            <i data-lucide="check-square" class="w-4 h-4"></i> Arquivar Selecionadas (<span id="selected-archive-count">0</span>)
+                        </button>
                     </div>
                     <div class="flex gap-2">
+                        <select id="license-status-filter" onchange="loadLicenses()"
+                            class="border rounded-lg px-4 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white">
+                            <option value="current">Ativas / Pendentes</option>
+                            <option value="trial_expired">Testes Expirados</option>
+                            <option value="archived">Arquivadas</option>
+                        </select>
                         <input type="text" id="search-lic" placeholder="Buscar cliente ou chave..."
                             class="border rounded-lg px-4 py-2 text-sm w-64 focus:ring-2 focus:ring-blue-500 outline-none">
                         <button onclick="loadLicenses()"
@@ -162,9 +176,13 @@
                         <table class="w-full text-sm text-left">
                             <thead class="bg-slate-50 text-slate-500 font-bold uppercase text-xs">
                                 <tr>
+                                    <th class="px-6 py-4 w-12">
+                                        <input type="checkbox" id="select-visible-licenses" onchange="toggleVisibleLicenseSelection()" class="rounded border-slate-300">
+                                    </th>
                                     <th class="px-6 py-4">Data</th>
                                     <th class="px-6 py-4">Cliente</th>
                                     <th class="px-6 py-4">Produto</th>
+                                    <th class="px-6 py-4">Plano / Versão</th>
                                     <th class="px-6 py-4">Licença</th>
                                     <th class="px-6 py-4">Status</th>
                                     <th class="px-6 py-4">Dispositivo</th>
@@ -303,6 +321,16 @@
                     </select>
                 </div>
                 <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Plano</label>
+                    <select id="gen-plan"
+                        class="w-full border border-slate-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="ml_lifetime" selected>ML Vitalício</option>
+                        <option value="direct_lifetime">Direto Vitalício</option>
+                        <option value="pro_lifetime">Pro Vitalício</option>
+                        <option value="premium_monthly">Premium Online Mensal</option>
+                    </select>
+                </div>
+                <div>
                     <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Cliente (Opcional)</label>
                     <input type="text" id="gen-client" placeholder="Nome ou Email do Cliente"
                         class="w-full border border-slate-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500">
@@ -424,43 +452,26 @@
                     </div>
                     <div>
                         <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Sistema Alvo (Target)</label>
-                        <select id="notif-target-select" class="w-full border border-slate-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500">
+                        <select id="notif-target-select" onchange="filterNotifClients()" class="w-full border border-slate-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500">
                             <option value="all">🚀 Todos os Sistemas</option>
-                            <option value="" disabled>--- Sistemas Específicos ---</option>
                             <option value="barbearia">Gestão Barbearia</option>
-                            <option value="sorveteria">Gestão Sorveteria</option>
-                            <option value="assistencia">Gestão Assistência</option>
-                            <option value="pizzaria">Gestão Pizzaria</option>
-                            <option value="hamburgueria">Gestão Hamburgueria</option>
-                            <option value="delivery">Gestão Delivery</option>
-                            <option value="marmita">Gestão Marmita</option>
-                            <option value="estoque">Gestão Estoque</option>
-                            <option value="financas">Gestão Finanças</option>
                             <option value="beleza">Gestão Beleza</option>
-                            <option value="odonto">Gestão Odonto</option>
-                            <option value="terapia">Gestão Terapia</option>
-                            <option value="frota">Gestão Frota</option>
-                            <option value="motorista">Gestão Motorista</option>
-                            <option value="motoboy">Gestão Motoboy</option>
-                            <option value="driver">Gestão Driver</option>
-                            <option value="feirante">Gestão Feirante</option>
-                            <option value="fit">Gestão Fit</option>
-                            <option value="nutri">Gestão Nutri</option>
-                            <option value="obras">Gestão Obras</option>
-                            <option value="orcamentos">Gestão Orçamentos</option>
-                            <option value="artesanato">Gestão Artesanato</option>
-                            <option value="alugueis">Gestão Aluguéis</option>
-                            <option value="controle">Gestão Controle</option>
-                            <option value="checklist">Gestão Checklist</option>
-                            <option value="card">Gestão Card</option>
-                            <option value="entregas">Gestão Entregas</option>
-                            <option value="distribuidora">Gestão Distribuidora</option>
                         </select>
+                    </div>
+                    <div class="border border-slate-200 rounded-xl p-4 bg-white">
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Restringir a Cliente Específico <span class="font-normal text-slate-400 normal-case">(opcional)</span></label>
+                        <input type="text" id="notif-client-search" placeholder="Buscar por nome, e-mail ou chave…"
+                            oninput="filterNotifClients()"
+                            class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 mb-2">
+                        <select id="notif-license-select" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="">-- Todos os Clientes do Sistema Alvo --</option>
+                        </select>
+                        <p class="text-xs text-slate-400 mt-2">🔒 Se selecionado, a notificação será entregue apenas para essa licença.</p>
                     </div>
                 </div>
                 <div class="bg-slate-50 p-6 rounded-2xl border border-slate-200 flex flex-col items-center">
                     <h4 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4 w-full text-center">Preview em Tempo Real</h4>
-                    
+
                     <div class="w-full max-w-sm bg-white rounded-2xl shadow-lg border border-slate-100 overflow-hidden relative">
                         <div id="preview-badge" class="absolute top-4 right-4 w-2 h-2 rounded-full bg-blue-500"></div>
                         <div class="p-5">
@@ -496,6 +507,25 @@
         const API_URL = "../api_licenca_ml.php";
         const NOTIF_ADMIN_API = "../api_notificacoes_admin.php";
         let AUTH_SECRET = "";
+
+        function escapeHtml(value) {
+            if (value === null || value === undefined) return '';
+            return String(value)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
+        function getLicenseCategory(l) {
+            if (l.archived_at) return 'archived';
+            const isTrial = l.is_trial || l.type === 'trial';
+            if (isTrial && l.expiration_date && new Date() > new Date(l.expiration_date)) {
+                return 'trial_expired';
+            }
+            return 'current';
+        }
 
         // --- CONFIGURAÇÃO DE DOMÍNIO ---
         const BASE_URL = "https://sistemasdegestao.tech/";
@@ -727,15 +757,112 @@
             return true;
         }
 
+        function isArchiveCandidateRecord(l) {
+            const protectedStatuses = ['active', 'pending'];
+            if (protectedStatuses.includes(l.status)) {
+                return false;
+            }
+            const isTrial = l.is_trial || l.type === 'trial';
+            if (isTrial && l.expiration_date) {
+                const exp = new Date(l.expiration_date);
+                if (new Date() < exp) {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        function toggleVisibleLicenseSelection() {
+            const selectAll = document.getElementById('select-visible-licenses').checked;
+            document.querySelectorAll('.license-archive-checkbox').forEach(cb => {
+                if (!cb.disabled) cb.checked = selectAll;
+            });
+            updateSelectedArchiveCount();
+        }
+
+        function updateSelectedArchiveCount() {
+            const selected = Array.from(document.querySelectorAll('.license-archive-checkbox:checked')).map(cb => cb.value);
+            const count = selected.length;
+            document.getElementById('selected-archive-count').innerText = count;
+            const btn = document.getElementById('btn-archive-selected');
+            if (count > 0) {
+                btn.classList.remove('hidden');
+            } else {
+                btn.classList.add('hidden');
+            }
+        }
+
+        async function archiveSelectedLicenses() {
+            const selectedKeys = Array.from(document.querySelectorAll('.license-archive-checkbox:checked')).map(cb => cb.value);
+            if (selectedKeys.length === 0) return;
+            if (!confirm(`Deseja arquivar as ${selectedKeys.length} licenças selecionadas?`)) return;
+
+            const res = await apiCall('archive_selected', { keys: selectedKeys });
+            if (res && res.status === 'success') {
+                alert(`${res.selected_count} licenças foram arquivadas com sucesso!`);
+                document.getElementById('select-visible-licenses').checked = false;
+                loadLicenses();
+            } else {
+                alert('Erro: ' + (res?.message || 'Falha ao arquivar selecionadas'));
+            }
+        }
+
+        async function previewArchiveInactive() {
+            const res = await apiCall('archive_inactive_preview');
+            if (res && res.status === 'success') {
+                const count = res.candidates.length;
+                if (count === 0) {
+                    alert('Nenhuma licença inativa elegível para arquivamento encontrada.');
+                    return;
+                }
+                if (confirm(`Encontradas ${count} licenças inativas prontas para arquivamento.\n\nDeseja prosseguir com o arquivamento em lote?`)) {
+                    const runRes = await apiCall('archive_inactive');
+                    if (runRes && runRes.status === 'success') {
+                        alert(`${runRes.archived_count} licenças foram arquivadas com sucesso!`);
+                        loadLicenses();
+                    } else {
+                        alert('Erro ao arquivar.');
+                    }
+                }
+            } else {
+                alert('Erro ao buscar prévia de arquivamento.');
+            }
+        }
+
         async function loadLicenses() {
-            const list = await apiCall('list');
+            const filterVal = document.getElementById('license-status-filter').value;
+            const isArchived = filterVal === 'archived';
+            const action = isArchived ? 'list_archived' : 'list';
+            const list = await apiCall(action);
             if (!list) return;
 
             const term = document.getElementById('search-lic').value.toLowerCase();
-            const filtered = list.filter(l =>
+            let filtered = list.filter(l =>
                 (l.client && l.client.toLowerCase().includes(term)) ||
                 (l.key && l.key.toLowerCase().includes(term))
             );
+
+            // Apply select filter
+            if (filterVal === 'trial_expired') {
+                filtered = filtered.filter(l => {
+                    const isTrial = l.is_trial || l.type === 'trial';
+                    if (!isTrial || !l.expiration_date) return false;
+                    return new Date() > new Date(l.expiration_date);
+                });
+            } else if (filterVal === 'current') {
+                filtered = filtered.filter(l => {
+                    // Do not show expired trials
+                    const isTrial = l.is_trial || l.type === 'trial';
+                    if (isTrial && l.expiration_date && new Date() > new Date(l.expiration_date)) {
+                        return false;
+                    }
+                    return true;
+                });
+            }
+
+            // Reset selection header checkbox and archive actions count
+            document.getElementById('select-visible-licenses').checked = false;
+            updateSelectedArchiveCount();
 
             const tbody = document.getElementById('licenses-table');
             tbody.innerHTML = filtered.map((l, index) => {
@@ -744,7 +871,10 @@
                 let isExpired = false;
 
                 // Logic for Badge
-                if (l.status === 'active') {
+                if (isArchived) {
+                    statusText = 'ARQUIVADA';
+                    badgeClass = 'bg-slate-100 text-slate-500 border border-slate-300';
+                } else if (l.status === 'active') {
                     // Check if trial active
                     if (l.is_trial || l.type === 'trial') {
                         statusText = 'TESTE (ATIVO)';
@@ -771,18 +901,34 @@
                     if (l.is_trial || l.type === 'trial') statusText = 'TESTE (PENDENTE)';
                 }
 
+                const canArchive = isArchiveCandidateRecord(l) && !isArchived;
+
+                const archiveCheckbox = canArchive ?
+                    `<input type="checkbox" class="license-archive-checkbox" value="${l.key}" onchange="updateSelectedArchiveCount()">` :
+                    `<input type="checkbox" disabled class="rounded border-slate-200 bg-slate-50">`;
+
+                const showActions = !isArchived;
+
                 return `
                 <tr class="transition-colors ${index % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'} hover:bg-blue-50/30">
+                    <td class="px-6 py-4">
+                        ${archiveCheckbox}
+                    </td>
                     <td class="px-6 py-4 font-mono text-[11px] text-slate-400">
                         ${l.created_at?.substring(0, 16).replace('T', ' ')}
                         ${l.expiration_date ? `<div class="text-[9px] text-red-400 font-bold mt-1">Exp: ${l.expiration_date.substring(0, 16)}</div>` : ''}
+                        ${isArchived && l.archived_at ? `<div class="text-[9px] text-slate-500 font-bold mt-1">Arq: ${l.archived_at.substring(0, 16)}</div>` : ''}
                     </td>
                     <td class="px-6 py-4">
-                        <div class="font-bold text-slate-800">${l.client || 'Mercado Livre'}</div>
+                        <div class="font-bold text-slate-800">${escapeHtml(l.client || 'Mercado Livre')}</div>
                         <div class="text-[10px] text-slate-400 uppercase tracking-tighter">${l.type || 'venda'} ${l.is_trial ? '⚡' : ''}</div>
                         ${l.email_activation ? `<div class="text-[10px] text-blue-600 font-bold mt-1" title="Email de Ativação">📧 ${l.email_activation}</div>` : ''}
                     </td>
                     <td class="px-6 py-4 text-slate-600 font-medium">${l.product || 'N/A'}</td>
+                    <td class="px-6 py-4">
+                        <div class="font-bold text-slate-800">${l.plan_name || 'Vitalício Original'}</div>
+                        <div class="text-[10px] text-slate-400 font-mono">${l.system_version || 'standalone_ml'}</div>
+                    </td>
                     <td class="px-6 py-4 font-mono text-[11px] text-blue-600 bg-blue-50/50 rounded-md py-1 px-2 border border-blue-100/50">${l.key.substring(0, 18)}...</td>
                     <td class="px-6 py-4">
                         <span class="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${badgeClass}">
@@ -797,19 +943,19 @@
                             <button onclick="copyToClip('${l.key}')" class="p-2 bg-slate-100 text-slate-600 hover:bg-blue-600 hover:text-white rounded-lg transition-all shadow-sm" title="Copiar Chave">
                                 <i data-lucide="copy" class="w-4 h-4"></i>
                             </button>
-                            ${(l.is_trial || l.type === 'trial') && l.status !== 'blocked' ?
+                            ${showActions && (l.is_trial || l.type === 'trial') && l.status !== 'blocked' ?
                         `<button onclick="convertTrial('${l.key}')" class="p-2 bg-purple-50 text-purple-600 hover:bg-purple-600 hover:text-white rounded-lg transition-all shadow-sm" title="Converter para Vitalício">
                                 <i data-lucide="gem" class="w-4 h-4"></i>
                             </button>` : ''}
-                            ${l.status !== 'blocked' ?
+                            ${showActions && l.status !== 'blocked' ?
                         `<button onclick="blockLicense('${l.key}')" class="p-2 bg-red-50 text-red-600 hover:bg-red-600 hover:text-white rounded-lg transition-all shadow-sm" title="Bloquear Acesso">
                                 <i data-lucide="ban" class="w-4 h-4"></i>
                             </button>` :
-                        `<button onclick="unblockLicense('${l.key}')" class="p-2 bg-green-50 text-green-600 hover:bg-green-600 hover:text-white rounded-lg transition-all shadow-sm" title="Desbloquear Acesso">
+                        (showActions ? `<button onclick="unblockLicense('${l.key}')" class="p-2 bg-green-50 text-green-600 hover:bg-green-600 hover:text-white rounded-lg transition-all shadow-sm" title="Desbloquear Acesso">
                                 <i data-lucide="check" class="w-4 h-4"></i>
-                            </button>`
+                            </button>` : '')
                     }
-                            ${l.device_id ? `<button onclick="resetDevice('${l.key}')" class="p-2 bg-amber-50 text-amber-600 hover:bg-amber-600 hover:text-white rounded-lg transition-all shadow-sm" title="Resetar Dispositivo">
+                            ${showActions && l.device_id ? `<button onclick="resetDevice('${l.key}')" class="p-2 bg-amber-50 text-amber-600 hover:bg-amber-600 hover:text-white rounded-lg transition-all shadow-sm" title="Resetar Dispositivo">
                                 <i data-lucide="smartphone-off" class="w-4 h-4"></i>
                             </button>` : ''}
                         </div>
@@ -832,8 +978,8 @@
                         <div class="text-sm font-bold text-slate-800">${r.client_email}</div>
                         <div class="text-xs font-mono text-slate-400">${r.license_key}</div>
                     </td>
-                    <td class="px-6 py-4 text-xs italic text-slate-600 max-w-xs truncate" title="${r.confirmation_text}">
-                        ${r.confirmation_text}
+                    <td class="px-6 py-4 text-xs italic text-slate-600 max-w-xs truncate" title="${escapeHtml(r.confirmation_text)}">
+                        ${escapeHtml(r.confirmation_text)}
                     </td>
                 </tr>
             `).join('');
@@ -887,7 +1033,7 @@
         async function loadNotifications() {
             const list = await notifAdminCall('list');
             const container = document.getElementById('notifications-list');
-            
+
             if (!list || !Array.isArray(list) || list.length === 0) {
                 container.innerHTML = '<p class="text-slate-500 text-sm py-6">Nenhuma notificação ativa.</p>';
                 return;
@@ -914,7 +1060,7 @@
                             <span class="bg-${c}-100 text-${c}-700 text-[10px] uppercase font-bold tracking-wider px-2 py-1 rounded-full">${n.type}</span>
                             <span class="text-[10px] text-slate-400 font-mono">${(n.version ? 'v'+n.version : '')}</span>
                         </div>
-                        <h4 class="font-bold text-lg text-slate-800 mb-1">${n.title}</h4>
+                        <h4 class="font-bold text-lg text-slate-800 mb-1">${escapeHtml(n.title)}</h4>
                         <p class="text-sm text-slate-600 mb-3">${n.body}</p>
                         <div class="flex items-center gap-4 text-[11px] font-medium text-slate-400">
                             <div class="flex items-center gap-1"><i data-lucide="target" class="w-3 h-3"></i> <span class="truncate max-w-[200px] capitalize">${targets}</span></div>
@@ -941,7 +1087,67 @@
             }
         }
 
-        // Removed toggleTargetsAll
+        // ── Clientes para restrição por licença ──────────────────────────
+        let _allNotifLicensesCache = [];
+
+        async function loadNotifClients() {
+            try {
+                const list = await apiCall('list');
+                if (Array.isArray(list)) {
+                    _allNotifLicensesCache = list.filter(l => l.status === 'active' || l.status === 'pending');
+                }
+                filterNotifClients();
+            } catch (e) {
+                console.warn('loadNotifClients: falha ao carregar licenças', e);
+            }
+        }
+
+        function filterNotifClients() {
+            const term = (document.getElementById('notif-client-search')?.value || '').toLowerCase();
+            const select = document.getElementById('notif-license-select');
+            const targetSys = document.getElementById('notif-target-select').value;
+            if (!select) return;
+
+            select.innerHTML = '<option value="">-- Todos os Clientes do Sistema Alvo --</option>';
+
+            const MASTER_KEYS = ['MASTER123', 'ADMIN_ML', 'TESTE2026'];
+
+            // Restringe a clientes ativos ou perfis de teste master
+            let filtered = _allNotifLicensesCache.filter(l =>
+                l.status === 'active' ||
+                l.is_master === true ||
+                MASTER_KEYS.includes((l.key || '').toUpperCase())
+            );
+
+            // Filtro por sistema alvo selecionado no combo-box
+            if (targetSys && targetSys !== 'all') {
+                filtered = filtered.filter(l => {
+                    const prod = (l.product || '').toLowerCase();
+                    if (targetSys === 'beleza' && prod.includes('beleza')) return true;
+                    if (targetSys === 'barbearia' && prod.includes('barbearia')) return true;
+                    // Master keys bypass the product filter so we can target them anytime for testing
+                    if (l.is_master === true || MASTER_KEYS.includes((l.key || '').toUpperCase())) return true;
+                    return false;
+                });
+            }
+
+            if (term) {
+                filtered = filtered.filter(l =>
+                    (l.client && l.client.toLowerCase().includes(term)) ||
+                    (l.email_activation && l.email_activation.toLowerCase().includes(term)) ||
+                    (l.key && l.key.toLowerCase().includes(term))
+                );
+            }
+
+            // Limitamos a 50 itens para não travar o DOM e forçar a busca refinada
+            filtered.slice(0, 50).forEach(l => {
+                const opt = document.createElement('option');
+                opt.value = l.key;
+                const prodDisplay = l.product ? `[${l.product}]` : '[Sem Produto]';
+                opt.textContent = `${l.client || l.key} ${prodDisplay} — ${l.key}`;
+                select.appendChild(opt);
+            });
+        }
 
         function openNotifModal() {
             document.getElementById('notif-title').value = '';
@@ -950,7 +1156,12 @@
             document.getElementById('notif-expires').value = '';
             document.getElementById('notif-version').value = '';
             document.getElementById('notif-target-select').value = 'all';
+            const clientSearch = document.getElementById('notif-client-search');
+            if (clientSearch) clientSearch.value = '';
+            const licSelect = document.getElementById('notif-license-select');
+            if (licSelect) licSelect.innerHTML = '<option value="">-- Todos os Clientes do Sistema Alvo --</option>';
 
+            loadNotifClients();
             updateNotifPreview();
             document.getElementById('notif-modal').classList.remove('hidden');
         }
@@ -965,7 +1176,7 @@
 
             const cmap = { update: 'blue', security: 'red', backup: 'amber', info: 'slate', promo: 'green' };
             const c = cmap[type] || 'slate';
-            
+
             const badge = document.getElementById('preview-badge');
             // Remove previous color classes carefully or just re-assign
             badge.className = `absolute top-4 right-4 w-2 h-2 rounded-full bg-${c}-500`;
@@ -990,6 +1201,7 @@
             const targets = [targetVal];
 
             const expires = document.getElementById('notif-expires').value;
+            const targetLicense = document.getElementById('notif-license-select')?.value || null;
 
             const payload = {
                 id: generateNotifId(),
@@ -1001,7 +1213,8 @@
                 published: new Date().toISOString(),
                 expires: expires ? new Date(expires).toISOString() : null,
                 targets,
-                version: document.getElementById('notif-version').value.trim()
+                version: document.getElementById('notif-version').value.trim(),
+                target_license: targetLicense || null
             };
 
             const res = await notifAdminCall('create', payload);
@@ -1045,7 +1258,7 @@
 
         async function unblockLicense(key) {
             if (!confirm('Tem certeza que deseja DESBLOQUEAR esta licença?')) return;
-            // Ao desbloquear, volta para 'active' se já tinha device, ou 'pending' se não tinha. 
+            // Ao desbloquear, volta para 'active' se já tinha device, ou 'pending' se não tinha.
             // Simplificação: volta para 'active' e deixa o device cuidar, ou 'pending' resetado.
             // Melhor: Voltamos para 'active' pois geralmente é um cliente que pagou novamente.
             const res = await apiCall('update_status', { key: key, status: 'active' });
@@ -1069,10 +1282,20 @@
             const client = document.getElementById('gen-client').value || 'Cliente';
             const price = document.getElementById('gen-price').value;
             const isTrial = document.getElementById('gen-trial').checked;
+            const planSelect = document.getElementById('gen-plan');
+            const planCode = planSelect ? planSelect.value : 'ml_lifetime';
 
             if (!product) return alert('Selecione um produto.');
 
             const trialDays = isTrial ? (parseInt(document.getElementById('gen-trial-days').value) || 3) : 3;
+
+            const PLAN_METADATA = {
+                'ml_lifetime': { name: 'ML Vitalício', billing: 'one_time', channel: 'mercado_livre', version: 'standalone_ml' },
+                'direct_lifetime': { name: 'Direto Vitalício', billing: 'one_time', channel: 'venda_direta', version: 'standalone_direct' },
+                'pro_lifetime': { name: 'Pro Vitalício', billing: 'one_time', channel: 'venda_direta', version: 'standalone_pro' },
+                'premium_monthly': { name: 'Premium Online Mensal', billing: 'recurring', channel: 'premium_online', version: 'premium_online' }
+            };
+            const planMeta = PLAN_METADATA[planCode] || PLAN_METADATA['ml_lifetime'];
 
             const res = await apiCall('generate', {
                 product: product,
@@ -1080,7 +1303,13 @@
                 price: price,
                 quantity: 1,
                 trial: isTrial,
-                trial_days: trialDays
+                trial_days: trialDays,
+                plan_code: planCode,
+                plan_name: planMeta.name,
+                billing_model: planMeta.billing,
+                sales_channel: planMeta.channel,
+                system_version: planMeta.version,
+                package_version: planMeta.version
             });
 
             if (res && res.status === 'success' && res.keys && res.keys.length > 0) {
@@ -1111,10 +1340,35 @@ ${key}
 2. Insira a chave acima.
 3. Aproveite todas as funcionalidades por ${trialHours}h!
 
-O sistema irá travar automaticamente após o período. Para liberar a versão vitalícia sem perder seus dados, me chame pelo WhatsApp: (12) 99219-1018
+O sistema irá travar automaticamente após o período. Para liberar a versão completa sem perder seus dados, entre em contato pelo chat da compra.
 
 Qualquer dúvida, estou à disposição!`;
 
+                } else if (planCode === 'premium_monthly') {
+                    message = `Olá, ${client}! 🚀
+Obrigado pela sua assinatura Premium. Aqui está o acesso ao seu sistema:
+
+📱 *Acesso ao Sistema:*
+${appLink}
+
+🔑 *Sua Licença de Ativação:*
+${key}
+
+⚠️ *IMPORTANTE: 1 Dispositivo por Licença*
+Aplique esta licença EXCLUSIVAMENTE no dispositivo (celular ou computador) onde for utilizar o sistema.
+
+*Instruções de Ativação:*
+1. Clique no link acima para abrir o sistema.
+2. Copie e cole sua licença na tela inicial.
+3. Confirme o recebimento na tela de boas-vindas para liberar o acesso.
+
+📚 *Primeiros Passos:*
+Assim que entrar, acesse o menu *Manual de Uso* para aprender a extrair o máximo do seu sistema.
+
+📞 *Suporte Técnico:*
+Seg a Sex: 08h às 18h | Sáb: 09h às 14h
+
+Qualquer dúvida, estamos à disposição!`;
                 } else {
                     message = `Olá, ${client}! 🚀
 Obrigado pela sua compra. Aqui está o acesso vitalício ao seu sistema:
@@ -1131,7 +1385,7 @@ Aplique esta licença EXCLUSIVAMENTE no dispositivo (celular ou computador) onde
 *Instruções de Ativação:*
 1. Clique no link acima para abrir o sistema.
 2. Copie e cole sua licença na tela inicial.
-3. Confirme o recebimento do produto na tela de boas-vindas para liberar o acesso total.
+3. Confirme o recebimento na tela de boas-vindas para liberar o acesso.
 
 📚 *Primeiros Passos:*
 Assim que entrar, acesse o menu *Manual de Uso* para aprender a extrair o máximo do seu sistema.

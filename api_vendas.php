@@ -156,7 +156,7 @@ if ($action === 'dashboard_stats') {
     $salesCount = count($sales);
 
     foreach ($sales as $s) {
-        if ($s['status'] === 'approved' || true) { // Simulação: conta tudo
+        if (($s['status'] ?? '') === 'approved') {
             $totalSales += $s['amount'];
             $totalCommission += $s['partner_commission'];
         }
@@ -196,17 +196,31 @@ if ($action === 'create_preference') {
     $price = (float) $jsonData['price'];
     $couponCode = $jsonData['coupon_code'] ?? '';
 
+    $validPlans = ['ml_lifetime', 'direct_lifetime', 'pro_lifetime', 'premium_monthly'];
+    $reqPlanCode = $jsonData['plan_code'] ?? 'direct_lifetime';
+    if (!in_array($reqPlanCode, $validPlans)) {
+        $reqPlanCode = 'direct_lifetime';
+    }
+
+    $title = "Licença Vitalícia - Gestão " . ucfirst($product);
+    if ($reqPlanCode === 'premium_monthly') {
+        $title = "Assinatura Premium Online - Gestão " . ucfirst($product);
+    } elseif ($reqPlanCode === 'pro_lifetime') {
+        $title = "Licença Pro Vitalícia - Gestão " . ucfirst($product);
+    }
+
     // Metadata para rastreio no Webhook
     $externalRef = json_encode([
         'product' => $product,
         'coupon' => $couponCode,
-        'app_generated_id' => uniqid('order_')
+        'app_generated_id' => uniqid('order_'),
+        'plan_code' => $reqPlanCode
     ]);
 
     $preferenceData = [
         "items" => [
             [
-                "title" => "Licença Vitalícia - Gestão " . ucfirst($product),
+                "title" => $title,
                 "quantity" => 1,
                 "currency_id" => "BRL",
                 "unit_price" => $price
@@ -247,6 +261,24 @@ if ($action === 'webhook') {
             $product = $metadata['product'] ?? 'unknown';
             $coupon = $metadata['coupon'] ?? '';
 
+            $canonicalPlans = [
+                'ml_lifetime' => ['name' => 'ML Vitalício', 'billing' => 'one_time', 'channel' => 'mercado_livre', 'version' => 'standalone_ml'],
+                'direct_lifetime' => ['name' => 'Direto Vitalício', 'billing' => 'one_time', 'channel' => 'venda_direta', 'version' => 'standalone_direct'],
+                'pro_lifetime' => ['name' => 'Pro Vitalício', 'billing' => 'one_time', 'channel' => 'venda_direta', 'version' => 'standalone_pro'],
+                'premium_monthly' => ['name' => 'Premium Online Mensal', 'billing' => 'recurring', 'channel' => 'premium_online', 'version' => 'premium_online']
+            ];
+
+            $planCode = $metadata['plan_code'] ?? 'direct_lifetime';
+            if (!isset($canonicalPlans[$planCode])) {
+                $planCode = 'direct_lifetime';
+            }
+            $planMeta = $canonicalPlans[$planCode];
+
+            $planName = $planMeta['name'];
+            $billingModel = $planMeta['billing'];
+            $salesChannel = $planMeta['channel'];
+            $systemVersion = $planMeta['version'];
+
             // 2. Gerar Licença
             require_once __DIR__ . '/api_licenca_ml.php'; // Reutiliza funções de licença
 
@@ -265,7 +297,14 @@ if ($action === 'webhook') {
                 "status" => "active",
                 "device_id" => null, // Será vinculado no primeiro login
                 "product_type" => $product,
-                "payment_id" => $dataID
+                "payment_id" => $dataID,
+                "type" => "venda_direta",
+                "plan_code" => $planCode,
+                "plan_name" => $planName,
+                "billing_model" => $billingModel,
+                "sales_channel" => $salesChannel,
+                "system_version" => $systemVersion,
+                "package_version" => $systemVersion
             ];
 
             file_put_contents($fileLicenses, json_encode($dbLicenses, JSON_PRETTY_PRINT));

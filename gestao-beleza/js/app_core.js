@@ -130,11 +130,12 @@ function router(view) {
             updateChecklist();
         }
         if (view === 'evolution') renderEvolutionCenter();
+        if (view === 'notifications' && typeof renderNotifications === 'function') renderNotifications();
     }
     document.querySelectorAll('.nav-item').forEach(el => { el.classList.remove('active-nav', 'text-white'); el.classList.add('text-slate-400'); });
     const navEl = document.getElementById(`nav-${view}`);
     if (navEl) { navEl.classList.add('active-nav', 'text-white'); navEl.classList.remove('text-slate-400'); }
-    const titles = { dashboard: 'Visão Geral', agenda: 'Agenda', team: 'Profissionais', services: 'Serviços', finance: 'Financeiro', clients: 'Clientes', reports: 'Relatórios', inventory: 'Estoque', instructions: 'Manual de Uso', settings: 'Configurações', evolution: 'Central de Evolução' };
+    const titles = { dashboard: 'Visão Geral', agenda: 'Agenda', team: 'Profissionais', services: 'Serviços', finance: 'Financeiro', clients: 'Clientes', reports: 'Relatórios', inventory: 'Estoque', instructions: 'Manual de Uso', settings: 'Configurações', evolution: 'Central de Evolução', notifications: 'Notificações' };
     document.getElementById('page-title').textContent = titles[view] || 'Gestão Beleza';
     const isDesktop = window.innerWidth >= 1024;
     if (!isDesktop) {
@@ -1449,4 +1450,5 @@ function updateTutorialProgress() {
 document.addEventListener('DOMContentLoaded', () => {
     initSidebar();
     init();
+    if (typeof initNotifications === 'function') initNotifications();
 });

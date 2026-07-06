@@ -13,8 +13,9 @@ header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
 header('Pragma: no-cache');
 header('Expires: 0');
 
-// Sanitiza o parâmetro target
+// Sanitiza os parâmetros target e license
 $target   = isset($_GET['target']) ? preg_replace('/[^a-z0-9_-]/', '', strtolower(trim($_GET['target']))) : 'all';
+$license  = isset($_GET['license']) ? preg_replace('/[^a-zA-Z0-9_-]/', '', trim($_GET['license'])) : '';
 $dataFile = __DIR__ . '/notifications_data.json';
 
 if (!file_exists($dataFile)) {
@@ -34,7 +35,15 @@ $now      = new DateTime('now', new DateTimeZone('UTC'));
 $filtered = [];
 
 foreach ($data as $n) {
-    // Filtro por target
+    // Filtro por licença específica (target_license)
+    $targetLicense = $n['target_license'] ?? '';
+    if (!empty($targetLicense)) {
+        if (strtolower(trim($targetLicense)) !== strtolower($license)) {
+            continue; // Notificação destinada a outra licença
+        }
+    }
+
+    // Filtro por target de sistema
     $targets = $n['targets'] ?? ['all'];
     if (!in_array('all', $targets) && !in_array($target, $targets)) continue;
 

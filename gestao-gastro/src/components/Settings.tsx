@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { useApp } from '../store/AppContext';
 import {
   Settings as SettingsIcon, Store, Printer, Database, Save,
@@ -13,7 +13,7 @@ export const Settings: React.FC = () => {
   const isDark = theme === 'dark';
 
   const [formData, setFormData] = useState<AppSettings>(settings);
-  const [activeTab, setActiveTab] = useState<'store' | 'printer' | 'data'>('store');
+  const [activeTab, setActiveTab] = useState<'store' | 'kitchen' | 'printer' | 'data'>('store');
   const [isSaving, setIsSaving] = useState(false);
 
   const handleSave = () => {
@@ -46,6 +46,7 @@ export const Settings: React.FC = () => {
 
   const tabs = [
     { id: 'store', label: 'Estabelecimento', icon: Store },
+    { id: 'kitchen', label: 'Cozinha (KDS)', icon: Layout },
     { id: 'printer', label: 'Impressão', icon: Printer },
     { id: 'data', label: 'Dados & Backup', icon: Database },
   ];
@@ -168,6 +169,37 @@ export const Settings: React.FC = () => {
                       className={`w-full p-5 pl-12 rounded-lg border outline-none font-bold text-sm resize-none transition-all ${isDark ? 'bg-transparent border-[#2C2C2E] focus:border-[#475569]' : 'bg-gray-50 border-gray-100 focus:border-[#475569]'}`}
                     />
                   </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'kitchen' && (
+            <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-200">
+              <div className="flex items-center gap-4 border-b border-dashed border-current/10 pb-6 mb-8">
+                <div className="w-12 h-12 rounded-lg bg-blue-500/10 flex items-center justify-center">
+                  <Layout className="w-6 h-6 text-blue-500" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold uppercase tracking-tighter">Cozinha (KDS)</h3>
+                  <p className="text-[10px] font-bold uppercase tracking-wide opacity-40">Configuração do painel de monitoramento de pedidos</p>
+                </div>
+              </div>
+
+              <div className="space-y-6">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold uppercase tracking-wide opacity-30 ml-2">Modo de Operação</label>
+                  <select
+                    value={formData.kitchenMode || 'display'}
+                    onChange={e => setFormData({ ...formData, kitchenMode: e.target.value as any })}
+                    className={`w-full h-14 px-6 rounded-lg border outline-none font-bold text-sm ${isDark ? 'bg-transparent border-[#2C2C2E] text-white' : 'bg-gray-50 border-gray-100'}`}
+                  >
+                    <option value="display">Modo Visualização (Apenas Leitura)</option>
+                    <option value="interactive">Modo Interativo (Alterar status pelo painel)</option>
+                  </select>
+                  <p className="text-[9px] font-bold opacity-30 ml-2 uppercase tracking-wide">
+                    O Modo Interativo permite que os operadores cliquem nos itens para alterar o status (Aguardando → Preparo → Pronto).
+                  </p>
                 </div>
               </div>
             </div>

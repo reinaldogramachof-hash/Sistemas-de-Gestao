@@ -169,5 +169,6 @@ export const mockSettings: AppSettings = {
     autoPrint: false,
     showLogo: true,
     paperWidth: '80mm'
-  }
+  },
+  kitchenMode: 'display'
 };

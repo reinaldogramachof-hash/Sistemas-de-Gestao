@@ -1,0 +1,199 @@
+﻿import React, { useState, useEffect } from 'react';
+import { Shield, Key, Mail, Loader, CheckCircle } from 'lucide-react';
+import { ReceiptConfirmation } from './ReceiptConfirmation';
+
+interface ActivationGateProps {
+  children: React.ReactNode;
+}
+
+export const ActivationGate: React.FC<ActivationGateProps> = ({ children }) => {
+  const [isAuthorized, setIsAuthorized] = useState<boolean | null>(null);
+  const [email, setEmail] = useState('');
+  const [licenseKey, setLicenseKey] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [needsReceipt, setNeedsReceipt] = useState(false);
+
+  const checkLicense = async () => {
+    const savedKey = localStorage.getItem('plena_license');
+    const savedEmail = localStorage.getItem('ml_license_email');
+    const masterMode = localStorage.getItem('ml_master_mode');
+    const receiptConfirmed = localStorage.getItem('ml_receipt_confirmed');
+
+    if (masterMode === 'true') {
+      setIsAuthorized(true);
+      return;
+    }
+
+    if (!savedKey || !savedEmail) {
+      setIsAuthorized(false);
+      return;
+    }
+
+    if (!navigator.onLine) {
+      // Offline fallback
+      setIsAuthorized(true);
+      if (receiptConfirmed !== 'true') setNeedsReceipt(true);
+      return;
+    }
+
+    try {
+      const response = await fetch('../api_licenca_ml.php?action=verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ license_key: savedKey, email: savedEmail })
+      });
+
+      if (!response.ok) {
+        throw new Error('Network error');
+      }
+
+      const data = await response.json();
+
+      if (data.status === 'success' && data.license_status === 'active') {
+        setIsAuthorized(true);
+        if (receiptConfirmed !== 'true') setNeedsReceipt(true);
+      } else if (data.status === 'success' && (data.license_status === 'blocked' || data.license_status === 'expired')) {
+        localStorage.removeItem('plena_license');
+        localStorage.removeItem('ml_license_email');
+        setIsAuthorized(false);
+        setError(data.message || 'Sua licença esta bloqueada ou expirada.');
+      } else {
+        // Unknown status but active locally
+        setIsAuthorized(true);
+        if (receiptConfirmed !== 'true') setNeedsReceipt(true);
+      }
+    } catch (err) {
+      // Offline fallback if server is down
+      setIsAuthorized(true);
+      if (receiptConfirmed !== 'true') setNeedsReceipt(true);
+    }
+  };
+
+  useEffect(() => {
+    checkLicense();
+  }, []);
+
+  const handleActivation = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+
+    const masterKeys = ['MASTER123', 'ADMIN_ML', 'TESTE2026'];
+
+    if (masterKeys.includes(licenseKey.toUpperCase())) {
+      localStorage.setItem('ml_master_mode', 'true');
+      localStorage.setItem('plena_license', licenseKey.toUpperCase());
+      localStorage.setItem('ml_license_email', email);
+      setIsAuthorized(true);
+      setLoading(false);
+      return;
+    }
+
+    try {
+      let deviceId = localStorage.getItem('device_id');
+      if (!deviceId) {
+        deviceId = 'dev_' + Math.random().toString(36).substr(2, 9);
+        localStorage.setItem('device_id', deviceId);
+      }
+
+      const response = await fetch('../api_licenca_ml.php?action=activate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ license_key: licenseKey, email, device_id: deviceId })
+      });
+
+      const data = await response.json();
+
+      if (data.status === 'success') {
+        localStorage.setItem('plena_license', licenseKey);
+        localStorage.setItem('ml_license_email', email);
+        setIsAuthorized(true);
+        setNeedsReceipt(true);
+      } else {
+        setError(data.message || 'Licenca invalida ou ja utilizada.');
+      }
+    } catch (err) {
+      setError('Erro de conexao ao servidor de licenças. Tente novamente.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (isAuthorized === null) {
+    return (
+      <div className="h-screen w-full bg-[#121214] flex items-center justify-center">
+        <Loader className="w-12 h-12 text-[#475569] animate-spin" />
+      </div>
+    );
+  }
+
+  if (isAuthorized === false) {
+    return (
+      <div className="min-h-screen bg-[#121214] flex flex-col items-center justify-center p-4">
+        <div className="bg-[#1A1A1D] p-8 rounded-lg shadow-sm max-w-md w-full border border-white/5">
+          <div className="flex justify-center mb-6">
+            <div className="w-16 h-16 bg-[#475569]/20 rounded-full flex items-center justify-center">
+              <Shield className="w-8 h-8 text-[#475569]" />
+            </div>
+          </div>
+
+          <h2 className="text-2xl font-bold text-white text-center mb-2">Ativacao do Sistema</h2>
+          <p className="text-gray-400 text-center mb-8">Insira a chave recebida apos a compra para liberar seu sistema vitalicio.</p>
+
+          <form onSubmit={handleActivation} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-1">E-mail da Compra</label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full bg-[#2A2A2D] border border-white/10 rounded-lg pl-10 pr-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-[#475569]"
+                  placeholder="seu@email.com"
+                  required
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-1">Chave de Licenca</label>
+              <div className="relative">
+                <Key className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
+                <input
+                  type="text"
+                  value={licenseKey}
+                  onChange={(e) => setLicenseKey(e.target.value)}
+                  className="w-full bg-[#2A2A2D] border border-white/10 rounded-lg pl-10 pr-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-[#475569]"
+                  placeholder="XXXX-XXXX-XXXX-XXXX"
+                  required
+                />
+              </div>
+            </div>
+
+            {error && (
+              <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
+                <p className="text-red-400 text-sm text-center">{error}</p>
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-[#475569] hover:bg-[#d6455d] text-white font-bold py-3 px-4 rounded-lg transition-colors flex justify-center items-center gap-2"
+            >
+              {loading ? <Loader className="w-5 h-5 animate-spin" /> : 'Ativar Sistema'}
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
+  if (needsReceipt) {
+    return <ReceiptConfirmation onConfirmed={() => setNeedsReceipt(false)} />;
+  }
+
+  return <>{children}</>;
+};

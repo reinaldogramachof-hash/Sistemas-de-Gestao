@@ -1,0 +1,121 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", system-ui, sans-serif;
+
+  /* Superficies - dark */
+  --color-app-base: #0F0F11;
+  --color-surface: #1A1A1E;
+  --color-elevated: #242428;
+
+  /* Superficies - light */
+  --color-app-base-light: #F5F5F7;
+  --color-surface-light: #FFFFFF;
+  --color-elevated-light: #F0F0F2;
+
+  /* Bordas */
+  --color-border: #2E2E32;
+  --color-border-light: #E4E4E7;
+
+  /* Texto */
+  --color-text: #FAFAFA;
+  --color-text-light: #18181B;
+  --color-muted: #A1A1AA;
+  --color-muted-light: #71717A;
+
+  /* Accent neutro (slate) - sem rosa/roxo */
+  --color-accent: #475569;
+  --color-accent-hover: #334155;
+
+  /* Semânticos */
+  --color-success: #22C55E;
+  --color-warning: #F59E0B;
+  --color-danger: #EF4444;
+
+  /* Raios de borda padronizados */
+  --radius-control: 6px;
+  --radius-panel: 8px;
+  --radius-section: 12px;
+
+  /* Sombra única e funcional */
+  --shadow-elevated: 0 4px 16px rgba(0, 0, 0, 0.18);
+}
+
+@keyframes bounce-subtle {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+
+.animate-bounce-subtle {
+  animation: bounce-subtle 2s infinite ease-in-out;
+}
+
+@layer base {
+  html {
+    font-family: "Inter", system-ui, sans-serif;
+  }
+
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(156, 163, 175, 0.5) transparent;
+  }
+
+  body,
+  div,
+  aside,
+  main,
+  header,
+  nav,
+  section,
+  button,
+  input,
+  select,
+  textarea,
+  span,
+  p,
+  h1, h2, h3, h4, h5, h6,
+  table, tr, td, th {
+    transition: background-color 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+                color 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+                border-color 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+                box-shadow 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  *::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  *::-webkit-scrollbar-thumb {
+    background-color: rgba(156, 163, 175, 0.5);
+    border-radius: 20px;
+    border: transparent;
+  }
+
+  .dark * {
+    scrollbar-color: rgba(75, 85, 99, 0.5) transparent;
+  }
+
+  .dark *::-webkit-scrollbar-thumb {
+    background-color: rgba(75, 85, 99, 0.5);
+  }
+}
+
+@layer utilities {
+  .animate-spin-slow {
+    animation: spin 8s linear infinite;
+  }
+
+  @keyframes spin {
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
+    }
+  }
+}

@@ -1,4 +1,4 @@
-﻿import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useApp } from '../store/AppContext';
 import {
   Search, Plus, Edit2, Trash2, X, Filter, LayoutGrid, List,
@@ -56,7 +56,8 @@ export const Products: React.FC = () => {
       description: formData.get('description') as string,
       price: parseFloat(formData.get('price') as string),
       category: formData.get('category') as string,
-      recipe: recipeItems
+      recipe: recipeItems,
+      active: formData.get('active') === 'true'
     };
 
     if (editingProduct) updateProduct(product);
@@ -163,11 +164,17 @@ export const Products: React.FC = () => {
                 key={p.id}
                 className={`group relative flex flex-col p-6 rounded-lg border transition-all duration-200
                   ${isDark ? 'bg-[#1C1C1E] border-[#2C2C2E] hover:border-[#475569]/40' : 'bg-white border-gray-100 hover:border-[#475569]/40 shadow-sm'}
+                  ${p.active === false ? 'opacity-60' : ''}
                 `}
               >
                 <div className="flex justify-between items-start mb-6">
-                  <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${isDark ? 'bg-white/5' : 'bg-gray-50'}`}>
-                    {getIcon(p.category)}
+                  <div className="flex items-center gap-3">
+                    <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${isDark ? 'bg-white/5' : 'bg-gray-50'}`}>
+                      {getIcon(p.category)}
+                    </div>
+                    {p.active === false && (
+                      <span className="px-2 py-0.5 bg-red-500/10 text-red-500 rounded text-[8px] font-bold uppercase tracking-wider">Inativo</span>
+                    )}
                   </div>
                   <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0">
                     <button onClick={() => openModal(p)} className="p-2.5 rounded-xl hover:bg-[#475569]/10 hover:text-[#475569] transition-all"><Edit2 className="w-4 h-4" /></button>
@@ -228,7 +235,12 @@ export const Products: React.FC = () => {
                     <td className="px-8 py-5">
                       <div className="flex items-center gap-4">
                         <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${isDark ? 'bg-white/5' : 'bg-gray-50'}`}>{getIcon(p.category)}</div>
-                        <span className="font-bold uppercase tracking-tight">{p.name}</span>
+                        <div>
+                          <span className="font-bold uppercase tracking-tight">{p.name}</span>
+                          {p.active === false && (
+                            <span className="ml-2 px-1.5 py-0.5 bg-red-500/10 text-red-500 rounded text-[7px] font-bold uppercase tracking-wider">Inativo</span>
+                          )}
+                        </div>
                       </div>
                     </td>
                     <td className="px-8 py-5">
@@ -298,6 +310,20 @@ export const Products: React.FC = () => {
                     <div className="space-y-1">
                       <label className="text-[10px] font-bold uppercase tracking-wide opacity-40 ml-2">Descrição (opcional)</label>
                       <textarea name="description" defaultValue={editingProduct?.description} rows={2} className={`w-full p-6 rounded-lg border outline-none font-bold text-sm resize-none ${isDark ? 'bg-transparent border-[#2C2C2E]' : 'bg-gray-50 border-gray-100'}`} />
+                    </div>
+                    <div className="flex items-center gap-3 p-4 rounded-xl border border-dashed border-current/10 mt-4">
+                      <input
+                        type="checkbox"
+                        id="active"
+                        name="active"
+                        value="true"
+                        defaultChecked={editingProduct ? editingProduct.active !== false : true}
+                        className="w-5 h-5 rounded border-gray-300 text-[#475569] focus:ring-[#475569] accent-[#475569]"
+                      />
+                      <div>
+                        <label htmlFor="active" className="text-xs font-bold uppercase tracking-tight cursor-pointer">Produto Ativo no Cardápio</label>
+                        <p className="text-[9px] font-bold opacity-30 uppercase tracking-wide">Se desativado, o produto não aparecerá para venda no PDV.</p>
+                      </div>
                     </div>
                   </div>
                 </div>

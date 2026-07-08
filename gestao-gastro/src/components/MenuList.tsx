@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 import { useApp } from '../store/AppContext';
 import { Product } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
@@ -11,13 +11,33 @@ interface MenuListProps {
 }
 
 export const MenuList: React.FC<MenuListProps> = ({ category, searchTerm, onSelect }) => {
-  const { products, theme } = useApp();
+  const { products, stockItems, theme } = useApp();
   const isDark = theme === 'dark';
+
+  const getProductStock = (product: Product) => {
+    if (!product.recipe || product.recipe.length === 0) {
+      return 999; // Unlimited / Livre
+    }
+    let minStockPossible = Infinity;
+    product.recipe.forEach(item => {
+      const stockItem = stockItems.find(si => si.id === item.stockItemId);
+      if (stockItem) {
+        const possible = Math.floor(stockItem.currentStock / item.quantity);
+        if (possible < minStockPossible) {
+          minStockPossible = possible;
+        }
+      } else {
+        minStockPossible = 0;
+      }
+    });
+    return minStockPossible === Infinity ? 0 : minStockPossible;
+  };
 
   const filteredProducts = products.filter(p => {
     const matchesCategory = category === 'Todos' || p.category === category;
     const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesCategory && matchesSearch;
+    const isActive = p.active !== false;
+    return matchesCategory && matchesSearch && isActive;
   });
 
   const getEmoji = (cat: string) => {
@@ -71,12 +91,17 @@ export const MenuList: React.FC<MenuListProps> = ({ category, searchTerm, onSele
 
             {/* Stock Indicator & Add Button */}
             <div className="mt-4 pt-4 border-t border-dashed border-current/5 flex items-center justify-between w-full">
-              <div className="flex items-center gap-1.5">
-                <div className={`w-1.5 h-1.5 rounded-full ${product.stock > 10 ? 'bg-emerald-500' : 'bg-amber-500'}`} />
-                <span className="text-[9px] font-black uppercase tracking-tighter opacity-40">
-                  {product.stock} em estoque
-                </span>
-              </div>
+              {(() => {
+                const stockQty = getProductStock(product);
+                return (
+                  <div className="flex items-center gap-1.5">
+                    <div className={`w-1.5 h-1.5 rounded-full ${stockQty === 0 ? 'bg-red-500' : stockQty > 10 ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+                    <span className="text-[9px] font-black uppercase tracking-tighter opacity-40">
+                      {stockQty === 999 ? 'Disponível' : stockQty === 0 ? 'Sem estoque' : `${stockQty} em estoque`}
+                    </span>
+                  </div>
+                );
+              })()}
               <div className={`p-2 rounded-lg transition-all duration-300 scale-90 opacity-0 group-hover:opacity-100 group-hover:scale-100
                 ${isDark ? 'bg-white/10 text-white' : 'bg-[#475569]/10 text-[#475569]'}`}>
                 <ShoppingCart className="w-3.5 h-3.5" />

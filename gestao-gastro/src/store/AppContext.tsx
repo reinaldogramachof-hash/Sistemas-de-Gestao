@@ -229,6 +229,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const closeOrder = (order: Order, payments: PaymentItem[], serviceCharge: number) => {
+    const orderInState = orders.find(o => o.id === order.id);
+    if (orderInState && orderInState.status === 'closed') return;
+
     const closedOrder: Order = {
       ...order,
       payments,

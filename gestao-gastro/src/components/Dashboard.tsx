@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 import { useApp } from '../store/AppContext';
 import {
   TrendingUp,
@@ -13,7 +13,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 
 export const Dashboard: React.FC = () => {
-  const { orders, tables, products, theme } = useApp();
+  const { orders, tables, products, stockItems, theme } = useApp();
   const isDark = theme === 'dark';
 
   const closedOrders = orders.filter(o => o.status === 'closed');
@@ -43,7 +43,7 @@ export const Dashboard: React.FC = () => {
     .slice(0, 5);
 
   // Stock Alerts logic
-  const lowStockProducts = products.filter(p => p.controlsStock && p.stock <= p.minStock);
+  const lowStockItems = stockItems.filter(i => i.currentStock <= i.minStock);
 
   const getCategoryCode = (cat: string) => {
     switch (cat) {
@@ -232,24 +232,24 @@ export const Dashboard: React.FC = () => {
             <div className="w-8 h-8 rounded-xl bg-red-500/10 text-red-500 flex items-center justify-center"><Clock className="w-4 h-4" /></div>
           </div>
           <div className="space-y-4">
-            {lowStockProducts.slice(0, 5).map((p, i) => (
+            {lowStockItems.slice(0, 5).map((item, i) => (
               <div key={i} className={`flex items-center justify-between p-4 rounded-lg ${isDark ? 'bg-white/5' : 'bg-gray-50'} border-l-4 border-red-500`}>
                 <div className="flex items-center gap-4">
                   <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg ${isDark ? 'bg-white/5' : 'bg-white shadow-sm'}`}>
-                    {getCategoryCode(p.category)}
+                    {getCategoryCode(item.category)}
                   </div>
                   <div>
-                    <p className="text-xs font-bold uppercase tracking-tight">{p.name}</p>
+                    <p className="text-xs font-bold uppercase tracking-tight">{item.name}</p>
                     <p className="text-[9px] font-bold opacity-30 uppercase tracking-wide">Estoque Crítico</p>
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className="text-sm font-bold text-red-500">{p.stock} {p.unit}</p>
-                  <p className="text-[9px] font-bold opacity-30 uppercase tracking-wide">Mín: {p.minStock}</p>
+                  <p className="text-sm font-bold text-red-500">{item.currentStock} {item.unit}</p>
+                  <p className="text-[9px] font-bold opacity-30 uppercase tracking-wide">Mín: {item.minStock}</p>
                 </div>
               </div>
             ))}
-            {lowStockProducts.length === 0 && (
+            {lowStockItems.length === 0 && (
               <div className="py-12 flex flex-col items-center justify-center gap-3 opacity-30">
                 <CheckCircle2 className="w-10 h-10 text-emerald-500" />
                 <p className="text-xs font-bold uppercase tracking-wide">Tudo em dia!</p>

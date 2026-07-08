@@ -402,6 +402,7 @@ function renderAgenda() {
                         </div>
                         <div class="flex justify-end gap-1 mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
                             ${!isDone ? `<button onclick="completeAppointment('${appt.id}')" class="p-1 text-emerald-400 hover:bg-emerald-500/20 rounded" title="Concluir"><i data-lucide="check" class="w-3 h-3"></i></button>` : '<i data-lucide="check-circle" class="w-3 h-3 text-emerald-500"></i>'}
+                            ${!isDone ? `<button onclick="editAppt('${appt.id}')" class="p-1 text-amber-400 hover:bg-amber-500/20 rounded" title="Editar"><i data-lucide="edit-2" class="w-3 h-3"></i></button>` : ''}
                             <button onclick="cancelAppointment('${appt.id}')" class="p-1 text-rose-400 hover:bg-rose-500/20 rounded" title="Cancelar"><i data-lucide="trash-2" class="w-3 h-3"></i></button>
                         </div>
                     </div>
@@ -471,7 +472,22 @@ function renderTeam() {
     lucide.createIcons();
 }
 
-function renderServices() { document.getElementById('services-list').innerHTML = db.services.map(s => `<div class="bg-surface-card p-6 rounded-2xl border border-white/5 shadow-sm flex items-center justify-between hover:border-rose-500/20 transition-all"><div><h4 class="font-bold text-white">${s.name}</h4><p class="text-rose-400 font-bold mt-1 text-lg">${fmtMoney(s.price)}</p></div><button onclick="editService('${s.id}')" class="p-2 hover:bg-white/5 rounded-full transition-colors"><i data-lucide="edit" class="w-4 h-4 text-slate-500"></i></button></div>`).join(''); lucide.createIcons(); }
+function renderServices() {
+    const list = document.getElementById('services-list');
+    if (!list) return;
+    list.innerHTML = db.services.map(s => `
+        <div class="bg-surface-card p-6 rounded-2xl border border-white/5 shadow-sm flex items-center justify-between hover:border-rose-500/20 transition-all">
+            <div>
+                <h4 class="font-bold text-white">${sanitizeHTML(s.name)}</h4>
+                <p class="text-rose-400 font-bold mt-1 text-lg">${fmtMoney(s.price)}</p>
+            </div>
+            <button onclick="editService('${s.id}')" class="p-2 hover:bg-white/5 rounded-full transition-colors">
+                <i data-lucide="edit" class="w-4 h-4 text-slate-500"></i>
+            </button>
+        </div>
+    `).join('');
+    lucide.createIcons();
+}
 
 function renderFinance() {
     const term = (document.getElementById('search-term')?.value || '').toLowerCase();
@@ -547,8 +563,9 @@ function renderClients() {
             <div class="mt-4 pt-3 border-t border-white/5 flex items-center justify-between">
                 <span class="text-sm font-bold text-rose-400">${fmtMoney(totalSpent)}</span>
                 <div class="flex gap-1" onclick="event.stopPropagation()">
-                    ${waLink ? `<a href="${waLink}" target="_blank" class="p-1.5 text-green-500 hover:bg-green-500/10 rounded-lg transition-colors"><i data-lucide="message-circle" class="w-4 h-4"></i></a>` : ''}
-                    <button onclick="editClient('${c.id}')" class="p-1.5 text-slate-400 hover:bg-white/5 rounded-lg transition-colors"><i data-lucide="edit-2" class="w-4 h-4"></i></button>
+                    ${waLink ? `<a href="${waLink}" target="_blank" class="p-1.5 text-green-500 hover:bg-green-500/10 rounded-lg transition-colors" title="WhatsApp"><i data-lucide="message-circle" class="w-4 h-4"></i></a>` : ''}
+                    <button onclick="openApptModal('${c.id}')" class="p-1.5 text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors" title="Agendar"><i data-lucide="calendar-plus" class="w-4 h-4"></i></button>
+                    <button onclick="editClient('${c.id}')" class="p-1.5 text-slate-400 hover:bg-white/5 rounded-lg transition-colors" title="Editar"><i data-lucide="edit-2" class="w-4 h-4"></i></button>
                 </div>
             </div>
         </div>`;
@@ -598,8 +615,9 @@ function openClientDetails(clientId) {
             </div>
         </div>` : '<div class="bg-white/5 rounded-2xl p-6 text-center border border-white/10 mb-6 text-slate-600 text-sm">Nenhum histórico disponível</div>'}
         <div class="flex gap-3">
-            ${waLink ? `<a href="${waLink}" target="_blank" class="flex-1 py-3 bg-green-600 hover:bg-green-700 text-white rounded-xl font-bold text-center transition-colors text-sm"><i data-lucide="message-circle" class="w-4 h-4 inline mr-1"></i> WhatsApp</a>` : ''}
-            <button onclick="closeModal('clientDetailsModal'); editClient('${c.id}')" class="flex-1 py-3 bg-white/5 hover:bg-white/10 text-slate-300 rounded-xl font-bold transition-colors text-sm"><i data-lucide="edit-2" class="w-4 h-4 inline mr-1"></i> Editar</button>
+            ${waLink ? `<a href="${waLink}" target="_blank" class="flex-1 py-3 bg-green-600 hover:bg-green-700 text-white rounded-xl font-bold text-center transition-colors text-sm flex items-center justify-center gap-1"><i data-lucide="message-circle" class="w-4 h-4"></i> WhatsApp</a>` : ''}
+            <button onclick="closeModal('clientDetailsModal'); openApptModal('${c.id}')" class="flex-1 py-3 bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-bold transition-colors text-sm flex items-center justify-center gap-1"><i data-lucide="calendar-plus" class="w-4 h-4"></i> Agendar</button>
+            <button onclick="closeModal('clientDetailsModal'); editClient('${c.id}')" class="flex-1 py-3 bg-white/5 hover:bg-white/10 text-slate-300 rounded-xl font-bold transition-colors text-sm flex items-center justify-center gap-1"><i data-lucide="edit-2" class="w-4 h-4"></i> Editar</button>
         </div>`;
 
     document.getElementById('clientDetailsModal').classList.remove('hidden');
@@ -710,15 +728,56 @@ function shareReport() {
 }
 
 // ── Modal Helpers ───────────────────────────
-function setupModalSelects() { const svcEl = document.getElementById('ap-service'); if (svcEl) svcEl.innerHTML = db.services.map(s => `<option value="${s.id}">${s.name} - ${fmtMoney(s.price)}</option>`).join(''); const proEl = document.getElementById('ap-pro'); if (proEl) proEl.innerHTML = db.team.map(p => `<option value="${p.id}">${p.name}</option>`).join(''); }
+function setupModalSelects() {
+    const svcEl = document.getElementById('ap-service');
+    if (svcEl) {
+        svcEl.innerHTML = db.services.map(s => `<option value="${s.id}">${sanitizeHTML(s.name)} - ${fmtMoney(s.price)}</option>`).join('');
+    }
+    const proEl = document.getElementById('ap-pro');
+    if (proEl) {
+        proEl.innerHTML = db.team.map(p => `<option value="${p.id}">${sanitizeHTML(p.name)}</option>`).join('');
+    }
+}
 function openApptModal(context = null) {
     setupModalSelects();
+
+    // Resetar campos padrão (evita carregar resíduos de edição anterior)
+    document.getElementById('ap-id').value = '';
+    document.getElementById('ap-client').value = '';
+    document.getElementById('ap-date').value = getLocalIsoDate();
+    document.getElementById('ap-time').value = '';
+
     if (context) {
-        if (context.date) document.getElementById('ap-date').value = context.date;
-        if (context.time) document.getElementById('ap-time').value = context.time;
-        if (context.proId) document.getElementById('ap-pro').value = context.proId;
+        if (typeof context === 'string') {
+            // Contexto é o ID de um cliente (ação rápida de agendar)
+            const client = db.clients.find(c => c.id === context);
+            if (client) {
+                document.getElementById('ap-client').value = client.name;
+            }
+        } else if (typeof context === 'object') {
+            // Contexto é objeto da agenda { date, time, proId }
+            if (context.date) document.getElementById('ap-date').value = context.date;
+            if (context.time) document.getElementById('ap-time').value = context.time;
+            if (context.proId) document.getElementById('ap-pro').value = context.proId;
+        }
     }
     document.getElementById('apptModal').classList.remove('hidden');
+}
+
+function editAppt(id) {
+    const appt = db.appointments.find(a => a.id === id);
+    if (!appt) return;
+
+    // Abre o modal carregando selects e limpando campos
+    openApptModal();
+
+    // Preenche os campos do agendamento para edição
+    document.getElementById('ap-id').value = appt.id;
+    document.getElementById('ap-client').value = appt.client;
+    document.getElementById('ap-date').value = appt.date;
+    document.getElementById('ap-time').value = appt.time;
+    document.getElementById('ap-service').value = appt.serviceId;
+    document.getElementById('ap-pro').value = appt.proId;
 }
 function openTeamModal(pro = null) {
     if (pro) {
@@ -1014,40 +1073,127 @@ function submitAppt(e) {
     e.preventDefault();
     const idEl = document.getElementById('ap-id');
     const id = idEl ? idEl.value : null;
-    const client = document.getElementById('ap-client').value, sId = document.getElementById('ap-service').value, pId = document.getElementById('ap-pro').value, date = document.getElementById('ap-date').value, time = document.getElementById('ap-time').value;
+    const client = document.getElementById('ap-client').value;
+    const sId = document.getElementById('ap-service').value;
+    const pId = document.getElementById('ap-pro').value;
+    const date = document.getElementById('ap-date').value;
+    const time = document.getElementById('ap-time').value;
+
+    const clientName = client.trim();
+    if (!clientName) {
+        showToast('Nome do cliente é obrigatório!', 'error');
+        return;
+    }
+    if (!date) {
+        showToast('Data é obrigatória!', 'error');
+        return;
+    }
+    if (!time) {
+        showToast('Horário é obrigatório!', 'error');
+        return;
+    }
+
+    const s = db.services.find(x => x.id === sId);
+    if (!s) {
+        showToast('Serviço inválido ou não selecionado!', 'error');
+        return;
+    }
+    const p = db.team.find(x => x.id === pId);
+    if (!p) {
+        showToast('Profissional inválido ou não selecionado!', 'error');
+        return;
+    }
 
     const hasConflict = db.appointments.some(a => {
         if (id && a.id === id) return false;
         return a.date === date && a.time === time && a.proId === pId && a.status !== 'canceled';
     });
-    if (hasConflict) { showToast('Horário indisponível! Já existe um agendamento para este profissional nesse horário.', 'error'); return; }
-    if (!db.clients.find(c => c.name.toLowerCase() === client.toLowerCase())) db.clients.push({ id: getID(), name: client, phone: '', notes: 'Novo cliente' });
-    const s = db.services.find(x => x.id === sId), p = db.team.find(x => x.id === pId);
+    if (hasConflict) {
+        showToast('Horário indisponível! Já existe um agendamento para este profissional nesse horário.', 'error');
+        return;
+    }
+
+    // Criar cliente com estrutura mínima segura se não existir
+    let clientObj = db.clients.find(c => c.name.trim().toLowerCase() === clientName.toLowerCase());
+    if (!clientObj) {
+        clientObj = {
+            id: getID(),
+            name: clientName,
+            phone: '',
+            email: '',
+            birth: '',
+            address: '',
+            notes: 'Criado via agendamento',
+            createdAt: getLocalIsoString()
+        };
+        db.clients.push(clientObj);
+    }
 
     if (id) {
         const aIdx = db.appointments.findIndex(a => a.id === id);
         if (aIdx > -1) {
             const appt = db.appointments[aIdx];
-            appt.client = client; appt.serviceId = sId; appt.serviceName = s.name;
-            appt.proId = pId; appt.proName = p.name; appt.date = date; appt.time = time;
-            appt.price = s.price; appt.commission = s.price * (p.commission / 100);
+            appt.client = clientName;
+            appt.serviceId = sId;
+            appt.serviceName = s.name;
+            appt.proId = pId;
+            appt.proName = p.name;
+            appt.date = date;
+            appt.time = time;
+            appt.price = s.price;
+            appt.commission = s.price * (p.commission / 100);
+            // Preserva o status existente (e.g. 'pending', 'done', etc.)
 
             const tIdx = db.transactions.findIndex(t => t.id === appt.transactionId);
             if (tIdx > -1) {
                 const trans = db.transactions[tIdx];
-                trans.date = date; trans.description = `Serviço: ${s.name} (${client})`;
-                trans.amount = s.price; trans.commission = appt.commission;
-                trans.proId = pId; trans.proName = p.name;
+                trans.date = date;
+                trans.description = `Serviço: ${s.name} (${clientName})`;
+                trans.amount = s.price;
+                trans.commission = appt.commission;
+                trans.proId = pId;
+                trans.proName = p.name;
             }
         }
     } else {
         const apptId = getID(), transId = getID();
-        const appt = { id: apptId, client, serviceId: sId, serviceName: s.name, proId: pId, proName: p.name, date, time, price: s.price, status: 'pending', commission: s.price * (p.commission / 100), transactionId: transId };
-        const trans = { id: transId, date, description: `Serviço: ${s.name} (${client})`, type: 'income', amount: s.price, commission: appt.commission, commissionPaid: false, apptId: apptId, proId: pId, proName: p.name };
-        db.appointments.push(appt); db.transactions.push(trans);
+        const appt = {
+            id: apptId,
+            client: clientName,
+            serviceId: sId,
+            serviceName: s.name,
+            proId: pId,
+            proName: p.name,
+            date,
+            time,
+            price: s.price,
+            status: 'pending',
+            commission: s.price * (p.commission / 100),
+            transactionId: transId
+        };
+        const trans = {
+            id: transId,
+            date,
+            description: `Serviço: ${s.name} (${clientName})`,
+            type: 'income',
+            amount: s.price,
+            commission: appt.commission,
+            commissionPaid: false,
+            apptId: apptId,
+            proId: pId,
+            proName: p.name
+        };
+        db.appointments.push(appt);
+        db.transactions.push(trans);
     }
 
-    save(); closeModal('apptModal'); renderDashboard(); renderAgenda(); e.target.reset(); showToast('Agendamento confirmado!');
+    save();
+    closeModal('apptModal');
+    renderDashboard();
+    renderAgenda();
+    renderClients();
+    e.target.reset();
+    showToast('Agendamento confirmado!');
 }
 
 function submitTeam(e) {
@@ -1069,7 +1215,41 @@ function submitTeam(e) {
     save(); closeModal('teamModal'); renderTeam(); setupModalSelects();
 }
 
-function submitService(e) { e.preventDefault(); const id = document.getElementById('svc-id').value, name = document.getElementById('svc-name').value, price = parseFloat(document.getElementById('svc-price').value); if (id) { const s = db.services.find(x => x.id === id); if (s) { s.name = name; s.price = price; } showToast('Serviço atualizado'); } else { db.services.push({ id: getID(), name, price }); showToast('Serviço criado'); } save(); closeModal('serviceModal'); renderServices(); setupModalSelects(); }
+function submitService(e) {
+    e.preventDefault();
+    const id = document.getElementById('svc-id').value;
+    const name = document.getElementById('svc-name').value;
+    const priceInput = document.getElementById('svc-price').value;
+    const price = parseFloat(priceInput);
+
+    const serviceName = name.trim();
+    if (!serviceName) {
+        showToast('Nome do serviço é obrigatório!', 'error');
+        return;
+    }
+
+    if (isNaN(price) || price <= 0) {
+        showToast('Preço deve ser um valor numérico maior que zero!', 'error');
+        return;
+    }
+
+    if (id) {
+        const s = db.services.find(x => x.id === id);
+        if (s) {
+            s.name = serviceName;
+            s.price = price;
+        }
+        showToast('Serviço atualizado');
+    } else {
+        db.services.push({ id: getID(), name: serviceName, price });
+        showToast('Serviço criado');
+    }
+
+    save();
+    closeModal('serviceModal');
+    renderServices();
+    setupModalSelects();
+}
 
 function submitExpense(e) {
     e.preventDefault();
@@ -1099,15 +1279,41 @@ function submitClient(e) {
     const birth = document.getElementById('cli-birth').value;
     const address = document.getElementById('cli-address').value;
     const notes = document.getElementById('cli-notes').value;
+
+    const clientName = name.trim();
+    if (!clientName) {
+        showToast('Nome é obrigatório!', 'error');
+        return;
+    }
+
     if (id) {
         const c = db.clients.find(x => x.id === id);
-        if (c) { c.name = name; c.phone = phone; c.email = email; c.birth = birth; c.address = address; c.notes = notes; }
+        if (c) {
+            c.name = clientName;
+            c.phone = phone;
+            c.email = email;
+            c.birth = birth;
+            c.address = address;
+            c.notes = notes;
+            if (!c.createdAt) c.createdAt = getLocalIsoString();
+        }
         showToast('Cliente atualizado');
     } else {
-        db.clients.push({ id: getID(), name, phone, email, birth, address, notes });
+        db.clients.push({
+            id: getID(),
+            name: clientName,
+            phone,
+            email,
+            birth,
+            address,
+            notes,
+            createdAt: getLocalIsoString()
+        });
         showToast('Cliente cadastrado');
     }
-    save(); closeModal('clientModal'); renderClients();
+    save();
+    closeModal('clientModal');
+    renderClients();
 }
 
 function saveBusinessInfo() {

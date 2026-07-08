@@ -30,6 +30,28 @@ test('Inspect MenuList.tsx for active filter and dynamic stock logic', () => {
   );
 });
 
+test('Inspect MenuList.tsx for out-of-stock blocking', () => {
+  const source = read('gestao-gastro/src/components/MenuList.tsx');
+
+  // a) stockQty must be computed per product (not inside lazy IIFE for the whole card click)
+  assert.ok(
+    source.includes('isOutOfStock'),
+    'MenuList.tsx deve definir isOutOfStock por produto'
+  );
+
+  // b) onSelect must be blocked when isOutOfStock
+  assert.ok(
+    source.includes('!isOutOfStock') || source.includes('isOutOfStock && '),
+    'MenuList.tsx deve bloquear onSelect quando isOutOfStock'
+  );
+
+  // c) visual indicator: disabled or cursor-not-allowed or opacity
+  assert.ok(
+    source.includes('disabled') || source.includes('cursor-not-allowed'),
+    'MenuList.tsx deve aplicar estado visual de indisponível quando sem estoque'
+  );
+});
+
 test('Inspect Dashboard.tsx for stock alerts logic correction', () => {
   const source = read('gestao-gastro/src/components/Dashboard.tsx');
 
@@ -53,6 +75,22 @@ test('Inspect AppContext.tsx for closeOrder double closure prevention and 0-stoc
   assert.ok(
     source.includes('Math.max(0'),
     'AppContext.tsx deve limitar o estoque mínimo a zero no abate'
+  );
+});
+
+test('Inspect OrderModal.tsx for normalized internal contract (balcao, no accent)', () => {
+  const source = read('gestao-gastro/src/components/OrderModal.tsx');
+
+  // a) Type definition must not use 'Balcão' as a union member
+  assert.ok(
+    !source.includes("'Balcão'"),
+    "OrderModal.tsx não deve usar 'Balcão' com acento como contrato interno de tipo"
+  );
+
+  // b) Must use 'balcao' as the internal contract
+  assert.ok(
+    source.includes("'balcao'") || source.includes('"balcao"'),
+    "OrderModal.tsx deve usar 'balcao' (sem acento) como contrato interno"
   );
 });
 
@@ -115,7 +153,7 @@ test('Logical emulation unit tests', () => {
     if (orderInState && orderInState.status === 'closed') {
       return { success: false, reason: 'Already closed' };
     }
-    
+
     // Perform abatement
     cashierOrders = cashierOrders.map(o => o.id === orderId ? { ...o, status: 'closed' } : o);
     return { success: true };
@@ -123,4 +161,26 @@ test('Logical emulation unit tests', () => {
 
   assert.deepEqual(closeOrderEmulated('o1'), { success: true });
   assert.deepEqual(closeOrderEmulated('o1'), { success: false, reason: 'Already closed' }, 'Segunda chamada de close deve falhar');
+
+  // 4. Out-of-stock blocking emulation
+  const trySelectProduct = (product, stockItems, selectedItems) => {
+    const stockQty = getProductStock(product, stockItems);
+    const isOutOfStock = stockQty === 0;
+    if (isOutOfStock) return { added: false, reason: 'Produto sem estoque' };
+    selectedItems.push(product);
+    return { added: true };
+  };
+
+  // Drain cachaça to 0
+  stockItems[1].currentStock = 0;
+  const selected = [];
+  const resultBlocked = trySelectProduct(caipirinha, stockItems, selected);
+  assert.deepEqual(resultBlocked, { added: false, reason: 'Produto sem estoque' }, 'Produto sem estoque não deve ser adicionado');
+  assert.equal(selected.length, 0, 'Lista de selecionados deve permanecer vazia');
+
+  // Restore cachaça
+  stockItems[1].currentStock = 3;
+  const resultAllowed = trySelectProduct(caipirinha, stockItems, selected);
+  assert.deepEqual(resultAllowed, { added: true }, 'Produto com estoque deve ser adicionado');
+  assert.equal(selected.length, 1, 'Lista de selecionados deve ter 1 produto');
 });

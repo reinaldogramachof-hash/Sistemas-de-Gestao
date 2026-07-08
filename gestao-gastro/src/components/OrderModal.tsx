@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useApp } from '../store/AppContext';
 import { Product, Order } from '../types';
 import { MenuList } from './MenuList';
@@ -8,7 +8,7 @@ import { motion, AnimatePresence } from 'motion/react';
 
 interface OrderModalProps {
   tableNumber: number | null;
-  mode: 'mesa' | 'Balcão';
+  mode: 'mesa' | 'balcao';
   onClose: () => void;
 }
 

@@ -226,7 +226,7 @@ export const Stock: React.FC = () => {
               </div>
               <div>
                 <p className="text-[10px] font-bold uppercase tracking-wide">Insumos em Nível Crítico</p>
-                <p className="text-xs font-bold opacity-80 mt-0.5">Existem <strong>{alertCount}</strong> itens que precisam de reposicao imediata.</p>
+                <p className="text-xs font-bold opacity-80 mt-0.5">Existem <strong>{alertCount}</strong> itens que precisam de reposição imediata.</p>
               </div>
             </motion.div>
           )}
@@ -266,7 +266,7 @@ export const Stock: React.FC = () => {
                               <span className="text-[10px] font-bold uppercase tracking-tight opacity-60">{supplier.companyName}</span>
                             </div>
                           ) : (
-                            <span className="text-[9px] font-bold opacity-20 ">Nao vinculado</span>
+                            <span className="text-[9px] font-bold opacity-20 ">Não vinculado</span>
                           )}
                         </td>
                         <td className="px-10 py-6">
@@ -423,7 +423,7 @@ export const Stock: React.FC = () => {
                         </div>
                       </div>
                       <div className="space-y-2">
-                        <label className="text-[9px] font-bold uppercase tracking-wide opacity-40 ml-2">Estoque de Alerta (minimo)</label>
+                        <label className="text-[9px] font-bold uppercase tracking-wide opacity-40 ml-2">Estoque de Alerta (mínimo)</label>
                         <input required type="number" step="0.001" value={formData.minStock} onChange={e => setFormData({...formData, minStock: Number(e.target.value)})} className={`w-full h-14 px-6 rounded-lg border outline-none font-bold text-sm ${isDark ? 'bg-transparent border-[#2C2C2E]' : 'bg-gray-50 border-gray-100'}`} />
                       </div>
                     </div>

@@ -104,8 +104,8 @@ export const Products: React.FC = () => {
     <div className="space-y-8 animate-in fade-in duration-200 pb-24">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div className="space-y-1">
-          <h2 className={ui.pageTitle}>Cardapio e Vendas</h2>
-          <p className={ui.pageSubtitle}>Gestao de catalogo e fichas tecnicas</p>
+          <h2 className={ui.pageTitle}>Cardápio e Vendas</h2>
+          <p className={ui.pageSubtitle}>Gestão de catálogo e fichas técnicas</p>
         </div>
 
         <div className="flex gap-4">
@@ -128,7 +128,7 @@ export const Products: React.FC = () => {
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 opacity-30" />
           <input
             type="text"
-            placeholder="Buscar no cardapio..."
+            placeholder="Buscar no cardápio..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className={`w-full h-12 pl-12 pr-6 ${ui.input(isDark)}`}
@@ -195,14 +195,14 @@ export const Products: React.FC = () => {
                         <span className={margin > 60 ? 'text-emerald-500' : 'text-amber-500'}>{margin.toFixed(0)}%</span>
                       </div>
                     ) : (
-                      <div className="text-[8px] font-bold text-red-500 uppercase tracking-wide bg-red-500/5 px-2 py-1 rounded-lg w-fit">Sem Ficha Tecnica</div>
+                      <div className="text-[8px] font-bold text-red-500 uppercase tracking-wide bg-red-500/5 px-2 py-1 rounded-lg w-fit">Sem Ficha Técnica</div>
                     )}
                   </div>
                 </div>
 
                 <div className="mt-6 pt-6 border-t border-dashed border-current/5">
                    <button onClick={() => openModal(p)} className="w-full flex items-center justify-between text-[9px] font-bold uppercase tracking-wide opacity-30 group-hover:opacity-100 transition-all">
-                     <span className="flex items-center gap-2"><BookOpen className="w-3.5 h-3.5" /> Ficha Tecnica</span>
+                     <span className="flex items-center gap-2"><BookOpen className="w-3.5 h-3.5" /> Ficha Técnica</span>
                      <ArrowRight className="w-3 h-3 translate-x-0 group-hover:translate-x-1 transition-transform" />
                    </button>
                 </div>
@@ -217,7 +217,7 @@ export const Products: React.FC = () => {
               <tr>
                 <th className="px-8 py-6">Produto</th>
                 <th className="px-8 py-6">Categoria</th>
-                <th className="px-8 py-6">Ficha Tecnica</th>
+                <th className="px-8 py-6">Ficha Técnica</th>
                 <th className="px-8 py-6">Custo Prod.</th>
                 <th className="px-8 py-6">Preço Venda</th>
                 <th className="px-8 py-6 text-right">Ações</th>
@@ -279,7 +279,7 @@ export const Products: React.FC = () => {
               <div className="p-8 md:p-10 border-b flex justify-between items-center">
                 <div>
                   <h3 className="text-2xl font-bold uppercase  tracking-tighter">{editingProduct ? 'Editar Produto' : 'Novo Produto'}</h3>
-                  <p className="text-[10px] font-bold uppercase tracking-wide opacity-40 mt-1">configuracao de Venda e Produção</p>
+                  <p className="text-[10px] font-bold uppercase tracking-wide opacity-40 mt-1">configuração de venda e produção</p>
                 </div>
                 <button onClick={() => setIsModalOpen(false)} className="p-4 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 opacity-40"><X className="w-6 h-6" /></button>
               </div>
@@ -287,7 +287,7 @@ export const Products: React.FC = () => {
               <form onSubmit={handleProductSubmit} className="flex-1 overflow-y-auto p-8 md:p-10 space-y-8 custom-scrollbar">
                 {/* Basic Info */}
                 <div className="space-y-6">
-                  <h4 className="text-[11px] font-bold uppercase tracking-wide text-[#475569]">Informacoes Basicas</h4>
+                  <h4 className="text-[11px] font-bold uppercase tracking-wide text-[#475569]">Informações Básicas</h4>
                   <div className="space-y-4">
                     <div className="space-y-1">
                       <label className="text-[10px] font-bold uppercase tracking-wide opacity-40 ml-2">Nome do Produto</label>
@@ -327,7 +327,7 @@ export const Products: React.FC = () => {
                 {/* Technical Sheet */}
                 <div className="space-y-6 pt-4">
                   <div className="flex justify-between items-center">
-                    <h4 className="text-[11px] font-bold uppercase tracking-wide text-[#475569]">Ficha Tecnica (Ingredientes)</h4>
+                    <h4 className="text-[11px] font-bold uppercase tracking-wide text-[#475569]">Ficha Técnica (Ingredientes)</h4>
                     <button type="button" onClick={addRecipeItem} className="flex items-center gap-2 text-[9px] font-bold uppercase tracking-wide opacity-40 hover:opacity-100 transition-all">
                       <PlusCircle className="w-4 h-4" /> Adicionar Insumo
                     </button>

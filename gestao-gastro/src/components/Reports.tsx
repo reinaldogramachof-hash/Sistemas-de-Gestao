@@ -167,7 +167,7 @@ export const Reports: React.FC = () => {
       <div className="flex flex-col lg:flex-row justify-between lg:items-end gap-6">
         <div className="space-y-1">
           <h2 className={ui.pageTitle}>BI e Financeiro</h2>
-          <p className={ui.pageSubtitle}>Gestao Consolidada de Fluxo e Operacao</p>
+          <p className={ui.pageSubtitle}>Gestão consolidada de fluxo e operação</p>
         </div>
 
         <div className="flex flex-wrap gap-3">
@@ -184,7 +184,7 @@ export const Reports: React.FC = () => {
           </div>
           <button onClick={() => setIsExpenseModalOpen(true)} className={`px-6 py-3 ${ui.primaryButton} flex items-center gap-3`}>
              <Plus className="w-4 h-4" />
-             <span className="text-[10px] font-bold uppercase tracking-wide">Lancar Despesa</span>
+             <span className="text-[10px] font-bold uppercase tracking-wide">Lançar Despesa</span>
           </button>
         </div>
       </div>
@@ -197,7 +197,7 @@ export const Reports: React.FC = () => {
             onClick={() => setActiveTab(t)}
             className={`px-6 py-3 ${ui.tab(activeTab === t, isDark)}`}
           >
-            {t === 'fluxo' ? 'Gestao de Caixa' : t}
+            {t === 'fluxo' ? 'Gestão de Caixa' : t}
           </button>
         ))}
       </div>

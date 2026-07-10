@@ -50,7 +50,13 @@ test('Touched shell and base views do not contain mojibake markers', () => {
   const paths = [
     'gestao-gastro/src/App.tsx',
     'gestao-gastro/src/components/Layout.tsx',
+    'gestao-gastro/src/components/PDV.tsx',
+    'gestao-gastro/src/components/MenuList.tsx',
     'gestao-gastro/src/components/Dashboard.tsx',
+    'gestao-gastro/src/components/Customers.tsx',
+    'gestao-gastro/src/components/Products.tsx',
+    'gestao-gastro/src/components/Reports.tsx',
+    'gestao-gastro/src/components/Stock.tsx',
     'gestao-gastro/src/components/Kitchen.tsx',
     'gestao-gastro/src/components/Tables.tsx',
     'gestao-gastro/src/ui/styles.ts',
@@ -59,5 +65,65 @@ test('Touched shell and base views do not contain mojibake markers', () => {
   for (const path of paths) {
     const source = read(path);
     assert.equal(/[\u00c3\u00c2\ufffd\u00f0]/.test(source), false, `${path} contem marcador de mojibake`);
+  }
+});
+
+test('PDV keeps Portuguese accents and compact menu cards', () => {
+  const pdv = read('gestao-gastro/src/components/PDV.tsx');
+  const menu = read('gestao-gastro/src/components/MenuList.tsx');
+
+  for (const text of [
+    'Venda Rápida',
+    'Balcão',
+    'O carrinho está vazio',
+    'Finalizar venda',
+  ]) {
+    assert.ok(pdv.includes(text), `PDV deve exibir "${text}" com acentuacao correta`);
+  }
+
+  assert.ok(menu.includes('Disponível'), 'MenuList deve exibir Disponível com acento');
+  assert.ok(menu.includes('min-h-[190px]'), 'Cards do PDV devem manter altura compacta e estavel');
+  assert.ok(menu.includes('getCategoryIcon'), 'MenuList deve usar icones Lucide em vez de emojis quebraveis');
+});
+
+test('Base modules keep Portuguese visible labels accented', () => {
+  const expectations = {
+    'gestao-gastro/src/components/Dashboard.tsx': [
+      'Visão Geral',
+      'Ticket Médio',
+      'Últimos Pedidos',
+      'Estoque Crítico',
+    ],
+    'gestao-gastro/src/components/Customers.tsx': [
+      'Gestão de Clientes',
+      'Fidelização de Público',
+      'Ações',
+      'Salvar Alterações',
+    ],
+    'gestao-gastro/src/components/Products.tsx': [
+      'Cardápio e Vendas',
+      'Gestão de catálogo e fichas técnicas',
+      'Ficha Técnica',
+      'Informações Básicas',
+    ],
+    'gestao-gastro/src/components/Reports.tsx': [
+      'Gestão consolidada de fluxo e operação',
+      'Lançar Despesa',
+      'Lucro Líquido Real',
+      'Comissão Acumulada',
+    ],
+    'gestao-gastro/src/components/Stock.tsx': [
+      'Gestão de Suprimentos',
+      'Controle profundo de insumos e movimentações',
+      'Histórico',
+      'Insumos em Nível Crítico',
+    ],
+  };
+
+  for (const [path, labels] of Object.entries(expectations)) {
+    const source = read(path);
+    for (const label of labels) {
+      assert.ok(source.includes(label), `${path} deve conter "${label}"`);
+    }
   }
 });

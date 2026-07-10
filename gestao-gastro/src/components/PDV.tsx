@@ -126,11 +126,11 @@ export const PDV: React.FC = () => {
       <div className="flex-1 flex flex-col min-w-0">
         <div className="mb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
           <div className="space-y-1">
-            <h2 className={ui.pageTitle}>Venda Rapida</h2>
-            <p className={ui.pageSubtitle}>Atendimento Direto</p>
+            <h2 className={ui.pageTitle}>Venda Rápida</h2>
+            <p className={ui.pageSubtitle}>Atendimento direto</p>
           </div>
 
-          <div className={`flex items-center px-4 py-2.5 rounded-xl border w-full md:w-72 transition-all focus-within:ring-4 focus-within:ring-[#475569]/10 ${isDark ? 'bg-[#1C1C1E] border-[#2C2C2E] focus-within:border-[#475569]/40' : 'bg-white border-gray-100 focus-within:border-slate-300 shadow-sm'}`}>
+          <div className={`flex items-center px-4 py-2.5 w-full md:w-72 focus-within:ring-4 focus-within:ring-accent/10 ${ui.input(isDark)}`}>
             <Search className="w-5 h-5 mr-3 opacity-40" />
             <input
               value={searchTerm}
@@ -159,7 +159,7 @@ export const PDV: React.FC = () => {
       </div>
 
       {/* Right side: Cart */}
-      <div className={`w-full lg:w-[450px] flex flex-col rounded-xl border overflow-hidden shrink-0 shadow-sm relative
+      <div className={`w-full lg:w-[420px] xl:w-[440px] flex flex-col rounded-panel border overflow-hidden shrink-0 shadow-sm relative
         ${isDark ? 'bg-[#1C1C1E] border-[#2C2C2E]' : 'bg-white border-gray-100'}`}>
 
         {/* Cart Header */}
@@ -174,7 +174,7 @@ export const PDV: React.FC = () => {
                  <div className="flex items-center gap-2">
                    <span className="text-[10px] font-bold uppercase text-[#475569]">{totalItems} Itens</span>
                    <span className="opacity-20 text-[10px]">|</span>
-                   <span className={`text-[10px] font-bold uppercase flex items-center gap-1 opacity-40`}><User className="w-3 h-3" /> Balcão</span>
+                   <span className="text-[10px] font-bold uppercase flex items-center gap-1 opacity-40"><User className="w-3 h-3" /> Balcão</span>
                  </div>
                </div>
              </div>
@@ -300,7 +300,7 @@ export const PDV: React.FC = () => {
         <div className={`p-6 border-t space-y-4 ${isDark ? 'bg-[#252527] border-[#2C2C2E]' : 'bg-gray-50 border-gray-100'}`}>
           <div className="flex justify-between items-end">
             <div className="space-y-1">
-              <p className={`text-[10px] uppercase font-bold tracking-wide opacity-40`}>Total do Pedido</p>
+              <p className="text-[10px] uppercase font-bold tracking-wide opacity-40">Total do pedido</p>
               <div className="flex items-baseline gap-1">
                 <span className="text-xl font-bold text-[#475569] opacity-50">R$</span>
                 <span className="text-4xl font-bold text-[#475569] tracking-tighter">{activeOrder.total.toFixed(2)}</span>
@@ -309,9 +309,9 @@ export const PDV: React.FC = () => {
             <button
               disabled={activeOrder.items.length === 0}
               onClick={() => setCheckoutOpen(true)}
-              className="flex items-center gap-2 px-8 py-4 bg-[#475569] text-white rounded-lg font-bold uppercase tracking-wide text-[10px] shadow-sm transition-all disabled:opacity-30 disabled:scale-100"
+              className={`${ui.primaryButton} flex items-center gap-2 px-7 py-4 text-[10px] disabled:opacity-30 disabled:scale-100`}
             >
-              Finalizar Venda
+              Finalizar venda
               <ArrowRight className="w-4 h-4 stroke-[3px]" />
             </button>
           </div>

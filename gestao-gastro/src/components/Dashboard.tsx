@@ -58,7 +58,7 @@ export const Dashboard: React.FC = () => {
 
   const kpis = [
     { label: 'Vendas Hoje', value: `R$ ${salesToday.toFixed(2)}`, icon: TrendingUp, color: 'text-emerald-500', bg: 'bg-emerald-500/10', trend: '+12.5%' },
-    { label: 'Ticket Medio', value: `R$ ${avgTicket.toFixed(2)}`, icon: ShoppingBag, color: 'text-blue-500', bg: 'bg-blue-500/10', trend: '+3.2%' },
+    { label: 'Ticket Médio', value: `R$ ${avgTicket.toFixed(2)}`, icon: ShoppingBag, color: 'text-blue-500', bg: 'bg-blue-500/10', trend: '+3.2%' },
     { label: 'No. Pedidos', value: totalOrders.toString(), icon: Clock, color: 'text-accent', bg: 'bg-accent/10', trend: '+5.4%' },
     { label: 'Mesas Ocupadas', value: occupiedTables.toString(), icon: TableIcon, color: 'text-amber-500', bg: 'bg-amber-500/10', trend: `${occupiedTables}/${tables.length}` },
   ];
@@ -67,8 +67,8 @@ export const Dashboard: React.FC = () => {
     <div className="space-y-8 animate-in fade-in duration-200 pb-12">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="space-y-1">
-          <h1 className={ui.pageTitle}>Visao Geral</h1>
-          <p className={ui.pageSubtitle}>Resumo operacional e metricas de desempenho</p>
+          <h1 className={ui.pageTitle}>Visão Geral</h1>
+          <p className={ui.pageSubtitle}>Resumo operacional e métricas de desempenho</p>
         </div>
         <div className="flex items-center gap-3">
            <span className={`px-4 py-2 ${ui.panelMuted(isDark)} ${ui.eyebrow}`}>
@@ -144,7 +144,7 @@ export const Dashboard: React.FC = () => {
          {/* Recent Orders */}
          <div className={`p-8 lg:col-span-2 ${ui.panel(isDark)}`}>
              <div className="flex items-center justify-between mb-8">
-               <h3 className="font-bold text-sm uppercase tracking-wide">Ultimos Pedidos</h3>
+               <h3 className="font-bold text-sm uppercase tracking-wide">Últimos Pedidos</h3>
                <div className="flex gap-2">
                  <button className={`px-4 py-2 rounded-xl text-[9px] font-bold uppercase tracking-wide transition-colors ${isDark ? 'bg-white/5 hover:bg-white/10' : 'bg-gray-50 hover:bg-gray-100'}`}>Exportar</button>
                </div>
@@ -179,7 +179,7 @@ export const Dashboard: React.FC = () => {
                        <td className="px-4 py-4 border-y border-transparent">
                          <span className="flex items-center gap-2">
                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                           <span className="text-[10px] font-bold uppercase tracking-wide opacity-60">Concluido</span>
+                           <span className="text-[10px] font-bold uppercase tracking-wide opacity-60">Concluído</span>
                          </span>
                        </td>
                        <td className="px-4 py-4 last:rounded-r-2xl border-y border-transparent text-right font-bold text-sm">
@@ -239,7 +239,7 @@ export const Dashboard: React.FC = () => {
                   </div>
                   <div>
                     <p className="text-xs font-bold uppercase tracking-tight">{item.name}</p>
-                    <p className="text-[9px] font-bold opacity-30 uppercase tracking-wide">Estoque Critico</p>
+                    <p className="text-[9px] font-bold opacity-30 uppercase tracking-wide">Estoque Crítico</p>
                   </div>
                 </div>
                 <div className="text-right">

@@ -27,12 +27,11 @@ export const planMatrix: Record<PlanType, PlanConfig> = {
   base: {
     plan: 'base',
     allowedModules: [
-      // TODO: Reinaldo definirá a lista real.
-      // Atualmente todos liberados para não quebrar compatibilidade
-      'dashboard', 'pdv', 'mesas', 'cozinha', 'estoque', 'caixa', 
-      'relatorios', 'manual', 'clientes', 'colaboradores', 
-      'fornecedores', 'produtos', 'suporte', 'configuracoes', 
-      'seguranca', 'evolucao'
+      // TODO: Reinaldo definira a lista real.
+      // Atualmente todos liberados para nao quebrar compatibilidade
+      'dashboard', 'pdv', 'mesas', 'cozinha', 'caixa',
+      'produtos', 'estoque', 'clientes', 'relatorios',
+      'configuracoes', 'suporte', 'manual'
     ]
   },
   premium: {
@@ -55,7 +54,7 @@ export const planMatrix: Record<PlanType, PlanConfig> = {
   }
 };
 
-// Função helper para verificar permissão do módulo baseada no plano
+// Funcao helper para verificar permissao do modulo baseada no plano
 export const isModuleAllowed = (module: AppModule, currentPlan: PlanType = 'base'): boolean => {
   const config = planMatrix[currentPlan];
   return config ? config.allowedModules.includes(module) : false;

@@ -2,6 +2,8 @@ import React from 'react';
 import { AppProvider } from './store/AppContext';
 import { Layout } from './components/Layout';
 import { useNavigation, View } from './hooks/useNavigation';
+import { useModules } from './hooks/useModules';
+import { AppModule } from './config/modulesConfig';
 import { Dashboard } from './components/Dashboard';
 import { PDV } from './components/PDV';
 import { Stock } from './components/Stock';
@@ -22,10 +24,19 @@ import { EvolutionCenter } from './components/EvolutionCenter';
 
 const AppContent = () => {
   const { currentView, setCurrentView } = useNavigation();
-
-
+  const { checkAccess } = useModules();
 
   const renderContent = () => {
+    if (!checkAccess(currentView as AppModule)) {
+      return (
+        <div className="h-full flex flex-col items-center justify-center gap-4 opacity-50">
+          <span className="text-5xl">🔒</span>
+          <p className="text-xl font-bold">Modulo nao disponivel no plano atual</p>
+          <p className="text-sm">Entre em contato para liberar este recurso.</p>
+        </div>
+      );
+    }
+
     switch(currentView) {
       case 'dashboard': return <Dashboard />;
       case 'pdv': return <PDV />;

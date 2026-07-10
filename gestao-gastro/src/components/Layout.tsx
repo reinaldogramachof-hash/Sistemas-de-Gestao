@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View } from '../hooks/useNavigation';
 import { useApp } from '../store/AppContext';
+import { useModules } from '../hooks/useModules';
 import {
   LayoutDashboard,
   MonitorPlay,
@@ -53,6 +54,7 @@ const DateTimeDisplay = () => {
 
 export const Layout: React.FC<LayoutProps> = ({ currentView, setCurrentView, children }) => {
   const { theme, setTheme, cashierSession } = useApp();
+  const { checkAccess } = useModules();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [showInstallBtn, setShowInstallBtn] = useState(false);
@@ -160,7 +162,7 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setCurrentView, chi
                   <h3 className={`px-3 text-[9px] font-bold uppercase tracking-widest opacity-30 mb-1`}>{group.title}</h3>
                 )}
                 <div className="space-y-0.5">
-                  {group.items.map((item: any) => {
+                  {group.items.filter((item: any) => checkAccess(item.id)).map((item: any) => {
                     const active = currentView === item.id;
                     const Icon = item.icon;
                     return (

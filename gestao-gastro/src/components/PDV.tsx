@@ -5,6 +5,7 @@ import { MenuList } from './MenuList';
 import { ShoppingBag, Search, Minus, Trash2, Plus, ArrowRight, User } from 'lucide-react';
 import { CheckoutModal } from './CheckoutModal';
 import { motion, AnimatePresence } from 'motion/react';
+import { ui } from '../ui/styles';
 
 export const PDV: React.FC = () => {
   const { waiters, customers, theme, draftOrder, setDraftOrder } = useApp();
@@ -125,8 +126,8 @@ export const PDV: React.FC = () => {
       <div className="flex-1 flex flex-col min-w-0">
         <div className="mb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
           <div className="space-y-1">
-            <h2 className="text-3xl font-extrabold tracking-tighter uppercase leading-none">Venda Rápida</h2>
-            <p className="text-[10px] font-bold uppercase tracking-wide opacity-40">Atendimento Direto</p>
+            <h2 className={ui.pageTitle}>Venda Rapida</h2>
+            <p className={ui.pageSubtitle}>Atendimento Direto</p>
           </div>
 
           <div className={`flex items-center px-4 py-2.5 rounded-xl border w-full md:w-72 transition-all focus-within:ring-4 focus-within:ring-[#475569]/10 ${isDark ? 'bg-[#1C1C1E] border-[#2C2C2E] focus-within:border-[#475569]/40' : 'bg-white border-gray-100 focus-within:border-slate-300 shadow-sm'}`}>
@@ -140,15 +141,12 @@ export const PDV: React.FC = () => {
           </div>
         </div>
 
-        <div className="flex p-1 gap-1 rounded-lg bg-black/5 dark:bg-white/5 border border-current/5 w-fit mb-8 overflow-x-auto scrollbar-none">
+        <div className={`${ui.tabShell(isDark)} w-fit mb-8 overflow-x-auto scrollbar-none`}>
           {categories.map(cat => (
             <button
               key={cat}
               onClick={() => setCategory(cat)}
-              className={`shrink-0 px-6 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-wide transition-all duration-150
-                ${category === cat
-                  ? 'bg-white dark:bg-[#2C2C2E] shadow-md text-[#475569]'
-                  : 'text-gray-500 hover:text-gray-900 dark:hover:text-white'}`}
+              className={`shrink-0 px-6 py-2.5 ${ui.tab(category === cat, isDark)}`}
             >
               {cat}
             </button>

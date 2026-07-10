@@ -3,6 +3,7 @@ import { useApp } from '../store/AppContext';
 import { ChefHat, Timer, Check, Play, Clock, ArrowRight, XCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Order, OrderItem } from '../types';
+import { ui } from '../ui/styles';
 
 export const Kitchen: React.FC = () => {
   const { orders, settings, theme, updateOrderItemKitchenStatus } = useApp();
@@ -44,13 +45,13 @@ export const Kitchen: React.FC = () => {
     <div className="h-full flex flex-col p-8 animate-in fade-in zoom-in duration-500">
       <div className="flex justify-between items-center mb-8">
         <div>
-          <h2 className="text-3xl font-extrabold tracking-tighter uppercase leading-none">Kitchen Display System</h2>
-          <p className="text-[10px] font-bold uppercase tracking-wide opacity-40">
-            {isInteractive ? 'Modo Interativo (Gestão de Fila)' : 'Modo Visualização (Apenas Leitura)'}
+          <h2 className={ui.pageTitle}>Kitchen Display System</h2>
+          <p className={ui.pageSubtitle}>
+            {isInteractive ? 'Modo Interativo (Gestao de Fila)' : 'Modo Visualizacao (Apenas Leitura)'}
           </p>
         </div>
-        <div className={`p-4 rounded-xl border flex items-center gap-3 ${isDark ? 'bg-[#1C1C1E] border-[#2C2C2E]' : 'bg-white border-gray-100 shadow-sm'}`}>
-           <ChefHat className="w-6 h-6 text-[#475569]" />
+        <div className={`p-4 flex items-center gap-3 ${ui.panel(isDark)}`}>
+           <ChefHat className="w-6 h-6 text-accent" />
            <div className="flex flex-col">
              <span className="text-[10px] font-bold uppercase tracking-wide opacity-40">Pedidos Abertos</span>
              <span className="text-lg font-bold tracking-tighter leading-none">{openOrders.length}</span>
@@ -78,12 +79,12 @@ export const Kitchen: React.FC = () => {
                     initial={{ opacity: 0, scale: 0.9 }}
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0, scale: 0.9 }}
-                    className={`w-80 shrink-0 flex flex-col rounded-xl border overflow-hidden shadow-sm ${isDark ? 'bg-[#1C1C1E] border-[#2C2C2E]' : 'bg-white border-gray-100'} ${isLate ? 'border-red-500/30' : ''}`}
+                    className={`w-80 shrink-0 flex flex-col overflow-hidden ${ui.panel(isDark)} ${isLate ? 'border-red-500/30' : ''}`}
                   >
                     <div className={`p-4 border-b flex justify-between items-center ${isDark ? 'bg-[#252527] border-[#2C2C2E]' : 'bg-gray-50 border-gray-100'} ${isLate ? 'bg-red-500/5' : ''}`}>
                       <div className="flex items-center gap-2">
-                        <span className="px-3 py-1 bg-[#475569] text-white rounded-lg text-xs font-bold uppercase tracking-wide">
-                          {order.mode === 'mesa' ? `Mesa ${order.tableNumber}` : 'Balcão'}
+                        <span className="px-3 py-1 bg-accent text-white rounded-control text-xs font-bold uppercase tracking-wide">
+                          {order.mode === 'mesa' ? `Mesa ${order.tableNumber}` : 'Balcao'}
                         </span>
                       </div>
                       <div className={`flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide ${isLate ? 'text-red-500' : 'opacity-40'}`}>
@@ -98,7 +99,7 @@ export const Kitchen: React.FC = () => {
                         const isDone = status === 'pronto';
 
                         return (
-                          <div key={`${item.id}-${idx}`} className={`p-3 rounded-lg border transition-all ${isDark ? 'bg-[#121214] border-[#2C2C2E]' : 'bg-gray-50/50 border-gray-100'} ${isDone ? 'opacity-40 grayscale' : ''}`}>
+                          <div key={`${item.id}-${idx}`} className={`p-3 transition-all ${ui.panelMuted(isDark)} ${isDone ? 'opacity-40 grayscale' : ''}`}>
                              <div className="flex justify-between items-start mb-2">
                                <div>
                                  <p className="text-xs font-bold uppercase tracking-wide leading-tight mb-1">{item.quantity}x {item.product.name}</p>

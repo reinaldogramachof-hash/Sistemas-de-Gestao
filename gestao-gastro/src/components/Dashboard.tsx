@@ -11,6 +11,7 @@ import {
   CheckCircle2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { ui } from '../ui/styles';
 
 export const Dashboard: React.FC = () => {
   const { orders, tables, products, stockItems, theme } = useApp();
@@ -57,8 +58,8 @@ export const Dashboard: React.FC = () => {
 
   const kpis = [
     { label: 'Vendas Hoje', value: `R$ ${salesToday.toFixed(2)}`, icon: TrendingUp, color: 'text-emerald-500', bg: 'bg-emerald-500/10', trend: '+12.5%' },
-    { label: 'Ticket Médio', value: `R$ ${avgTicket.toFixed(2)}`, icon: ShoppingBag, color: 'text-blue-500', bg: 'bg-blue-500/10', trend: '+3.2%' },
-    { label: 'No. Pedidos', value: totalOrders.toString(), icon: Clock, color: 'text-[#475569]', bg: 'bg-[#475569]/10', trend: '+5.4%' },
+    { label: 'Ticket Medio', value: `R$ ${avgTicket.toFixed(2)}`, icon: ShoppingBag, color: 'text-blue-500', bg: 'bg-blue-500/10', trend: '+3.2%' },
+    { label: 'No. Pedidos', value: totalOrders.toString(), icon: Clock, color: 'text-accent', bg: 'bg-accent/10', trend: '+5.4%' },
     { label: 'Mesas Ocupadas', value: occupiedTables.toString(), icon: TableIcon, color: 'text-amber-500', bg: 'bg-amber-500/10', trend: `${occupiedTables}/${tables.length}` },
   ];
 
@@ -66,11 +67,11 @@ export const Dashboard: React.FC = () => {
     <div className="space-y-8 animate-in fade-in duration-200 pb-12">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="space-y-1">
-          <h1 className="text-xl font-bold tracking-tight">Visão Geral</h1>
-          <p className="text-[10px] font-bold uppercase tracking-wide opacity-40">Resumo operacional e métricas de desempenho</p>
+          <h1 className={ui.pageTitle}>Visao Geral</h1>
+          <p className={ui.pageSubtitle}>Resumo operacional e metricas de desempenho</p>
         </div>
         <div className="flex items-center gap-3">
-           <span className={`px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-wide border ${isDark ? 'bg-[#1C1C1E] border-[#2C2C2E]' : 'bg-white border-gray-200 shadow-sm'}`}>
+           <span className={`px-4 py-2 ${ui.panelMuted(isDark)} ${ui.eyebrow}`}>
              {new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}
            </span>
         </div>
@@ -84,9 +85,7 @@ export const Dashboard: React.FC = () => {
              initial={{ opacity: 0, y: 20 }}
              animate={{ opacity: 1, y: 0 }}
              transition={{ delay: i * 0.1 }}
-             className={`p-6 rounded-lg border transition-all hover:border-[#475569]/20 ${
-               isDark ? 'bg-[#1C1C1E] border-[#2C2C2E]' : 'bg-white border-gray-100 shadow-sm'
-             }`}
+             className={`p-6 transition-all hover:border-accent/20 ${ui.panel(isDark)}`}
            >
              <div className="flex justify-between items-start mb-4">
                <div className={`p-2.5 rounded-xl ${kpi.bg}`}>
@@ -99,8 +98,8 @@ export const Dashboard: React.FC = () => {
                </span>
              </div>
              <div>
-               <h3 className={`text-[10px] font-bold uppercase tracking-wide mb-1 ${isDark ? 'text-[#A1A1A6]' : 'text-gray-400'}`}>{kpi.label}</h3>
-               <p className="text-2xl font-bold tracking-tighter">{kpi.value}</p>
+               <h3 className={`${ui.eyebrow} mb-1`}>{kpi.label}</h3>
+               <p className="text-2xl font-bold tracking-tight">{kpi.value}</p>
              </div>
            </motion.div>
          ))}
@@ -108,10 +107,10 @@ export const Dashboard: React.FC = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
          {/* Sales by Category */}
-         <div className={`p-8 rounded-xl border ${isDark ? 'bg-[#1C1C1E] border-[#2C2C2E]' : 'bg-white border-gray-100 shadow-sm'}`}>
+         <div className={`p-8 ${ui.panel(isDark)}`}>
             <div className="flex items-center justify-between mb-8">
               <h3 className="font-bold text-sm uppercase tracking-wide">Vendas / Categoria</h3>
-              <div className="w-8 h-8 rounded-xl bg-[#475569]/10 text-[#475569] flex items-center justify-center"><TrendingUp className="w-4 h-4" /></div>
+              <div className="w-8 h-8 rounded-panel bg-accent/10 text-accent flex items-center justify-center"><TrendingUp className="w-4 h-4" /></div>
             </div>
             <div className="space-y-6">
               {(Object.entries(categorySales) as [string, number][]).sort((a, b) => b[1] - a[1]).map(([cat, val], i) => {
@@ -119,7 +118,7 @@ export const Dashboard: React.FC = () => {
                  return (
                    <div key={i} className="group">
                      <div className="flex justify-between text-xs mb-2">
-                       <span className={`font-bold uppercase tracking-tight transition-colors ${isDark ? 'text-[#A1A1A6] group-hover:text-white' : 'text-gray-400 group-hover:text-black'}`}>{cat}</span>
+                       <span className={`font-bold uppercase tracking-tight transition-colors ${isDark ? 'text-muted group-hover:text-white' : 'text-muted-light group-hover:text-black'}`}>{cat}</span>
                        <span className="font-bold">R$ {val.toFixed(2)}</span>
                      </div>
                      <div className={`h-2 w-full rounded-full overflow-hidden ${isDark ? 'bg-[#252527]' : 'bg-gray-50'}`}>
@@ -143,7 +142,7 @@ export const Dashboard: React.FC = () => {
          </div>
 
          {/* Recent Orders */}
-         <div className={`p-8 rounded-xl border lg:col-span-2 ${isDark ? 'bg-[#1C1C1E] border-[#2C2C2E]' : 'bg-white border-gray-100 shadow-sm'}`}>
+         <div className={`p-8 lg:col-span-2 ${ui.panel(isDark)}`}>
              <div className="flex items-center justify-between mb-8">
                <h3 className="font-bold text-sm uppercase tracking-wide">Ultimos Pedidos</h3>
                <div className="flex gap-2">
@@ -180,7 +179,7 @@ export const Dashboard: React.FC = () => {
                        <td className="px-4 py-4 border-y border-transparent">
                          <span className="flex items-center gap-2">
                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                           <span className="text-[10px] font-bold uppercase tracking-wide opacity-60">Concluído</span>
+                           <span className="text-[10px] font-bold uppercase tracking-wide opacity-60">Concluido</span>
                          </span>
                        </td>
                        <td className="px-4 py-4 last:rounded-r-2xl border-y border-transparent text-right font-bold text-sm">
@@ -196,7 +195,7 @@ export const Dashboard: React.FC = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Most Sold Products */}
-        <div className={`p-8 rounded-xl border ${isDark ? 'bg-[#1C1C1E] border-[#2C2C2E]' : 'bg-white border-gray-100 shadow-sm'}`}>
+        <div className={`p-8 ${ui.panel(isDark)}`}>
           <div className="flex items-center justify-between mb-8">
             <h3 className="font-bold text-sm uppercase tracking-wide">Mais Pedidos</h3>
             <div className="w-8 h-8 rounded-xl bg-amber-500/10 text-amber-600 flex items-center justify-center text-[10px] font-bold">TOP</div>
@@ -214,7 +213,7 @@ export const Dashboard: React.FC = () => {
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className="text-sm font-bold text-[#475569]">{p.qty}</p>
+                  <p className="text-sm font-bold text-accent">{p.qty}</p>
                   <p className="text-[9px] font-bold opacity-30 uppercase tracking-wide">Vendas</p>
                 </div>
               </div>
@@ -226,7 +225,7 @@ export const Dashboard: React.FC = () => {
         </div>
 
         {/* Stock Alerts */}
-        <div className={`p-8 rounded-xl border ${isDark ? 'bg-[#1C1C1E] border-[#2C2C2E]' : 'bg-white border-gray-100 shadow-sm'}`}>
+        <div className={`p-8 ${ui.panel(isDark)}`}>
           <div className="flex items-center justify-between mb-8">
             <h3 className="font-bold text-sm uppercase tracking-wide">Alertas de Estoque</h3>
             <div className="w-8 h-8 rounded-xl bg-red-500/10 text-red-500 flex items-center justify-center"><Clock className="w-4 h-4" /></div>
@@ -240,12 +239,12 @@ export const Dashboard: React.FC = () => {
                   </div>
                   <div>
                     <p className="text-xs font-bold uppercase tracking-tight">{item.name}</p>
-                    <p className="text-[9px] font-bold opacity-30 uppercase tracking-wide">Estoque Crítico</p>
+                    <p className="text-[9px] font-bold opacity-30 uppercase tracking-wide">Estoque Critico</p>
                   </div>
                 </div>
                 <div className="text-right">
                   <p className="text-sm font-bold text-red-500">{item.currentStock} {item.unit}</p>
-                  <p className="text-[9px] font-bold opacity-30 uppercase tracking-wide">Mín: {item.minStock}</p>
+                  <p className="text-[9px] font-bold opacity-30 uppercase tracking-wide">Min: {item.minStock}</p>
                 </div>
               </div>
             ))}

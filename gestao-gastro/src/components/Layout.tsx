@@ -124,7 +124,7 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setCurrentView, chi
   ];
 
   return (
-    <div className={`flex flex-col h-screen overflow-hidden font-sans ${isDark ? 'bg-app-base text-text' : 'bg-app-base-light text-text-light'}`}>
+    <div className={`flex flex-col h-screen overflow-hidden font-sans ${isDark ? 'dark bg-app-base text-text' : 'bg-app-base-light text-text-light'}`}>
       <div className="flex flex-1 overflow-hidden w-full mx-auto">
         {/* Sidebar */}
         <aside

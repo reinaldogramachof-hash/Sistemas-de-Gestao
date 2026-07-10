@@ -1,4 +1,4 @@
-﻿import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useApp } from '../store/AppContext';
 import {
   Plus, Check, X, Search, Package, ArrowUpRight, ArrowDownRight,
@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { StockMovement, StockItem } from '../types';
+import { ui } from '../ui/styles';
 
 type TabType = 'overview' | 'movements' | 'losses';
 
@@ -152,8 +153,8 @@ export const Stock: React.FC = () => {
       {/* Header & Stats */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div className="space-y-1">
-          <h2 className="text-3xl font-bold tracking-tighter uppercase  leading-none">Gestão de Suprimentos</h2>
-          <p className="text-[10px] font-bold uppercase tracking-wide opacity-40">Controle profundo de insumos e movimentações</p>
+          <h2 className={ui.pageTitle}>Gestão de Suprimentos</h2>
+          <p className={ui.pageSubtitle}>Controle profundo de insumos e movimentações</p>
         </div>
 
         <div className={`flex p-1 rounded-lg ${isDark ? 'bg-white/5' : 'bg-gray-100'}`}>

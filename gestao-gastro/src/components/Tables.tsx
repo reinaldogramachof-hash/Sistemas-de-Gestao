@@ -11,6 +11,7 @@ import {
   X
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { ui } from '../ui/styles';
 
 const TableTimer: React.FC<{ timestamp: string; isDark: boolean; status: string }> = ({ timestamp, isDark, status }) => {
   const [now, setNow] = useState(Date.now());
@@ -82,8 +83,8 @@ export const Tables: React.FC = () => {
       <div className="space-y-6">
         <div className="flex flex-col md:flex-row justify-between md:items-end gap-6">
           <div className="space-y-1">
-            <h2 className="text-3xl font-extrabold tracking-tighter uppercase leading-none">Mapa de Mesas</h2>
-            <p className="text-[10px] font-bold uppercase tracking-wide opacity-40">Gestão de Salão</p>
+            <h2 className={ui.pageTitle}>Mapa de Mesas</h2>
+            <p className={ui.pageSubtitle}>Gestao de Salao</p>
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 flex-1 lg:max-w-3xl">
@@ -95,14 +96,14 @@ export const Tables: React.FC = () => {
         </div>
 
         <div className="flex flex-col lg:flex-row justify-between items-center gap-6 pt-6 border-t border-current/5">
-          <div className="flex p-1 gap-1 rounded-lg bg-black/5 dark:bg-white/5 border border-current/5 w-full lg:w-fit overflow-x-auto scrollbar-none">
+          <div className={`${ui.tabShell(isDark)} w-full lg:w-fit overflow-x-auto scrollbar-none`}>
             {['todos', 'livre', 'ocupada', 'aguardando', 'reservada'].map((f) => (
-              <button key={f} onClick={() => setFilter(f as any)} className={`flex-1 lg:flex-none px-5 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-wide transition-all ${filter === f ? 'bg-white dark:bg-[#2C2C2E] shadow-md text-[#475569]' : 'text-gray-500 hover:text-gray-900 dark:hover:text-white'}`}>{f}</button>
+              <button key={f} onClick={() => setFilter(f as any)} className={`flex-1 lg:flex-none px-5 py-2.5 ${ui.tab(filter === f, isDark)}`}>{f}</button>
             ))}
           </div>
 
           <div className="flex gap-3 w-full lg:w-auto">
-            <div className={`flex items-center px-4 py-2.5 rounded-xl border flex-1 lg:w-64 transition-all focus-within:ring-4 focus-within:ring-[#475569]/10 ${isDark ? 'bg-[#1C1C1E] border-[#2C2C2E] focus-within:border-[#475569]/40' : 'bg-white border-gray-200 focus-within:border-slate-300 shadow-sm'}`}>
+            <div className={`flex items-center px-4 py-2.5 flex-1 lg:w-64 ${ui.input(isDark)}`}>
               <Search className="w-4 h-4 mr-3 opacity-40" />
               <input value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="Pesquisar mesa..." className="bg-transparent border-none outline-none w-full text-sm font-semibold placeholder:opacity-30" />
             </div>
@@ -179,9 +180,9 @@ export const Tables: React.FC = () => {
       <AnimatePresence>
         {isSelecting && selectedForReservation.length > 0 && (
           <motion.div initial={{ y: 100, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 100, opacity: 0 }} className="fixed bottom-10 left-1/2 -translate-x-1/2 z-[200] w-full max-w-xl px-4">
-            <div className={`p-5 rounded-lg border shadow-sm flex items-center gap-6 ${isDark ? 'bg-[#1C1C1E] border-[#2C2C2E]' : 'bg-white border-gray-100'}`}>
+            <div className={`p-5 flex items-center gap-6 ${ui.panel(isDark)}`}>
               <div className="flex-1 pl-4">
-                <p className="text-[10px] font-bold uppercase tracking-wide text-[#475569] mb-1">{selectedForReservation.length} Mesas Selecionadas</p>
+                <p className="text-[10px] font-bold uppercase tracking-wide text-accent mb-1">{selectedForReservation.length} Mesas Selecionadas</p>
                 <input autoFocus value={reservationReason} onChange={e => setReservationReason(e.target.value)} placeholder="Motivo da reserva..." className="bg-transparent border-none outline-none w-full font-bold text-sm placeholder:opacity-20" />
               </div>
               <button onClick={handleConfirmReservation} className="px-6 py-3 bg-slate-700 text-white rounded-lg font-bold uppercase tracking-wide text-[11px] shadow-sm transition-all">Confirmar</button>
@@ -207,7 +208,7 @@ const StatCard = ({ label, value, subValue, icon: Icon, color, isDark }: any) =>
   }[color as 'emerald' | 'amber' | 'blue' | 'rose' | 'purple'];
 
   return (
-    <div className={`p-5 rounded-lg border transition-all ${isDark ? 'bg-[#1C1C1E] border-[#2C2C2E]' : 'bg-white border-gray-100 shadow-sm'}`}>
+    <div className={`p-5 transition-all ${ui.panel(isDark)}`}>
       <div className="flex justify-between items-start mb-4">
         <div className={`p-2.5 rounded-xl border ${colors}`}><Icon className="w-4 h-4" /></div>
         <div className="text-right">

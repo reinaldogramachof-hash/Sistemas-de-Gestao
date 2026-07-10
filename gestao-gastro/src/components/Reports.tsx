@@ -1,8 +1,9 @@
-﻿import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useApp } from '../store/AppContext';
 import { Download, TrendingUp, TrendingDown, Calendar, PieChart, Users, ShoppingBag, ArrowUpRight, DollarSign, Clock, FileText, ChevronRight, BarChart3, Target, Plus, Trash2, Receipt, CreditCard, AlertCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Expense } from '../types';
+import { ui } from '../ui/styles';
 
 type Tab = 'dashboard' | 'fluxo' | 'vendas' | 'produtos' | 'atendentes';
 type Period = 'hoje' | 'semana' | 'mes' | 'total';
@@ -165,38 +166,38 @@ export const Reports: React.FC = () => {
       {/* Header with Filters */}
       <div className="flex flex-col lg:flex-row justify-between lg:items-end gap-6">
         <div className="space-y-1">
-          <h2 className="text-3xl font-extrabold tracking-tighter uppercase leading-none">BI & Financeiro</h2>
-          <p className="text-[10px] font-bold uppercase tracking-wide opacity-40">Gestão Consolidada de Fluxo e Operação</p>
+          <h2 className={ui.pageTitle}>BI e Financeiro</h2>
+          <p className={ui.pageSubtitle}>Gestao Consolidada de Fluxo e Operacao</p>
         </div>
 
         <div className="flex flex-wrap gap-3">
-          <div className="flex p-1.5 gap-1.5 rounded-lg bg-black/5 dark:bg-white/5 border border-white/10 backdrop-blur-md">
+          <div className={`${ui.tabShell(isDark)}`}>
             {(['hoje', 'semana', 'mes', 'total'] as Period[]).map((p) => (
               <button
                 key={p}
                 onClick={() => setPeriod(p)}
-                className={`px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-wide transition-all ${period === p ? 'bg-white dark:bg-[#2C2C2E] shadow-sm text-[#475569]' : 'opacity-30 hover:opacity-100'}`}
+                className={`px-4 py-2 ${ui.tab(period === p, isDark)}`}
               >
                 {p}
               </button>
             ))}
           </div>
-          <button onClick={() => setIsExpenseModalOpen(true)} className="px-6 py-3 bg-[#475569] text-white rounded-lg flex items-center gap-3 transition-all shadow-sm">
+          <button onClick={() => setIsExpenseModalOpen(true)} className={`px-6 py-3 ${ui.primaryButton} flex items-center gap-3`}>
              <Plus className="w-4 h-4" />
-             <span className="text-[10px] font-bold uppercase tracking-wide">Lançar Despesa</span>
+             <span className="text-[10px] font-bold uppercase tracking-wide">Lancar Despesa</span>
           </button>
         </div>
       </div>
 
       {/* Tabs Selector */}
-      <div className="flex-shrink-0 flex p-1.5 gap-1.5 rounded-lg bg-black/5 dark:bg-white/5 border border-white/10 w-fit backdrop-blur-md">
+      <div className={`${ui.tabShell(isDark)} w-fit flex-wrap`}>
         {(['dashboard', 'fluxo', 'vendas', 'produtos', 'atendentes'] as Tab[]).map((t) => (
           <button
             key={t}
             onClick={() => setActiveTab(t)}
-            className={`px-6 py-3 rounded-lg text-[11px] font-bold uppercase tracking-wide transition-all duration-150 relative ${activeTab === t ? 'bg-white dark:bg-[#2C2C2E] shadow-sm text-[#475569]' : 'text-gray-500 hover:text-gray-900 dark:hover:text-white hover:bg-white/5 opacity-50'}`}
+            className={`px-6 py-3 ${ui.tab(activeTab === t, isDark)}`}
           >
-            {t === 'fluxo' ? 'Gestão de Caixa' : t}
+            {t === 'fluxo' ? 'Gestao de Caixa' : t}
           </button>
         ))}
       </div>

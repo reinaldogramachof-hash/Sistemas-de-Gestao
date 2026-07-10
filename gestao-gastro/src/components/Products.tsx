@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Product, RecipeItem } from '../types';
+import { ui } from '../ui/styles';
 
 export const Products: React.FC = () => {
   const { products, stockItems, updateProduct, addProduct, deleteProduct, theme } = useApp();
@@ -101,21 +102,20 @@ export const Products: React.FC = () => {
 
   return (
     <div className="space-y-8 animate-in fade-in duration-200 pb-24">
-      {/* Header */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-        <div>
-          <h2 className="text-3xl font-bold tracking-tighter uppercase ">Cardápio & Vendas</h2>
-          <p className="text-[10px] font-bold uppercase tracking-wide opacity-40">Gestão de catálogo e fichas técnicas</p>
+        <div className="space-y-1">
+          <h2 className={ui.pageTitle}>Cardapio e Vendas</h2>
+          <p className={ui.pageSubtitle}>Gestao de catalogo e fichas tecnicas</p>
         </div>
 
         <div className="flex gap-4">
-          <div className={`flex p-1 rounded-xl ${isDark ? 'bg-white/5' : 'bg-gray-100'}`}>
-            <button onClick={() => toggleViewMode('grid')} className={`p-2 rounded-lg transition-all ${viewMode === 'grid' ? 'bg-white dark:bg-[#2C2C2E] shadow-sm text-[#475569]' : 'opacity-40 hover:opacity-100'}`}><LayoutGrid className="w-4 h-4" /></button>
-            <button onClick={() => toggleViewMode('list')} className={`p-2 rounded-lg transition-all ${viewMode === 'list' ? 'bg-white dark:bg-[#2C2C2E] shadow-sm text-[#475569]' : 'opacity-40 hover:opacity-100'}`}><List className="w-4 h-4" /></button>
+          <div className={`flex p-1 rounded-xl ${ui.panelMuted(isDark)}`}>
+            <button onClick={() => toggleViewMode('grid')} className={`p-2 rounded-lg transition-all ${viewMode === 'grid' ? (isDark ? 'bg-white/10 text-accent' : 'bg-white shadow-sm text-accent') : 'opacity-40 hover:opacity-100'}`}><LayoutGrid className="w-4 h-4" /></button>
+            <button onClick={() => toggleViewMode('list')} className={`p-2 rounded-lg transition-all ${viewMode === 'list' ? (isDark ? 'bg-white/10 text-accent' : 'bg-white shadow-sm text-accent') : 'opacity-40 hover:opacity-100'}`}><List className="w-4 h-4" /></button>
           </div>
           <button
             onClick={() => openModal()}
-            className="px-8 h-12 rounded-xl bg-[#475569] text-white font-bold text-[10px] uppercase tracking-wide transition-all shadow-sm flex items-center gap-2"
+            className={`px-8 h-12 ${ui.primaryButton} flex items-center gap-2 text-[10px]`}
           >
             <Plus className="w-4 h-4" /> Novo Produto
           </button>
@@ -128,22 +128,18 @@ export const Products: React.FC = () => {
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 opacity-30" />
           <input
             type="text"
-            placeholder="Buscar no cardápio..."
+            placeholder="Buscar no cardapio..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className={`w-full h-12 pl-12 pr-6 rounded-lg border outline-none font-bold text-sm transition-all ${isDark ? 'bg-[#1C1C1E] border-[#2C2C2E] focus:border-[#475569]' : 'bg-white border-gray-200 focus:border-[#475569]'}`}
+            className={`w-full h-12 pl-12 pr-6 ${ui.input(isDark)}`}
           />
         </div>
-        <div className="flex gap-2 overflow-x-auto pb-2 custom-scrollbar">
+        <div className={`${ui.tabShell(isDark)} overflow-x-auto scrollbar-none`}>
           {categories.map(cat => (
             <button
               key={cat}
               onClick={() => setSelectedCategory(cat)}
-              className={`px-6 h-12 rounded-lg text-[10px] font-bold uppercase tracking-wide transition-all whitespace-nowrap ${
-                selectedCategory === cat
-                  ? 'bg-white dark:bg-[#2C2C2E] text-[#475569] shadow-sm border border-current/10'
-                  : 'opacity-40 hover:opacity-100'
-              }`}
+              className={`px-5 py-2.5 whitespace-nowrap ${ui.tab(selectedCategory === cat, isDark)}`}
             >
               {cat}
             </button>

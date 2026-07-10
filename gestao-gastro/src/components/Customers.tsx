@@ -1,7 +1,8 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { useApp } from '../store/AppContext';
 import { Search, Plus, UserPlus, Mail, Phone, MapPin, Edit3, Trash2, MoreVertical, Filter, ChevronRight, User, Star, Zap, Clock, MessageCircle, X, LayoutGrid, List } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { ui } from '../ui/styles';
 
 interface Customer {
   id: string;
@@ -111,9 +112,9 @@ export const Customers: React.FC = () => {
   return (
     <div className="flex flex-col min-h-full gap-8 animate-in fade-in duration-700 pb-12">
       <div className="flex flex-col lg:flex-row justify-between lg:items-end gap-6">
-        <div className="space-y-1">
-          <h2 className="text-3xl font-extrabold tracking-tighter uppercase leading-none">Gestão de Clientes</h2>
-          <p className="text-[10px] font-bold uppercase tracking-widest opacity-40">CRM e Fidelização de Público</p>
+      <div className="space-y-1">
+          <h2 className={ui.pageTitle}>Gestao de Clientes</h2>
+          <p className={ui.pageSubtitle}>CRM e Fidelizacao de Publico</p>
         </div>
 
         <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto">
@@ -125,7 +126,7 @@ export const Customers: React.FC = () => {
             <Search className="w-4 h-4 mr-3 opacity-40" />
             <input value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="Pesquisar por nome ou telefone..." className="bg-transparent border-none outline-none w-full text-sm font-semibold placeholder:opacity-30" />
           </div>
-          <button onClick={() => handleOpenModal()} className="px-6 py-2.5 bg-[#475569] text-white rounded-xl font-black uppercase tracking-widest text-[10px] shadow-lg shadow-[#475569]/20 flex items-center justify-center gap-2  active:scale-[0.98] transition-all">
+          <button onClick={() => handleOpenModal()} className={`px-6 py-2.5 ${ui.primaryButton} flex items-center justify-center gap-2 text-[10px]`}>
             <UserPlus className="w-4 h-4" /> Novo Cliente
           </button>
         </div>
@@ -154,12 +155,12 @@ export const Customers: React.FC = () => {
         ))}
       </div>
 
-      <div className="flex-shrink-0 flex p-1.5 gap-1.5 rounded-lg bg-black/5 dark:bg-white/5 border border-white/10 w-fit backdrop-blur-md overflow-hidden">
+      <div className={`${ui.tabShell(isDark)} w-fit overflow-x-auto scrollbar-none`}>
         {['todos', 'vips', 'frequentes', 'inativos'].map((f) => (
           <button
             key={f}
             onClick={() => setActiveFilter(f)}
-            className={`px-8 py-3 rounded-lg text-[11px] font-black uppercase tracking-widest transition-all duration-300 relative ${activeFilter === f ? 'bg-white dark:bg-[#2C2C2E] shadow-sm text-[#475569] scale-100' : 'text-gray-500 hover:text-gray-900 dark:hover:text-white hover:bg-white/5 scale-95 opacity-50'}`}
+            className={`px-6 py-2.5 ${ui.tab(activeFilter === f, isDark)}`}
           >
             {f}
           </button>

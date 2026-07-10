@@ -30,7 +30,7 @@ const AppContent = () => {
     if (!checkAccess(currentView as AppModule)) {
       return (
         <div className="h-full flex flex-col items-center justify-center gap-4 opacity-50">
-          <span className="text-5xl">🔒</span>
+          <span className="text-5xl">!</span>
           <p className="text-xl font-bold">Modulo nao disponivel no plano atual</p>
           <p className="text-sm">Entre em contato para liberar este recurso.</p>
         </div>
@@ -56,9 +56,9 @@ const AppContent = () => {
       case 'evolucao': return <EvolutionCenter />;
       default: return (
         <div className="h-full flex flex-col items-center justify-center gap-4 opacity-50">
-          <span className="text-5xl">🚧</span>
-          <p className="text-xl font-bold">Em Construção</p>
-          <p className="text-sm">Este módulo estará disponível em breve.</p>
+          <span className="text-5xl">...</span>
+          <p className="text-xl font-bold">Em construcao</p>
+          <p className="text-sm">Este modulo estara disponivel em breve.</p>
         </div>
       );
     }

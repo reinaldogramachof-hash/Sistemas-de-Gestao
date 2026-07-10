@@ -1,7 +1,6 @@
-# Proteção de Arquivos Sensíveis
-# Bloqueia acesso HTTP a .env e arquivos de configuração
+# Protecao de arquivos sensiveis
+# Bloqueia acesso HTTP a .env e arquivos de configuracao.
 
-# Bloqueia .env
 <FilesMatch "^\.env">
     <IfModule mod_authz_core.c>
         Require all denied
@@ -12,7 +11,7 @@
     </IfModule>
 </FilesMatch>
 
-# Bloqueia env_loader.php (não deve ser acessado diretamente)
+# env_loader.php e usado apenas por inclusao interna das APIs.
 <FilesMatch "^env_loader\.php$">
     <IfModule mod_authz_core.c>
         Require all denied
@@ -23,15 +22,14 @@
     </IfModule>
 </FilesMatch>
 
-# ── APIs de Notificação ────────────────────────────────────────────────────────
-# Libera as APIs de notificação do mod_security e define headers corretos
+# APIs de notificacao.
+# Libera as APIs de notificacao do mod_security e define headers de cache/CORS.
 <FilesMatch "^api_notificacoes">
     <IfModule mod_security.c>
         SecFilterEngine Off
         SecFilterScanPOST Off
     </IfModule>
 
-    # Headers CORS e cache via htaccess (reforço)
     <IfModule mod_headers.c>
         Header always set Access-Control-Allow-Origin "*"
         Header always set Access-Control-Allow-Methods "GET, POST, OPTIONS"
@@ -41,3 +39,5 @@
         Header always set Expires "0"
     </IfModule>
 </FilesMatch>
+
+Options -Indexes

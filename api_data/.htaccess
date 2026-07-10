@@ -1,6 +1,6 @@
-# BLOQUEIO DE SEGURANÇA - PLENA FACTORY
-# Impede acesso direto aos arquivos JSON via navegador (HTTP)
-# O PHP ainda consegue ler os arquivos via sistema de arquivos local.
+# Bloqueio de seguranca - Plena Factory
+# Impede acesso direto aos dados JSON pelo navegador.
+# As APIs PHP continuam lendo os arquivos pelo sistema de arquivos local.
 
 <IfModule mod_authz_core.c>
     Require all denied
@@ -10,5 +10,4 @@
     Deny from all
 </IfModule>
 
-# Desativa listagem de diretório por precaução
 Options -Indexes

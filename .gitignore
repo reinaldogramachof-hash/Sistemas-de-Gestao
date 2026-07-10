@@ -1,12 +1,30 @@
+# Ambiente local e credenciais
 .env
-error_log
-*.crdownload
+.env.*
+!.env.example
 env (1)
-htaccess (2)
-README (2).md
-index (6).html
 
-# Bancos de dados JSON locais e logs (Contém PII - LGPD)
+# Logs e arquivos temporarios
+error_log
+*.log
+*.crdownload
+
+# Estado local de agentes/IDEs
+.agents/
+.codex/
+
+# Dependencias e builds
+node_modules/
+dist/
+build/
+coverage/
+gestao-gastro/node_modules/
+gestao-gastro/dist/
+gestao-gastro/build/
+gestao-gastro/coverage/
+
+# Bancos JSON locais e logs operacionais
+# Contem dados sensiveis/PII e nao devem ir para o Git.
 api_data/*.json
 !api_data/apps_config.json
 !api_data/finance_transactions.json
@@ -20,5 +38,10 @@ api_data/*.json
 notifications_data.json
 api_data/debug_log.txt
 
-# Artefatos de deploy
+# Artefatos de deploy/pacotes locais
 *.zip
+
+# Sobras comuns de download/manual
+htaccess (2)
+README (2).md
+index (6).html

@@ -144,6 +144,42 @@ describe('Garçom Permissions — gestao-gastro', () => {
     );
   });
 
+  test('ComandaMobile deve somar itens em mesa ocupada sem criar pedido duplicado', () => {
+    const content = readSrc('components/ComandaMobile.tsx');
+
+    assert.ok(
+      content.includes('updateOrderItems'),
+      'ComandaMobile deve usar updateOrderItems quando a mesa ja possui activeOrderId',
+    );
+    assert.ok(
+      content.includes('listOpenOrders'),
+      'ComandaMobile deve carregar pedidos abertos para localizar a comanda ativa',
+    );
+    assert.match(
+      content,
+      /selectedTable\?\.activeOrderId[\s\S]*updateOrderItems/,
+      'fluxo de confirmacao deve priorizar atualizar a comanda ativa da mesa',
+    );
+    assert.ok(
+      content.includes('mergeOrderItems'),
+      'ComandaMobile deve consolidar itens novos com itens existentes da comanda',
+    );
+  });
+
+  test('ComandaMobile deve preservar pedido ativo na fila offline de mesa ocupada', () => {
+    const content = readSrc('components/ComandaMobile.tsx');
+
+    assert.ok(
+      content.includes('existingOrderId'),
+      'fila offline deve guardar existingOrderId para atualizar mesa ocupada ao sincronizar',
+    );
+    assert.match(
+      content,
+      /item\.existingOrderId[\s\S]*updateOrderItems/,
+      'sincronizacao offline deve atualizar pedido existente quando existingOrderId estiver presente',
+    );
+  });
+
   test('useTables hook deve existir com subscribeToTables', () => {
     const content = readSrc('hooks/useTables.ts');
     assert.ok(content.includes('subscribeToTables'), 'useTables deve usar subscribeToTables para Realtime');

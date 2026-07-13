@@ -3,8 +3,8 @@ import type { Order, OrderItem, Product, Table } from '../types';
 import { ComandaMesaGrid } from './ComandaMesaGrid';
 import { ComandaLancamento, ComandaDraftItem } from './ComandaLancamento';
 import { ComandaConfirmacao } from './ComandaConfirmacao';
-import { listTables, setTableOccupied } from '../services/tablesSupabaseService';
-import { createOrder } from '../services/ordersSupabaseService';
+import { listTables, setTableOccupied, subscribeToTables } from '../services/tablesSupabaseService';
+import { createOrder, listOpenOrders, subscribeToOrders, updateOrderItems } from '../services/ordersSupabaseService';
 import { isSupabaseConfigured } from '../lib/supabase';
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
@@ -19,6 +19,7 @@ interface WaiterSession {
 interface OfflineQueueItem {
   id: string;
   tableNumber: number | null;
+  existingOrderId?: string;
   mode: 'mesa' | 'balcao';
   items: ComandaDraftItem[];
   generalObservation: string;
@@ -46,6 +47,43 @@ const saveOfflineQueue = (queue: OfflineQueueItem[]) => {
   localStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(queue));
 };
 
+const buildOrderItems = (items: ComandaDraftItem[]): OrderItem[] => {
+  return items.map(i => ({
+    id: `${i.product.id}_${Date.now()}_${Math.random().toString(36).slice(2)}`,
+    product: i.product,
+    quantity: i.quantity,
+    price: i.product.price,
+    observation: i.observation,
+    kitchenStatus: 'aguardando',
+  }));
+};
+
+const mergeOrderItems = (existingItems: OrderItem[], newItems: OrderItem[]): OrderItem[] => {
+  const merged = [...existingItems];
+
+  for (const newItem of newItems) {
+    const existingIndex = merged.findIndex(item =>
+      item.product.id === newItem.product.id &&
+      (item.observation || '') === (newItem.observation || '') &&
+      item.price === newItem.price &&
+      !item.comboId &&
+      !newItem.comboId
+    );
+
+    if (existingIndex >= 0) {
+      merged[existingIndex] = {
+        ...merged[existingIndex],
+        quantity: merged[existingIndex].quantity + newItem.quantity,
+        kitchenStatus: merged[existingIndex].kitchenStatus || 'aguardando',
+      };
+    } else {
+      merged.push(newItem);
+    }
+  }
+
+  return merged;
+};
+
 // ─── Componente ───────────────────────────────────────────────────────────────
 
 interface ComandaMobileProps {
@@ -61,6 +99,7 @@ export const ComandaMobile: React.FC<ComandaMobileProps> = ({
 }) => {
   const [step, setStep] = useState<Step>('mesa');
   const [tables, setTables] = useState<Table[]>([]);
+  const [openOrders, setOpenOrders] = useState<Order[]>([]);
   const [loadingTables, setLoadingTables] = useState(true);
   const [selectedTable, setSelectedTable] = useState<Table | null>(null);
   const [isBalcao, setIsBalcao] = useState(false);
@@ -87,21 +126,36 @@ export const ComandaMobile: React.FC<ComandaMobileProps> = ({
   // ─── Carregar mesas ───────────────────────────────────────────────────────
 
   useEffect(() => {
+    let unsubscribeTables: (() => void) | undefined;
+    let unsubscribeOrders: (() => void) | undefined;
+
     const load = async () => {
       setLoadingTables(true);
       if (isSupabaseConfigured) {
         try {
           if (!TENANT_ID) throw new Error('TENANT_ID ausente (obrigatório em modo online)');
-          const data = await listTables(TENANT_ID);
-          setTables(data);
+          const [tablesData, ordersData] = await Promise.all([
+            listTables(TENANT_ID),
+            listOpenOrders(TENANT_ID),
+          ]);
+          setTables(tablesData);
+          setOpenOrders(ordersData);
+          unsubscribeTables = subscribeToTables(TENANT_ID, setTables);
+          unsubscribeOrders = subscribeToOrders(TENANT_ID, setOpenOrders);
         } catch {
           // Sem conexão: mostra lista vazia com aviso
           setTables([]);
+          setOpenOrders([]);
         }
       }
       setLoadingTables(false);
     };
     void load();
+
+    return () => {
+      unsubscribeTables?.();
+      unsubscribeOrders?.();
+    };
   }, []);
 
   // ─── Sync da fila offline ─────────────────────────────────────────────────
@@ -113,17 +167,20 @@ export const ComandaMobile: React.FC<ComandaMobileProps> = ({
     const remaining: OfflineQueueItem[] = [];
     for (const item of offlineQueue) {
       try {
-        const orderItems: OrderItem[] = item.items.map(i => ({
-          id: `${i.product.id}_${Date.now()}`,
-          product: i.product,
-          quantity: i.quantity,
-          price: i.product.price,
-          observation: i.observation,
-        }));
+        const orderItems = buildOrderItems(item.items);
         const subtotal = orderItems.reduce((s, i) => s + i.price * i.quantity, 0);
         if (!TENANT_ID) {
           throw new Error('Tenant nao configurado para sincronizar fila offline.');
         }
+
+        if (item.existingOrderId) {
+          const freshOrders = await listOpenOrders(TENANT_ID);
+          const existingOrder = freshOrders.find(order => order.id === item.existingOrderId);
+          if (!existingOrder) throw new Error('Pedido ativo nao encontrado para sincronizar fila offline.');
+          await updateOrderItems(TENANT_ID, item.existingOrderId, mergeOrderItems(existingOrder.items, orderItems));
+          continue;
+        }
+
         const createdOrder = await createOrder(TENANT_ID, {
           mode: item.mode,
           tableNumber: item.tableNumber ?? undefined,
@@ -157,6 +214,10 @@ export const ComandaMobile: React.FC<ComandaMobileProps> = ({
   // ─── Handlers ─────────────────────────────────────────────────────────────
 
   const handleSelectTable = (table: Table) => {
+    if (table.status === 'reservada') {
+      alert('Mesa reservada. Libere a reserva no PDV antes de lançar pedidos.');
+      return;
+    }
     setSelectedTable(table);
     setIsBalcao(false);
     setDraftItems([]);
@@ -204,6 +265,7 @@ export const ComandaMobile: React.FC<ComandaMobileProps> = ({
     const queueItem: OfflineQueueItem = {
       id: `offline_${Date.now()}`,
       tableNumber: selectedTable?.number ?? null,
+      existingOrderId: selectedTable?.activeOrderId,
       mode: isBalcao ? 'balcao' : 'mesa',
       items: draftItems,
       generalObservation,
@@ -220,13 +282,7 @@ export const ComandaMobile: React.FC<ComandaMobileProps> = ({
   };
 
   const handleConfirm = async () => {
-    const orderItems: OrderItem[] = draftItems.map(i => ({
-      id: `${i.product.id}_${Date.now()}`,
-      product: i.product,
-      quantity: i.quantity,
-      price: i.product.price,
-      observation: i.observation,
-    }));
+    const orderItems = buildOrderItems(draftItems);
     const subtotal = orderItems.reduce((s, i) => s + i.price * i.quantity, 0);
 
     if (!isOnline || !isSupabaseConfigured) {
@@ -239,6 +295,35 @@ export const ComandaMobile: React.FC<ComandaMobileProps> = ({
         throw new Error('Tenant não configurado. VITE_GASTRO_TENANT_ID é obrigatório quando Supabase está ativo.');
       }
       
+      if (!isBalcao && selectedTable?.activeOrderId) {
+        const activeOrder =
+          openOrders.find(order => order.id === selectedTable.activeOrderId) ??
+          (await listOpenOrders(TENANT_ID)).find(order => order.id === selectedTable.activeOrderId);
+
+        if (!activeOrder) {
+          throw new Error('Pedido ativo da mesa nao encontrado. Atualize a tela e tente novamente.');
+        }
+
+        await updateOrderItems(
+          TENANT_ID,
+          selectedTable.activeOrderId,
+          mergeOrderItems(activeOrder.items, orderItems),
+        );
+        setSuccess(true);
+        setTimeout(() => {
+          setSuccess(false);
+          setStep('mesa');
+          setDraftItems([]);
+          setGeneralObservation('');
+          setSelectedTable(null);
+          void Promise.all([
+            listTables(TENANT_ID).then(setTables),
+            listOpenOrders(TENANT_ID).then(setOpenOrders),
+          ]).catch(() => {});
+        }, 2500);
+        return;
+      }
+
       const createdOrder = await createOrder(TENANT_ID, {
         mode: isBalcao ? 'balcao' : 'mesa',
         tableNumber: selectedTable?.number,
@@ -262,8 +347,11 @@ export const ComandaMobile: React.FC<ComandaMobileProps> = ({
         setDraftItems([]);
         setGeneralObservation('');
         setSelectedTable(null);
-        // Recarrega mesas para refletir status atualizado
-        void listTables(TENANT_ID).then(setTables).catch(() => {});
+        // Recarrega mesas e pedidos para refletir status atualizado
+        void Promise.all([
+          listTables(TENANT_ID).then(setTables),
+          listOpenOrders(TENANT_ID).then(setOpenOrders),
+        ]).catch(() => {});
       }, 2500);
     } catch (err) {
       alert(`Erro ao enviar pedido: ${err instanceof Error ? err.message : 'tente novamente'}`);

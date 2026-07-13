@@ -63,6 +63,16 @@ test('Inspect useModules.ts for localStorage usage and fallback', () => {
   assert.match(hookContent, /setCurrentPlan\('base'\)/, 'Should have fallback to base plan');
 });
 
+test('Base plan exposes commercial module aliases for licensing', () => {
+  const configPath = path.join(gastroDir, 'src', 'config', 'modulesConfig.ts');
+  const configContent = fs.readFileSync(configPath, 'utf-8');
+
+  assert.match(configContent, /commercialModuleAliases/, 'Should expose commercialModuleAliases');
+  assert.match(configContent, /produtos:\s*'Cardápio'/, 'produtos should be labeled as Cardápio');
+  assert.match(configContent, /relatorios:\s*'Financeiro'/, 'relatorios should be labeled as Financeiro');
+  assert.match(configContent, /getCommercialModuleName/, 'Should provide helper for commercial module names');
+});
+
 test('Inspect Layout.tsx for menu filtering based on access', () => {
   const layoutPath = path.join(gastroDir, 'src', 'components', 'Layout.tsx');
   const layoutContent = fs.readFileSync(layoutPath, 'utf-8');

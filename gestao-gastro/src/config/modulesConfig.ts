@@ -59,6 +59,15 @@ export const planMatrix: Record<PlanType, PlanConfig> = {
   }
 };
 
+export const commercialModuleAliases: Partial<Record<AppModule, string>> = {
+  produtos: 'Cardápio',
+  relatorios: 'Financeiro',
+};
+
+export const getCommercialModuleName = (module: AppModule): string => {
+  return commercialModuleAliases[module] ?? module;
+};
+
 // Funcao helper para verificar permissao do modulo baseada no plano
 export const isModuleAllowed = (module: AppModule, currentPlan: PlanType = 'base'): boolean => {
   const config = planMatrix[currentPlan];

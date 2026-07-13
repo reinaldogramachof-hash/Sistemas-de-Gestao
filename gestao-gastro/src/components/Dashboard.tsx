@@ -8,7 +8,8 @@ import {
   ArrowUpRight,
   ArrowDownRight,
   Clock,
-  CheckCircle2
+  CheckCircle2,
+  Smartphone
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ui } from '../ui/styles';
@@ -63,6 +64,16 @@ export const Dashboard: React.FC = () => {
     { label: 'Mesas Ocupadas', value: occupiedTables.toString(), icon: TableIcon, color: 'text-amber-500', bg: 'bg-amber-500/10', trend: `${occupiedTables}/${tables.length}` },
   ];
 
+  const getComandaLink = () => {
+    const origin = window.location.origin;
+    // Pega o slug da URL se existir, senão usa /comanda
+    const match = window.location.pathname.match(/^\/gestao-gastro\/([^/]+)/);
+    if (match) {
+      return `${origin}/gestao-gastro/${match[1]}/comanda`;
+    }
+    return `${origin}/comanda`;
+  };
+
   return (
     <div className="space-y-8 animate-in fade-in duration-200 pb-12">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
@@ -75,6 +86,25 @@ export const Dashboard: React.FC = () => {
              {new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}
            </span>
         </div>
+      </div>
+
+      {/* Comanda Link Banner */}
+      <div className={`p-4 rounded-xl flex items-center justify-between ${ui.panel(isDark)} border-accent/20 border`}>
+        <div className="flex items-center gap-4">
+          <div className="w-10 h-10 rounded-xl bg-accent/10 text-accent flex items-center justify-center">
+            <Smartphone className="w-5 h-5" />
+          </div>
+          <div>
+            <p className="text-xs font-bold uppercase tracking-wide">Acesso Garçom (Comanda Mobile)</p>
+            <p className="text-[10px] font-bold opacity-50">{getComandaLink()}</p>
+          </div>
+        </div>
+        <button
+          onClick={() => navigator.clipboard.writeText(getComandaLink())}
+          className="px-4 py-2 bg-accent text-white rounded-lg text-[9px] font-bold uppercase tracking-wide transition-opacity hover:opacity-80"
+        >
+          Copiar Link
+        </button>
       </div>
 
       {/* KPIs */}

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Shield, Key, Mail, Loader, CheckCircle } from 'lucide-react';
 import { ReceiptConfirmation } from './ReceiptConfirmation';
+import { resolveTenant } from '../config/clientRoutes';
 
 interface ActivationGateProps {
   children: React.ReactNode;
@@ -18,6 +19,7 @@ export const ActivationGate: React.FC<ActivationGateProps> = ({ children }) => {
     const savedKey = localStorage.getItem('plena_license');
     const savedEmail = localStorage.getItem('ml_license_email');
     const receiptConfirmed = localStorage.getItem('ml_receipt_confirmed');
+    const resolvedTenant = resolveTenant(window.location.pathname);
 
     if (!savedKey || !savedEmail) {
       setIsAuthorized(false);
@@ -35,7 +37,7 @@ export const ActivationGate: React.FC<ActivationGateProps> = ({ children }) => {
       const response = await fetch('../api_licenca_ml.php?action=verify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ license_key: savedKey, email: savedEmail })
+        body: JSON.stringify({ license_key: savedKey, email: savedEmail, tenant_id: resolvedTenant })
       });
 
       if (!response.ok) {
@@ -45,6 +47,15 @@ export const ActivationGate: React.FC<ActivationGateProps> = ({ children }) => {
       const data = await response.json();
 
       if (data.status === 'success' && data.license_status === 'active') {
+        if (resolvedTenant && data.tenant_id && data.tenant_id !== resolvedTenant) {
+          localStorage.removeItem('plena_license');
+          localStorage.removeItem('ml_license_email');
+          localStorage.removeItem('gestao_gastro_verified_plan');
+          localStorage.removeItem('gestao_gastro_tenant_id');
+          setIsAuthorized(false);
+          setError('Licenca nao pertence a este restaurante.');
+          return;
+        }
         setIsAuthorized(true);
         if (data.plan) {
           localStorage.setItem('gestao_gastro_verified_plan', data.plan);
@@ -81,6 +92,7 @@ export const ActivationGate: React.FC<ActivationGateProps> = ({ children }) => {
 
     try {
       let deviceId = localStorage.getItem('device_id');
+      const resolvedTenant = resolveTenant(window.location.pathname);
       if (!deviceId) {
         deviceId = 'dev_' + Math.random().toString(36).substr(2, 9);
         localStorage.setItem('device_id', deviceId);
@@ -89,12 +101,16 @@ export const ActivationGate: React.FC<ActivationGateProps> = ({ children }) => {
       const response = await fetch('../api_licenca_ml.php?action=activate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ license_key: licenseKey, email, device_id: deviceId })
+        body: JSON.stringify({ license_key: licenseKey, email, device_id: deviceId, tenant_id: resolvedTenant })
       });
 
       const data = await response.json();
 
       if (data.status === 'success') {
+        if (resolvedTenant && data.tenant_id && data.tenant_id !== resolvedTenant) {
+          setError('Licenca nao pertence a este restaurante.');
+          return;
+        }
         localStorage.setItem('plena_license', licenseKey);
         localStorage.setItem('ml_license_email', email);
         if (data.plan) {
@@ -102,6 +118,10 @@ export const ActivationGate: React.FC<ActivationGateProps> = ({ children }) => {
         } else {
           localStorage.setItem('gestao_gastro_verified_plan', 'base');
         }
+        if (resolvedTenant) {
+          localStorage.setItem('gestao_gastro_tenant_id', resolvedTenant);
+        }
+
         setIsAuthorized(true);
         setNeedsReceipt(true);
       } else {

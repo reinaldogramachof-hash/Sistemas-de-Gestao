@@ -1,26 +1,61 @@
 import React from 'react';
 import { ChefHat, User, Lock } from 'lucide-react';
 
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
+
 interface GarcomLoginProps {
-  onLogin: (name: string, pin: string) => void;
+  onLogin: (waiterId: string, waiterName: string) => void;
 }
 
 export const GarcomLogin: React.FC<GarcomLoginProps> = ({ onLogin }) => {
-  const [name, setName] = React.useState('');
-  const [pin, setPin] = React.useState('');
+  const [email, setEmail] = React.useState('');
+  const [password, setPassword] = React.useState('');
   const [error, setError] = React.useState('');
+  const [loading, setLoading] = React.useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim()) {
-      setError('Informe seu nome.');
+    setError('');
+
+    if (!email.trim() || !password) {
+      setError('Informe e-mail e senha.');
       return;
     }
-    if (pin.length < 3) {
-      setError('PIN deve ter ao menos 3 dígitos.');
-      return;
+
+    setLoading(true);
+
+    if (isSupabaseConfigured) {
+      if (!navigator.onLine) {
+        setError('Conecte-se à internet para autenticar.');
+        setLoading(false);
+        return;
+      }
+      try {
+        const { data, error: signInError } = await supabase.auth.signInWithPassword({
+          email: email.trim(),
+          password,
+        });
+
+        if (signInError) throw signInError;
+
+        if (data.user) {
+          // Name could be fetched from metadata or we can fallback to email prefix
+          const name = data.user.user_metadata?.name || email.split('@')[0];
+          onLogin(data.user.id, name);
+        }
+      } catch (err: any) {
+        setError(err.message || 'Erro de autenticação.');
+        setLoading(false);
+      }
+    } else {
+      // Offline / fallback mode (apenas se Supabase NÃO estiver configurado)
+      if (password.length < 3) {
+        setError('Senha deve ter ao menos 3 caracteres (offline).');
+        setLoading(false);
+        return;
+      }
+      onLogin(`${password}_${Date.now()}`, email.split('@')[0]);
     }
-    onLogin(name.trim(), pin);
   };
 
   return (
@@ -38,12 +73,12 @@ export const GarcomLogin: React.FC<GarcomLoginProps> = ({ onLogin }) => {
           <div className="relative">
             <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input
-              id="garcom-name"
-              type="text"
-              value={name}
-              onChange={e => { setName(e.target.value); setError(''); }}
-              placeholder="Seu nome"
-              autoComplete="name"
+              id="garcom-email"
+              type="email"
+              value={email}
+              onChange={e => { setEmail(e.target.value); setError(''); }}
+              placeholder="E-mail de acesso"
+              autoComplete="email"
               className="w-full h-12 pl-10 pr-4 rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-white/5 text-sm outline-none"
             />
           </div>
@@ -51,16 +86,13 @@ export const GarcomLogin: React.FC<GarcomLoginProps> = ({ onLogin }) => {
           <div className="relative">
             <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input
-              id="garcom-pin"
+              id="garcom-password"
               type="password"
-              inputMode="numeric"
-              pattern="[0-9]*"
-              value={pin}
-              onChange={e => { setPin(e.target.value.replace(/\D/g, '')); setError(''); }}
-              placeholder="PIN (ex: 1234)"
+              value={password}
+              onChange={e => { setPassword(e.target.value); setError(''); }}
+              placeholder="Senha"
               autoComplete="current-password"
-              maxLength={6}
-              className="w-full h-12 pl-10 pr-4 rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-white/5 text-sm outline-none tracking-[0.3em]"
+              className="w-full h-12 pl-10 pr-4 rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-white/5 text-sm outline-none"
             />
           </div>
 
@@ -70,21 +102,12 @@ export const GarcomLogin: React.FC<GarcomLoginProps> = ({ onLogin }) => {
 
           <button
             type="submit"
-            className="w-full h-12 rounded-xl bg-slate-700 text-white font-semibold text-sm active:scale-[0.98] transition-all"
+            disabled={loading}
+            className="w-full h-12 rounded-xl bg-slate-700 text-white font-semibold text-sm active:scale-[0.98] transition-all disabled:opacity-50"
           >
-            Entrar
+            {loading ? 'Entrando...' : 'Entrar'}
           </button>
         </form>
-
-        <div className="mt-8 p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-center">
-          <p className="text-[10px] text-red-600 dark:text-red-400 font-semibold mb-1">
-            ⚠️ Atenção: Acesso Simplificado (MVP)
-          </p>
-          <p className="text-[10px] text-red-500/80 leading-relaxed">
-            Esta versão utiliza identificação visual sem validação real via Supabase Auth.
-            <b> Não está pronta para produção pública.</b> As políticas RLS do Supabase irão bloquear envios online, a menos que configuradas para modo anônimo (inseguro).
-          </p>
-        </div>
       </div>
     </div>
   );

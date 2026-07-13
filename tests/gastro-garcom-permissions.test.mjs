@@ -40,11 +40,12 @@ describe('Garçom Permissions — gestao-gastro', () => {
     );
   });
 
-  test('GarcomLogin deve existir com campos de nome e PIN', () => {
+  test('GarcomLogin deve existir com campos de email e senha e não permitir fake offline se online mode', () => {
     const content = readSrc('components/GarcomLogin.tsx');
-    assert.ok(content.includes('name'), 'GarcomLogin deve ter campo de nome');
-    assert.ok(content.includes('pin') || content.includes('PIN'), 'GarcomLogin deve ter campo de PIN');
-    assert.ok(content.includes('onLogin'), 'GarcomLogin deve expor callback onLogin');
+    assert.ok(content.includes('email'), 'GarcomLogin deve ter campo de email');
+    assert.ok(content.includes('password') || content.includes('Senha'), 'GarcomLogin deve ter campo de senha');
+    assert.ok(content.includes('navigator.onLine'), 'GarcomLogin deve verificar conexão com internet');
+    assert.ok(content.includes('Conecte-se à internet'), 'GarcomLogin deve bloquear offline se online mode');
   });
 
   test('ComandaMobile deve ter detecção de online/offline', () => {
@@ -82,24 +83,52 @@ describe('Garçom Permissions — gestao-gastro', () => {
     }
   });
 
-  test('main.tsx deve isolar a rota /comanda do App administrativo', () => {
+  test('main.tsx deve isolar a rota /comanda e rotas de cliente do App administrativo', () => {
     const content = readSrc('main.tsx');
     assert.ok(
-      content.includes('/comanda'),
-      'main.tsx deve detectar rota /comanda',
+      content.includes('getClientRouteFromPath'),
+      'main.tsx deve resolver rotas publicas de cliente via clientRoutes',
     );
-    assert.ok(
-      content.includes('isComandaRoute') || content.includes('comanda'),
-      'main.tsx deve ter lógica de isolamento da rota /comanda',
-    );
-    // Garante que os dois caminhos existem
     assert.ok(
       content.includes('ComandaMobileApp'),
-      'main.tsx deve renderizar ComandaMobileApp para /comanda',
+      'main.tsx deve renderizar ComandaMobileApp para rotas de comanda',
+    );
+    assert.ok(
+      content.includes('isClientComandaRoute'),
+      'main.tsx deve separar explicitamente rota de comanda do cliente',
     );
     assert.ok(
       content.includes('<App />'),
       'main.tsx deve renderizar App normal para outras rotas',
+    );
+  });
+
+  test('clientRoutes deve mapear cantinhodaresenha para o tenant correto e priorizar slug', () => {
+    const content = readSrc('config/clientRoutes.ts');
+    assert.ok(content.includes('cantinhodaresenha'), 'clientRoutes deve conter o slug publico do cliente');
+    assert.ok(
+      content.includes('cd8f21f4-73a1-4c87-a385-9b6deacaeae7'),
+      'clientRoutes deve conter o tenant UUID do Cantinho',
+    );
+    assert.ok(
+      content.includes('getClientRouteFromPath'),
+      'clientRoutes deve expor resolucao completa da rota do cliente',
+    );
+    assert.ok(
+      content.includes('import.meta.env.DEV'),
+      'fallback por localStorage deve ficar restrito a desenvolvimento',
+    );
+  });
+
+  test('ComandaMobileApp nao deve reaproveitar sessao local quando Supabase esta configurado sem Auth', () => {
+    const content = readSrc('components/ComandaMobileApp.tsx');
+    assert.ok(
+      content.includes('setSession(null);'),
+      'sem sessao Supabase valida, ComandaMobileApp deve limpar sessao local',
+    );
+    assert.ok(
+      !content.includes('Verify if there') && !content.includes('setSession(loadSession());\n        }'),
+      'ramo Supabase configurado nao deve carregar sessao local antiga',
     );
   });
 

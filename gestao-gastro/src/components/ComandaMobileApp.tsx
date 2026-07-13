@@ -4,7 +4,8 @@ import { ComandaMobile } from './ComandaMobile';
 import type { Product } from '../types';
 import { mockProducts } from '../store/mock';
 import { listActiveProducts } from '../services/menuSupabaseService';
-import { isSupabaseConfigured } from '../lib/supabase';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { resolveTenant } from '../config/clientRoutes';
 
 const SESSION_KEY = 'garcom_session';
 
@@ -40,63 +41,131 @@ const clearSession = () => {
  * para não depender do estado global do admin.
  */
 export const ComandaMobileApp: React.FC = () => {
-  const [session, setSession] = useState<WaiterSession | null>(loadSession);
+  const [session, setSession] = useState<WaiterSession | null>(null);
+  const [authChecking, setAuthChecking] = useState(true);
 
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   React.useEffect(() => {
-    const loadProducts = async () => {
-      setLoading(true);
+    const initAuth = async () => {
+      setAuthChecking(true);
       if (isSupabaseConfigured) {
-        const tenant = import.meta.env.VITE_GASTRO_TENANT_ID as string;
-        if (!tenant) {
-          setError('VITE_GASTRO_TENANT_ID não configurado. Modo online requer Tenant ID.');
-          setLoading(false);
-          return;
-        }
-        try {
-          const remoteProducts = await listActiveProducts(tenant);
-          setProducts(remoteProducts);
-        } catch (err) {
-          setError('Erro ao carregar cardápio online. Verifique a conexão.');
+        const { data } = await supabase.auth.getSession();
+        if (data.session?.user) {
+          await verifyAccessAndSetSession(data.session.user.id, data.session.user.email || '');
+        } else {
+          clearSession();
+          setSession(null);
         }
       } else {
-        // Fallback
-        try {
-          const raw = localStorage.getItem('products');
-          if (raw) {
-            const parsed: Product[] = JSON.parse(raw);
-            if (Array.isArray(parsed) && parsed.length > 0) {
-              setProducts(parsed);
-              setLoading(false);
-              return;
-            }
-          }
-        } catch {
-          // ignore
-        }
-        setProducts(mockProducts);
+        setSession(loadSession());
       }
-      setLoading(false);
+      setAuthChecking(false);
     };
-    void loadProducts();
+    void initAuth();
   }, []);
 
-  const handleLogin = (name: string, pin: string) => {
+  const loadProducts = async () => {
+    setLoading(true);
+    if (isSupabaseConfigured) {
+      const tenant = resolveTenant(window.location.pathname);
+      if (!tenant) {
+        setError('Tenant não configurado ou rota inválida.');
+        setLoading(false);
+        return;
+      }
+      try {
+        const remoteProducts = await listActiveProducts(tenant);
+        setProducts(remoteProducts);
+      } catch (err) {
+        setError('Erro ao carregar cardápio online. Verifique a conexão.');
+      }
+    } else {
+      // Fallback
+      try {
+        const raw = localStorage.getItem('products');
+        if (raw) {
+          const parsed: Product[] = JSON.parse(raw);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setProducts(parsed);
+            setLoading(false);
+            return;
+          }
+        }
+      } catch {
+        // ignore
+      }
+      setProducts(mockProducts);
+    }
+    setLoading(false);
+  };
+
+  React.useEffect(() => {
+    if (session) {
+      void loadProducts();
+    }
+  }, [session]);
+
+  const verifyAccessAndSetSession = async (userId: string, email: string) => {
+    if (isSupabaseConfigured) {
+      const tenant = resolveTenant(window.location.pathname);
+      if (!tenant) {
+        setError('Tenant não configurado ou rota inválida.');
+        return;
+      }
+      const { data: member, error: memberError } = await supabase
+        .from('tenant_members')
+        .select('role, active')
+        .eq('tenant_id', tenant)
+        .eq('user_id', userId)
+        .single();
+
+      if (memberError || !member || !member.active) {
+        setError('Acesso negado. Usuário não é membro ativo deste restaurante.');
+        await supabase.auth.signOut();
+        return;
+      }
+
+      const validRoles = ['waiter', 'cashier', 'admin', 'owner'];
+      if (!validRoles.includes(member.role)) {
+        setError('Acesso negado. Perfil incompatível com o PDV Mobile.');
+        await supabase.auth.signOut();
+        return;
+      }
+    }
+
+    const name = email.split('@')[0];
     const newSession: WaiterSession = {
-      waiterId: `${pin}_${Date.now()}`,
+      waiterId: userId,
       waiterName: name,
     };
     saveSession(newSession);
     setSession(newSession);
   };
 
-  const handleLogout = () => {
+  const handleLogin = (waiterId: string, waiterName: string) => {
+    // Se isSupabaseConfigured for true, já foi validado no GarcomLogin a senha.
+    // Mas devemos validar o tenant_members
+    void verifyAccessAndSetSession(waiterId, waiterName);
+  };
+
+  const handleLogout = async () => {
     clearSession();
     setSession(null);
+    if (isSupabaseConfigured) {
+      await supabase.auth.signOut();
+    }
   };
+
+  if (authChecking) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-slate-900">
+        <p className="text-sm text-gray-500">Verificando sessão...</p>
+      </div>
+    );
+  }
 
   if (!session) {
     return <GarcomLogin onLogin={handleLogin} />;

@@ -1,28 +1,38 @@
--- 1. Tabela de Membros de Tenant (Usada para checagem segura de RLS)
+-- Garcom Mobile Online - Gestao Gastro
+-- Compatível com o catalogo comercial existente: tenant_id UUID e menu_products.price_cents.
+
 CREATE TABLE IF NOT EXISTS public.tenant_members (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    tenant_id TEXT NOT NULL,
+    tenant_id UUID NOT NULL,
     user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-    role TEXT NOT NULL DEFAULT 'waiter', -- admin, waiter, cashier
+    role TEXT NOT NULL DEFAULT 'owner',
+    active BOOLEAN NOT NULL DEFAULT true,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    UNIQUE(tenant_id, user_id)
+    PRIMARY KEY (tenant_id, user_id)
 );
 ALTER TABLE public.tenant_members ENABLE ROW LEVEL SECURITY;
 
--- Policy de tenant_members: Apenas o próprio usuário ou um super admin pode ver sua associação
-CREATE POLICY "Users can read own tenant membership" 
+DROP POLICY IF EXISTS "Users can read own tenant membership" ON public.tenant_members;
+CREATE POLICY "Users can read own tenant membership"
 ON public.tenant_members
 FOR SELECT
 TO authenticated
-USING (user_id = auth.uid());
+USING (user_id = (select auth.uid()));
 
+CREATE OR REPLACE FUNCTION public.set_updated_at()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  NEW.updated_at = now();
+  RETURN NEW;
+END;
+$$;
 
--- 2. Tabela de Mesas
 CREATE TABLE IF NOT EXISTS public.restaurant_tables (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    tenant_id TEXT NOT NULL,
+    tenant_id UUID NOT NULL,
     number INTEGER NOT NULL,
-    status TEXT NOT NULL DEFAULT 'livre',
+    status TEXT NOT NULL DEFAULT 'livre' CHECK (status IN ('livre', 'ocupada', 'aguardando', 'reservada')),
     active_order_id TEXT,
     reservation_reason TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -31,66 +41,78 @@ CREATE TABLE IF NOT EXISTS public.restaurant_tables (
 );
 ALTER TABLE public.restaurant_tables ENABLE ROW LEVEL SECURITY;
 
--- Políticas Seguras de Mesas
-CREATE POLICY "Membros do tenant podem visualizar mesas" 
+DROP TRIGGER IF EXISTS set_restaurant_tables_updated_at ON public.restaurant_tables;
+CREATE TRIGGER set_restaurant_tables_updated_at
+BEFORE UPDATE ON public.restaurant_tables
+FOR EACH ROW
+EXECUTE FUNCTION public.set_updated_at();
+
+DROP POLICY IF EXISTS "Membros do tenant podem visualizar mesas" ON public.restaurant_tables;
+CREATE POLICY "Membros do tenant podem visualizar mesas"
 ON public.restaurant_tables
 FOR SELECT
 TO authenticated
 USING (
   tenant_id IN (
-    SELECT t.tenant_id FROM public.tenant_members t WHERE t.user_id = auth.uid()
+    SELECT t.tenant_id FROM public.tenant_members t
+    WHERE t.user_id = (select auth.uid()) AND t.active = true
   )
 );
 
-CREATE POLICY "Membros do tenant podem atualizar mesas" 
+DROP POLICY IF EXISTS "Membros do tenant podem atualizar mesas" ON public.restaurant_tables;
+CREATE POLICY "Membros do tenant podem atualizar mesas"
 ON public.restaurant_tables
 FOR UPDATE
 TO authenticated
 USING (
   tenant_id IN (
-    SELECT t.tenant_id FROM public.tenant_members t WHERE t.user_id = auth.uid()
+    SELECT t.tenant_id FROM public.tenant_members t
+    WHERE t.user_id = (select auth.uid()) AND t.active = true
   )
 )
 WITH CHECK (
   tenant_id IN (
-    SELECT t.tenant_id FROM public.tenant_members t WHERE t.user_id = auth.uid()
+    SELECT t.tenant_id FROM public.tenant_members t
+    WHERE t.user_id = (select auth.uid()) AND t.active = true
   )
 );
 
-CREATE POLICY "Apenas admin pode inserir mesas" 
+DROP POLICY IF EXISTS "Apenas admin pode inserir mesas" ON public.restaurant_tables;
+CREATE POLICY "Apenas admin pode inserir mesas"
 ON public.restaurant_tables
 FOR INSERT
 TO authenticated
 WITH CHECK (
   tenant_id IN (
-    SELECT t.tenant_id FROM public.tenant_members t WHERE t.user_id = auth.uid() AND t.role = 'admin'
+    SELECT t.tenant_id FROM public.tenant_members t
+    WHERE t.user_id = (select auth.uid()) AND t.active = true AND t.role IN ('owner', 'admin')
   )
 );
 
-CREATE POLICY "Apenas admin pode deletar mesas" 
+DROP POLICY IF EXISTS "Apenas admin pode deletar mesas" ON public.restaurant_tables;
+CREATE POLICY "Apenas admin pode deletar mesas"
 ON public.restaurant_tables
 FOR DELETE
 TO authenticated
 USING (
   tenant_id IN (
-    SELECT t.tenant_id FROM public.tenant_members t WHERE t.user_id = auth.uid() AND t.role = 'admin'
+    SELECT t.tenant_id FROM public.tenant_members t
+    WHERE t.user_id = (select auth.uid()) AND t.active = true AND t.role IN ('owner', 'admin')
   )
 );
 
-
--- 3. Tabela de Pedidos
 CREATE TABLE IF NOT EXISTS public.restaurant_orders (
     id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
-    tenant_id TEXT NOT NULL,
-    mode TEXT NOT NULL,
+    tenant_id UUID NOT NULL,
+    mode TEXT NOT NULL CHECK (mode IN ('mesa', 'balcao')),
     table_number INTEGER,
     customer_name TEXT,
-    items JSONB NOT NULL DEFAULT '[]',
+    items JSONB NOT NULL DEFAULT '[]'::jsonb,
     subtotal NUMERIC NOT NULL DEFAULT 0,
     service_charge NUMERIC NOT NULL DEFAULT 0,
     total NUMERIC NOT NULL DEFAULT 0,
-    payments JSONB NOT NULL DEFAULT '[]',
-    status TEXT NOT NULL DEFAULT 'open',
+    payments JSONB NOT NULL DEFAULT '[]'::jsonb,
+    status TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'closed')),
     waiter_id TEXT NOT NULL,
     waiter_name TEXT,
     timestamp TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -99,100 +121,111 @@ CREATE TABLE IF NOT EXISTS public.restaurant_orders (
 );
 ALTER TABLE public.restaurant_orders ENABLE ROW LEVEL SECURITY;
 
--- Políticas Seguras de Pedidos
-CREATE POLICY "Membros do tenant podem ler pedidos" 
+DROP TRIGGER IF EXISTS set_restaurant_orders_updated_at ON public.restaurant_orders;
+CREATE TRIGGER set_restaurant_orders_updated_at
+BEFORE UPDATE ON public.restaurant_orders
+FOR EACH ROW
+EXECUTE FUNCTION public.set_updated_at();
+
+DROP POLICY IF EXISTS "Membros do tenant podem ler pedidos" ON public.restaurant_orders;
+CREATE POLICY "Membros do tenant podem ler pedidos"
 ON public.restaurant_orders
 FOR SELECT
 TO authenticated
 USING (
   tenant_id IN (
-    SELECT t.tenant_id FROM public.tenant_members t WHERE t.user_id = auth.uid()
+    SELECT t.tenant_id FROM public.tenant_members t
+    WHERE t.user_id = (select auth.uid()) AND t.active = true
   )
 );
 
-CREATE POLICY "Membros do tenant podem inserir pedidos" 
+DROP POLICY IF EXISTS "Membros do tenant podem inserir pedidos" ON public.restaurant_orders;
+CREATE POLICY "Membros do tenant podem inserir pedidos"
 ON public.restaurant_orders
 FOR INSERT
 TO authenticated
 WITH CHECK (
   tenant_id IN (
-    SELECT t.tenant_id FROM public.tenant_members t WHERE t.user_id = auth.uid()
+    SELECT t.tenant_id FROM public.tenant_members t
+    WHERE t.user_id = (select auth.uid()) AND t.active = true
   )
 );
 
-CREATE POLICY "Membros do tenant podem atualizar pedidos" 
+DROP POLICY IF EXISTS "Membros do tenant podem atualizar pedidos" ON public.restaurant_orders;
+CREATE POLICY "Membros do tenant podem atualizar pedidos"
 ON public.restaurant_orders
 FOR UPDATE
 TO authenticated
 USING (
   tenant_id IN (
-    SELECT t.tenant_id FROM public.tenant_members t WHERE t.user_id = auth.uid()
+    SELECT t.tenant_id FROM public.tenant_members t
+    WHERE t.user_id = (select auth.uid()) AND t.active = true
   )
 )
 WITH CHECK (
   tenant_id IN (
-    SELECT t.tenant_id FROM public.tenant_members t WHERE t.user_id = auth.uid()
+    SELECT t.tenant_id FROM public.tenant_members t
+    WHERE t.user_id = (select auth.uid()) AND t.active = true
   )
 );
 
-CREATE POLICY "Admin pode deletar pedidos" 
+DROP POLICY IF EXISTS "Admin pode deletar pedidos" ON public.restaurant_orders;
+CREATE POLICY "Admin pode deletar pedidos"
 ON public.restaurant_orders
 FOR DELETE
 TO authenticated
 USING (
   tenant_id IN (
-    SELECT t.tenant_id FROM public.tenant_members t WHERE t.user_id = auth.uid() AND t.role = 'admin'
+    SELECT t.tenant_id FROM public.tenant_members t
+    WHERE t.user_id = (select auth.uid()) AND t.active = true AND t.role IN ('owner', 'admin')
   )
 );
 
-
--- 4. Tabela de Categorias do Cardápio
-CREATE TABLE IF NOT EXISTS public.menu_categories (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    tenant_id TEXT NOT NULL,
-    name TEXT NOT NULL,
-    sort_order INTEGER NOT NULL DEFAULT 0,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    UNIQUE(tenant_id, name)
-);
 ALTER TABLE public.menu_categories ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Membros do tenant podem visualizar categorias" 
+DROP POLICY IF EXISTS "Membros do tenant podem visualizar categorias" ON public.menu_categories;
+CREATE POLICY "Membros do tenant podem visualizar categorias"
 ON public.menu_categories
 FOR SELECT
 TO authenticated
 USING (
   tenant_id IN (
-    SELECT t.tenant_id FROM public.tenant_members t WHERE t.user_id = auth.uid()
+    SELECT t.tenant_id FROM public.tenant_members t
+    WHERE t.user_id = (select auth.uid()) AND t.active = true
   )
 );
 
-
--- 5. Tabela de Produtos do Cardápio
-CREATE TABLE IF NOT EXISTS public.menu_products (
-    id TEXT PRIMARY KEY,
-    tenant_id TEXT NOT NULL,
-    category_id UUID REFERENCES public.menu_categories(id),
-    name TEXT NOT NULL,
-    description TEXT,
-    price NUMERIC NOT NULL,
-    image TEXT,
-    active BOOLEAN NOT NULL DEFAULT true,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
 ALTER TABLE public.menu_products ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Membros do tenant podem visualizar produtos" 
+DROP POLICY IF EXISTS "Membros do tenant podem visualizar produtos" ON public.menu_products;
+CREATE POLICY "Membros do tenant podem visualizar produtos"
 ON public.menu_products
 FOR SELECT
 TO authenticated
 USING (
   tenant_id IN (
-    SELECT t.tenant_id FROM public.tenant_members t WHERE t.user_id = auth.uid()
+    SELECT t.tenant_id FROM public.tenant_members t
+    WHERE t.user_id = (select auth.uid()) AND t.active = true
   )
 );
 
--- Ativando realtime para restaurant_tables e restaurant_orders
-ALTER PUBLICATION supabase_realtime ADD TABLE public.restaurant_tables;
-ALTER PUBLICATION supabase_realtime ADD TABLE public.restaurant_orders;
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_publication_tables
+    WHERE pubname = 'supabase_realtime'
+      AND schemaname = 'public'
+      AND tablename = 'restaurant_tables'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.restaurant_tables;
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_publication_tables
+    WHERE pubname = 'supabase_realtime'
+      AND schemaname = 'public'
+      AND tablename = 'restaurant_orders'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.restaurant_orders;
+  END IF;
+END $$;

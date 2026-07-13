@@ -166,6 +166,36 @@ describe('Supabase Security — gestao-gastro', () => {
     );
   });
 
+  test('migration deve alinhar tenant_id com schema Supabase real em UUID', () => {
+    const migration = readFileSync(GASTRO_MIGRATION, 'utf-8');
+
+    assert.match(
+      migration,
+      /CREATE TABLE IF NOT EXISTS public\.restaurant_tables[\s\S]*tenant_id UUID NOT NULL/,
+      'restaurant_tables.tenant_id deve ser UUID para combinar com tenant_members.tenant_id',
+    );
+    assert.match(
+      migration,
+      /CREATE TABLE IF NOT EXISTS public\.restaurant_orders[\s\S]*tenant_id UUID NOT NULL/,
+      'restaurant_orders.tenant_id deve ser UUID para combinar com tenant_members.tenant_id',
+    );
+    assert.ok(
+      !/CREATE TABLE IF NOT EXISTS public\.menu_products[\s\S]*price NUMERIC/.test(migration),
+      'migration de comanda nao deve recriar menu_products com coluna price incompatível',
+    );
+  });
+
+  test('menuSupabaseService deve consumir price_cents do catalogo existente', () => {
+    const service = readSrc('services/menuSupabaseService.ts');
+
+    assert.ok(service.includes('price_cents'), 'menu_products usa price_cents no Supabase real');
+    assert.ok(
+      service.includes('price: row.price_cents / 100'),
+      'Product.price deve converter centavos para reais',
+    );
+    assert.ok(!service.includes('price: row.price,'), 'nao deve ler coluna inexistente price');
+  });
+
   test('migration deve ter WITH CHECK nas policies de UPDATE', () => {
     const migration = readFileSync(GASTRO_MIGRATION, 'utf-8');
 
@@ -183,6 +213,23 @@ describe('Supabase Security — gestao-gastro', () => {
     assert.ok(!comanda.includes("|| 'default-empresa'"), 'ComandaMobile nao deve ter fallback default-empresa');
     assert.ok(!comanda.includes('fallbackTenant'), 'ComandaMobile nao deve usar fallbackTenant em chamadas online');
     assert.ok(!appContext.includes("|| 'default-empresa'"), 'AppContext nao deve ter fallback default-empresa para hooks online');
+  });
+
+  test('ActivationGate deve validar ativacao e verificacao contra o tenant resolvido', () => {
+    const content = readSrc('components/ActivationGate.tsx');
+
+    assert.ok(
+      content.includes('resolveTenant(window.location.pathname)'),
+      'ActivationGate deve resolver tenant pelo caminho publico do cliente',
+    );
+    assert.ok(
+      content.includes('tenant_id: resolvedTenant'),
+      'ActivationGate deve enviar tenant_id na ativacao/verificacao da licenca',
+    );
+    assert.ok(
+      content.includes('data.tenant_id') && content.includes('resolvedTenant'),
+      'ActivationGate deve comparar tenant retornado com tenant resolvido',
+    );
   });
 
 });

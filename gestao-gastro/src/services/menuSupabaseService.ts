@@ -7,7 +7,7 @@ interface MenuProductRow {
   category_id: string | null;
   name: string;
   description: string | null;
-  price: number;
+  price_cents: number | null;
   image: string | null;
   active: boolean;
   created_at: string;
@@ -62,7 +62,7 @@ export async function listActiveProducts(tenantId: string): Promise<Product[]> {
     empresaId: row.tenant_id,
     name: row.name,
     description: row.description ?? '',
-    price: row.price,
+    price: row.price_cents / 100,
     category: row.category_id ? (categoryMap.get(row.category_id) ?? 'Sem Categoria') : 'Sem Categoria',
     image: row.image ?? undefined,
     active: row.active,

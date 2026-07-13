@@ -170,5 +170,6 @@ export const mockSettings: AppSettings = {
     showLogo: true,
     paperWidth: '80mm'
   },
-  kitchenMode: 'display'
+  kitchenMode: 'display',
+  serviceChargeRate: 0.10
 };

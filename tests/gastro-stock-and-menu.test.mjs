@@ -67,7 +67,7 @@ test('Inspect AppContext.tsx for closeOrder double closure prevention and 0-stoc
 
   // a) Prevent double close
   assert.ok(
-    source.includes("status === 'closed'") && source.includes("orders.find(o => o.id === order.id)"),
+    source.includes("status === 'closed'") && source.includes("localOrders.find(o => o.id === order.id)"),
     'AppContext.tsx deve conter checagem para evitar duplo fechamento e abate duplicado'
   );
 

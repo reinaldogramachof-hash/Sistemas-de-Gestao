@@ -5,6 +5,8 @@ import { motion, AnimatePresence } from 'motion/react';
 import { GlassWater, IceCreamBowl, Package, Pizza, ShoppingCart, UtensilsCrossed } from 'lucide-react';
 import { ui } from '../ui/styles';
 
+import { getProductStock } from '../services/stockGuard';
+
 interface MenuListProps {
   category: string;
   searchTerm: string;
@@ -14,25 +16,6 @@ interface MenuListProps {
 export const MenuList: React.FC<MenuListProps> = ({ category, searchTerm, onSelect }) => {
   const { products, stockItems, theme } = useApp();
   const isDark = theme === 'dark';
-
-  const getProductStock = (product: Product) => {
-    if (!product.recipe || product.recipe.length === 0) {
-      return 999; // Unlimited / Livre
-    }
-    let minStockPossible = Infinity;
-    product.recipe.forEach(item => {
-      const stockItem = stockItems.find(si => si.id === item.stockItemId);
-      if (stockItem) {
-        const possible = Math.floor(stockItem.currentStock / item.quantity);
-        if (possible < minStockPossible) {
-          minStockPossible = possible;
-        }
-      } else {
-        minStockPossible = 0;
-      }
-    });
-    return minStockPossible === Infinity ? 0 : minStockPossible;
-  };
 
   const filteredProducts = products.filter(p => {
     const matchesCategory = category === 'Todos' || p.category === category;
@@ -55,7 +38,7 @@ export const MenuList: React.FC<MenuListProps> = ({ category, searchTerm, onSele
     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3 xl:gap-4">
       <AnimatePresence mode="popLayout">
         {filteredProducts.map((product) => {
-          const stockQty = getProductStock(product);
+          const stockQty = getProductStock(product, stockItems);
           const isOutOfStock = stockQty === 0;
           const CategoryIcon = getCategoryIcon(product.category);
 

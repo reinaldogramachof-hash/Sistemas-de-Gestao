@@ -5,6 +5,7 @@ import { MenuList } from './MenuList';
 import { X, Search, Minus, Trash2, Plus, MoveRight, Merge, Clock, Settings, Users, Baby, User, CalendarCheck, PlayCircle, Loader2, AlertTriangle, RefreshCw, ShoppingBag, ChevronRight, LayoutGrid, List } from 'lucide-react';
 import { CheckoutModal } from './CheckoutModal';
 import { motion, AnimatePresence } from 'motion/react';
+import { validateStock } from '../services/stockGuard';
 
 interface OrderModalProps {
   tableNumber: number | null;
@@ -13,7 +14,7 @@ interface OrderModalProps {
 }
 
 export const OrderModal: React.FC<OrderModalProps> = ({ tableNumber, mode, onClose }) => {
-  const { tables, orders, waiters, theme, addOrder, updateOrder, transferTable, mergeTables, clearTable } = useApp();
+  const { tables, orders, waiters, theme, addOrder, updateOrder, transferTable, mergeTables, clearTable, stockItems } = useApp();
   const isDark = theme === 'dark';
 
   const table = useMemo(() => tableNumber ? tables.find(t => t.number === tableNumber) : null, [tableNumber, tables]);
@@ -82,6 +83,15 @@ export const OrderModal: React.FC<OrderModalProps> = ({ tableNumber, mode, onClo
 
   const addItemToOrder = (product: Product) => {
     if (!activeOrder) return;
+    const existingItem = activeOrder.items.find(i => i.product.id === product.id);
+    const currentQty = existingItem ? existingItem.quantity : 0;
+
+    const validation = validateStock(product, stockItems, currentQty, 1);
+    if (!validation.available) {
+      alert(`Estoque insuficiente para ${product.name}`);
+      return;
+    }
+
     const existingIdx = activeOrder.items.findIndex(i => i.product.id === product.id);
     let updatedItems = [...activeOrder.items];
     if (existingIdx !== -1) {

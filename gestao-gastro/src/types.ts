@@ -20,6 +20,7 @@ export interface RecipeItem {
 
 export interface Product {
   id: string;
+  empresaId?: string;
   name: string;
   description: string;
   price: number;
@@ -61,6 +62,7 @@ export interface PartialPaymentItem {
 
 export interface Order {
   id: string;
+  empresaId?: string;
   mode: OrderMode;
   tableNumber?: number;
   customerName?: string;
@@ -120,6 +122,9 @@ export interface CashierSession {
   status: 'open' | 'closed';
   countedCash?: number;
   cashBreakdown?: number;
+  closedOrderIds?: string[];
+  expenseIds?: string[];
+  expensesSnapshot?: Expense[];
 }
 
 export interface Customer {
@@ -195,4 +200,74 @@ export interface AppSettings {
     paperWidth: '58mm' | '80mm';
   };
   kitchenMode?: 'display' | 'interactive';
+  serviceChargeRate?: number;
+}
+
+export interface Promotion {
+  id: string;
+  empresaId: string;
+  name: string;
+  type: 'percent' | 'fixed';
+  value: number;
+  productIds: string[];
+  categoryIds: string[];
+  startsAt: string;
+  endsAt: string;
+  active: boolean;
+  createdAt: string;
+}
+
+export interface Combo {
+  id: string;
+  empresaId: string;
+  name: string;
+  description?: string;
+  items: { productId: string; qty: number }[];
+  originalPrice: number;
+  comboPrice: number;
+  imageBase64?: string;
+  active: boolean;
+  createdAt: string;
+}
+
+export interface Campaign {
+  id: string;
+  empresaId: string;
+  name: string;
+  promotionId: string;
+  daysOfWeek: number[];
+  startsHour: number;
+  endsHour: number;
+  active: boolean;
+  createdAt: string;
+}
+
+export interface AuditLogEntry {
+  id: string;
+  empresaId: string;
+  type: string;
+  userId: string;
+  userName: string;
+  detail: string;
+  timestamp: string;
+  extra?: Record<string, unknown>;
+}
+
+export interface LoyaltyConfig {
+  empresaId: string;
+  active: boolean;
+  pointsPerReal: number;
+  redeemThreshold: number;
+  redeemValue: number;
+  expiresInDays?: number;
+}
+
+export interface LoyaltyEntry {
+  id: string;
+  empresaId: string;
+  customerId: string;
+  points: number;
+  orderId?: string;
+  description: string;
+  createdAt: string;
 }

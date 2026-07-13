@@ -27,11 +27,16 @@ export const planMatrix: Record<PlanType, PlanConfig> = {
   base: {
     plan: 'base',
     allowedModules: [
-      // TODO: Reinaldo definira a lista real.
-      // Atualmente todos liberados para nao quebrar compatibilidade
-      'dashboard', 'pdv', 'mesas', 'cozinha', 'caixa',
-      'produtos', 'estoque', 'clientes', 'relatorios',
-      'configuracoes', 'suporte', 'manual'
+      'pdv',
+      'mesas',
+      'caixa',
+      'dashboard',
+      'produtos',
+      'relatorios',
+      'estoque',
+      'manual',
+      'configuracoes',
+      'suporte'
     ]
   },
   premium: {

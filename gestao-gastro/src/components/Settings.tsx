@@ -158,6 +158,23 @@ export const Settings: React.FC = () => {
                   </div>
                 </div>
 
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold uppercase tracking-wide opacity-40 ml-2">Taxa de serviço (%)</label>
+                  <div className="relative group">
+                    <input
+                      type="number"
+                      min="0"
+                      max="100"
+                      value={formData.serviceChargeRate !== undefined ? Math.round(formData.serviceChargeRate * 100) : 10}
+                      onChange={e => {
+                        const pct = parseFloat(e.target.value) || 0;
+                        setFormData({ ...formData, serviceChargeRate: pct / 100 });
+                      }}
+                      className={`w-full h-14 px-6 rounded-lg border outline-none font-bold text-sm transition-all ${isDark ? 'bg-transparent border-[#2C2C2E] focus:border-[#475569]' : 'bg-gray-50 border-gray-100 focus:border-[#475569]'}`}
+                    />
+                  </div>
+                </div>
+
                 <div className="md:col-span-2 space-y-1">
                   <label className="text-[10px] font-bold uppercase tracking-wide opacity-40 ml-2">Endereço Completo</label>
                   <div className="relative group">

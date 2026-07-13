@@ -22,7 +22,26 @@ test('Inspect modulesConfig.ts for correct planMatrix', () => {
   const baseMatch = configContent.match(/base:\s*\{[\s\S]*?allowedModules:\s*\[([\s\S]*?)\]/);
   assert.ok(baseMatch, 'Should find base plan allowed modules array');
   const baseModules = baseMatch[1];
+  const baseModuleList = [...baseModules.matchAll(/'([^']+)'/g)].map(match => match[1]);
+  assert.deepEqual(
+    baseModuleList,
+    [
+      'pdv',
+      'mesas',
+      'caixa',
+      'dashboard',
+      'produtos',
+      'relatorios',
+      'estoque',
+      'manual',
+      'configuracoes',
+      'suporte',
+    ],
+    'Base plan should match the client module package'
+  );
   
+  assert.ok(!baseModules.includes("'cozinha'"), 'Base plan should NOT have cozinha');
+  assert.ok(!baseModules.includes("'clientes'"), 'Base plan should NOT have clientes');
   assert.ok(!baseModules.includes("'colaboradores'"), 'Base plan should NOT have colaboradores');
   assert.ok(!baseModules.includes("'fornecedores'"), 'Base plan should NOT have fornecedores');
   assert.ok(!baseModules.includes("'seguranca'"), 'Base plan should NOT have seguranca');
@@ -40,7 +59,7 @@ test('Inspect useModules.ts for localStorage usage and fallback', () => {
   const hookPath = path.join(gastroDir, 'src', 'hooks', 'useModules.ts');
   const hookContent = fs.readFileSync(hookPath, 'utf-8');
 
-  assert.match(hookContent, /localStorage\.getItem\('gestao_gastro_plan'\)/, 'Should read plan from localStorage');
+  assert.match(hookContent, /localStorage\.getItem\('gestao_gastro_verified_plan'\)/, 'Should read plan from verified localStorage key');
   assert.match(hookContent, /setCurrentPlan\('base'\)/, 'Should have fallback to base plan');
 });
 

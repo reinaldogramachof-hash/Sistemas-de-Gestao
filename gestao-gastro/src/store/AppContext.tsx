@@ -1,6 +1,14 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { Product, Table, Order, Waiter, Expense, CashierSession, PaymentItem, Customer, Collaborator, StockMovement, StockItem, Supplier, AppSettings, KitchenItemStatus } from '../types';
+import { Product, Table, Order, Waiter, Expense, CashierSession, PaymentItem, Customer, Collaborator, StockMovement, StockItem, Supplier, AppSettings, KitchenItemStatus, Promotion, Combo, Campaign, LoyaltyConfig, LoyaltyEntry } from '../types';
 import { mockProducts, mockTables, mockWaiters, mockCustomers, mockCollaborators, mockStockItems, mockSuppliers, mockSettings } from './mock';
+import { useTables } from '../hooks/useTables';
+import { useOrders } from '../hooks/useOrders';
+import { isSupabaseConfigured } from '../lib/supabase';
+import { setTableOccupied, clearTable as clearTableSupabase } from '../services/tablesSupabaseService';
+import { createOrder as createOrderSupabase, closeOrder as closeOrderSupabase } from '../services/ordersSupabaseService';
+
+const TENANT_ID = import.meta.env.VITE_GASTRO_TENANT_ID as string;
+const LOCAL_TENANT_ID = 'default-empresa';
 
 interface AppState {
   products: Product[];
@@ -19,6 +27,14 @@ interface AppState {
   readGuides: string[];
   theme: 'dark' | 'light';
   draftOrder: Order | null;
+  promotions: Promotion[];
+  combos: Combo[];
+  campaigns: Campaign[];
+  currentEmpresa: { id: string; name: string; tenantId: string };
+  currentUser: { id: string; name: string; role: string };
+  supabaseOnline: boolean;
+  loyaltyConfig: LoyaltyConfig;
+  loyaltyEntries: LoyaltyEntry[];
 }
 
 interface AppContextType extends AppState {
@@ -60,6 +76,7 @@ interface AppContextType extends AppState {
   setDraftOrder: (order: Order | null) => void;
   clearDraftOrder: () => void;
   updateOrderItemKitchenStatus: (orderId: string, itemIndex: number, status: KitchenItemStatus) => void;
+  addLoyaltyEntry: (entry: Omit<LoyaltyEntry, 'id' | 'empresaId' | 'createdAt'>) => void;
 }
 
 const parseJSON = <T,>(key: string, fallback: T): T => {
@@ -82,12 +99,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [products, setProducts] = useState<Product[]>(() => parseJSON('products', mockProducts));
   const [stockItems, setStockItems] = useState<StockItem[]>(() => parseJSON('stockItems', mockStockItems));
   const [suppliers, setSuppliers] = useState<Supplier[]>(() => parseJSON('suppliers', mockSuppliers));
-  const [tables, setTables] = useState<Table[]>(() => {
+  // Mesas e pedidos: controlados pelos hooks Supabase quando online, ou pelo estado local
+  const [localTables, setLocalTables] = useState<Table[]>(() => {
     const saved = parseJSON<Table[]>('tables', mockTables);
     return saved.length !== mockTables.length ? mockTables : saved;
   });
+  const [localOrders, setLocalOrders] = useState<Order[]>(() => parseJSON('orders', []));
   const [waiters] = useState<Waiter[]>(() => parseJSON('waiters', mockWaiters));
-  const [orders, setOrders] = useState<Order[]>(() => parseJSON('orders', []));
   const [expenses, setExpenses] = useState<Expense[]>(() => parseJSON('expenses', []));
   const [cashierSession, setCashierSession] = useState<CashierSession | null>(() => parseJSON('cashierSession', null));
   const [cashierHistory, setCashierHistory] = useState<CashierSession[]>(() => parseJSON('cashierHistory', []));
@@ -102,13 +120,65 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   });
   const [draftOrder, setDraftOrderState] = useState<Order | null>(() => parseJSON('draftOrder', null));
 
+  const [promotions, setPromotions] = useState<Promotion[]>(() => parseJSON('promotions', []));
+  const [combos, setCombos] = useState<Combo[]>(() => parseJSON('combos', []));
+  const [campaigns, setCampaigns] = useState<Campaign[]>(() => parseJSON('campaigns', []));
+  const [loyaltyConfig, setLoyaltyConfig] = useState<LoyaltyConfig>(() => parseJSON('loyaltyConfig', { empresaId: 'default-empresa', active: false, pointsPerReal: 1, redeemThreshold: 100, redeemValue: 10 }));
+  const [loyaltyEntries, setLoyaltyEntries] = useState<LoyaltyEntry[]>(() => parseJSON('loyaltyEntries', []));
+
+  // ─── Supabase hooks (mesas e pedidos em tempo real) ───────────────────────
+  const tablesHook = useTables(TENANT_ID);
+  const ordersHook = useOrders(TENANT_ID);
+
+  // Sincroniza estado Supabase → estado local (para persistência de fallback)
+  useEffect(() => {
+    if (isSupabaseConfigured && tablesHook.tables.length > 0) {
+      setLocalTables(tablesHook.tables);
+    }
+  }, [tablesHook.tables]);
+
+  useEffect(() => {
+    if (isSupabaseConfigured) {
+      // Garante que pedidos abertos do Supabase estão refletidos no estado local
+      setLocalOrders(prev => {
+        // Mantém pedidos fechados do localStorage + substitui abertos pelo Supabase
+        const closedLocal = prev.filter(o => o.status === 'closed');
+        return [...closedLocal, ...ordersHook.openOrders].sort((a, b) =>
+          new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+        );
+      });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ordersHook.openOrders]);
+
+  // Alimenta o hook Supabase com dados locais quando offline
+  useEffect(() => {
+    if (!isSupabaseConfigured) {
+      tablesHook.setTablesLocal(localTables);
+      ordersHook.setOrdersLocal(localOrders);
+    }
+  // Só roda na montagem quando offline
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isSupabaseConfigured]);
+
+  // Tabelas e pedidos visíveis: Supabase quando online, local quando offline
+  const tables = isSupabaseConfigured ? tablesHook.tables : localTables;
+  const orders = isSupabaseConfigured
+    ? [...localOrders.filter(o => o.status === 'closed'), ...ordersHook.openOrders]
+    : localOrders;
+
+  const currentTenantId = TENANT_ID || LOCAL_TENANT_ID;
+  const currentEmpresa = { id: currentTenantId, name: 'Cantinho da Resenha', tenantId: currentTenantId };
+  const currentUser = { id: 'admin', name: 'Administrador', role: 'admin' };
+  const supabaseOnline = isSupabaseConfigured;
+
   useEffect(() => {
     localStorage.setItem('products', JSON.stringify(products));
     localStorage.setItem('stockItems', JSON.stringify(stockItems));
     localStorage.setItem('suppliers', JSON.stringify(suppliers));
-    localStorage.setItem('tables', JSON.stringify(tables));
+    localStorage.setItem('tables', JSON.stringify(localTables));
     localStorage.setItem('waiters', JSON.stringify(waiters));
-    localStorage.setItem('orders', JSON.stringify(orders));
+    localStorage.setItem('orders', JSON.stringify(localOrders));
     localStorage.setItem('expenses', JSON.stringify(expenses));
     localStorage.setItem('cashierSession', JSON.stringify(cashierSession));
     localStorage.setItem('cashierHistory', JSON.stringify(cashierHistory));
@@ -119,13 +189,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     localStorage.setItem('readGuides', JSON.stringify(readGuides));
     localStorage.setItem('theme', theme);
     localStorage.setItem('draftOrder', JSON.stringify(draftOrder));
-  }, [products, stockItems, suppliers, tables, waiters, orders, expenses, cashierSession, cashierHistory, customers, collaborators, stockMovements, settings, readGuides, theme, draftOrder]);
+    localStorage.setItem('promotions', JSON.stringify(promotions));
+    localStorage.setItem('combos', JSON.stringify(combos));
+    localStorage.setItem('campaigns', JSON.stringify(campaigns));
+    localStorage.setItem('loyaltyConfig', JSON.stringify(loyaltyConfig));
+    localStorage.setItem('loyaltyEntries', JSON.stringify(loyaltyEntries));
+  }, [products, stockItems, suppliers, localTables, waiters, localOrders, expenses, cashierSession, cashierHistory, customers, collaborators, stockMovements, settings, readGuides, theme, draftOrder, promotions, combos, campaigns, loyaltyConfig, loyaltyEntries]);
 
   const setDraftOrder = (order: Order | null) => setDraftOrderState(order);
   const clearDraftOrder = () => setDraftOrderState(null);
 
   const updateOrderItemKitchenStatus = (orderId: string, itemIndex: number, status: KitchenItemStatus) => {
-    setOrders(prev => prev.map(o => {
+    setLocalOrders(prev => prev.map(o => {
       if (o.id !== orderId) return o;
       const items = o.items.map((item, idx) =>
         idx === itemIndex ? { ...item, kitchenStatus: status } : item
@@ -153,8 +228,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (data.products) setProducts(data.products);
       if (data.stockItems) setStockItems(data.stockItems);
       if (data.suppliers) setSuppliers(data.suppliers);
-      if (data.tables) setTables(data.tables);
-      if (data.orders) setOrders(data.orders);
+      if (data.tables) setLocalTables(data.tables);
+      if (data.orders) setLocalOrders(data.orders);
       if (data.expenses) setExpenses(data.expenses);
       if (data.customers) setCustomers(data.customers);
       if (data.collaborators) setCollaborators(data.collaborators);
@@ -212,24 +287,50 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const updateTable = (updatedTable: Table) => {
-    setTables(prev => prev.map(t => t.number === updatedTable.number ? updatedTable : t));
+    setLocalTables(prev => prev.map(t => t.number === updatedTable.number ? updatedTable : t));
   };
 
   const addOrder = (order: Order) => {
-    setOrders(prev => [...prev, order]);
-    if (order.mode === 'mesa' && order.tableNumber) {
-      setTables(prev => prev.map(t =>
+    // Local sempre (garante fallback e fechamento do caixa)
+    setLocalOrders(prev => {
+      if (prev.some(o => o.id === order.id)) return prev;
+      return [...prev, order];
+    });
+    // Supabase: cria pedido e atualiza mesa se online
+    if (isSupabaseConfigured && !TENANT_ID) {
+      console.error('VITE_GASTRO_TENANT_ID e obrigatorio para criar pedidos online.');
+      return;
+    }
+    if (isSupabaseConfigured && order.mode === 'mesa' && order.tableNumber) {
+      void createOrderSupabase(TENANT_ID, {
+        mode: order.mode,
+        tableNumber: order.tableNumber,
+        customerName: order.customerName,
+        items: order.items,
+        subtotal: order.subtotal,
+        serviceCharge: order.serviceCharge,
+        total: order.total,
+        waiterId: order.waiterId,
+        timestamp: order.timestamp,
+      }).then(created => {
+        if (created && order.tableNumber) {
+          void setTableOccupied(TENANT_ID, order.tableNumber, created.id);
+        }
+      }).catch(console.error);
+    } else if (order.mode === 'mesa' && order.tableNumber) {
+      // Fallback local: atualiza mesa no estado local
+      setLocalTables(prev => prev.map(t =>
         t.number === order.tableNumber ? { ...t, status: 'ocupada', activeOrderId: order.id } : t
       ));
     }
   };
 
   const updateOrder = (updatedOrder: Order) => {
-    setOrders(prev => prev.map(o => o.id === updatedOrder.id ? updatedOrder : o));
+    setLocalOrders(prev => prev.map(o => o.id === updatedOrder.id ? updatedOrder : o));
   };
 
   const closeOrder = (order: Order, payments: PaymentItem[], serviceCharge: number) => {
-    const orderInState = orders.find(o => o.id === order.id);
+    const orderInState = localOrders.find(o => o.id === order.id);
     if (orderInState && orderInState.status === 'closed') return;
 
     const closedOrder: Order = {
@@ -240,15 +341,28 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       total: order.subtotal + serviceCharge,
     };
 
-    setOrders(prev => {
+    setLocalOrders(prev => {
       const exists = prev.some(o => o.id === order.id);
       return exists
         ? prev.map(o => o.id === order.id ? closedOrder : o)
         : [...prev, closedOrder];
     });
 
-    if (order.tableNumber) {
-      setTables(prev => prev.map(t =>
+    // Fecha pedido no Supabase e libera mesa
+    if (isSupabaseConfigured && !TENANT_ID) {
+      console.error('VITE_GASTRO_TENANT_ID e obrigatorio para fechar pedidos online.');
+    } else if (isSupabaseConfigured) {
+      void closeOrderSupabase(TENANT_ID, order.id, {
+        payments,
+        serviceCharge,
+        total: order.subtotal + serviceCharge,
+      }).catch(console.error);
+      if (order.tableNumber) {
+        void clearTableSupabase(TENANT_ID, order.tableNumber).catch(console.error);
+      }
+    } else if (order.tableNumber) {
+      // Fallback local
+      setLocalTables(prev => prev.map(t =>
         t.number === order.tableNumber ? { ...t, status: 'livre', activeOrderId: undefined } : t
       ));
     }
@@ -333,7 +447,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const closeCashier = (tipsTotal: number, countedCash?: number) => {
     if (!cashierSession) return;
-    const closedOrders = orders.filter(o => o.status === 'closed');
+    const closedOrders = localOrders.filter(o => o.status === 'closed');
     const salesTotal = closedOrders.reduce((acc, o) => acc + o.subtotal, 0);
     const serviceTaxTotal = closedOrders.reduce((acc, o) => acc + o.serviceCharge, 0);
 
@@ -358,10 +472,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       finalBalance,
       countedCash,
       cashBreakdown,
+      closedOrderIds: closedOrders.map(o => o.id),
+      expenseIds: expenses.map(e => e.id),
+      expensesSnapshot: expenses,
     };
     setCashierHistory(prev => [...prev, closedSession]);
     setCashierSession(null);
-    setOrders([]);
+    setLocalOrders([]);
     setExpenses([]);
   };
 
@@ -373,8 +490,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     const orderId = fromTable.activeOrderId;
 
-    setOrders(prev => prev.map(o => o.id === orderId ? { ...o, tableNumber: toNumber } : o));
-    setTables(prev => prev.map(t => {
+    setLocalOrders(prev => prev.map(o => o.id === orderId ? { ...o, tableNumber: toNumber } : o));
+    setLocalTables(prev => prev.map(t => {
       if (t.number === fromNumber) return { ...t, status: 'livre', activeOrderId: undefined };
       if (t.number === toNumber) return { ...t, status: 'ocupada', activeOrderId: orderId };
       return t;
@@ -413,31 +530,37 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       total: subtotal
     };
 
-    setOrders(prev => prev
+    setLocalOrders(prev => prev
       .filter(o => o.id !== sourceOrder.id)
       .map(o => o.id === targetOrder.id ? updatedTargetOrder : o)
     );
 
-    setTables(prev => prev.map(t => {
+    setLocalTables(prev => prev.map(t => {
       if (t.number === sourceNumber) return { ...t, status: 'livre', activeOrderId: undefined };
       return t;
     }));
   };
 
   const reserveTable = (numbers: number[], reason: string) => {
-    setTables(prev => prev.map(t =>
+    setLocalTables(prev => prev.map(t =>
       numbers.includes(t.number)
         ? { ...t, status: 'reservada', reservationReason: reason }
         : t
     ));
+    if (isSupabaseConfigured) {
+      void tablesHook.reserve(numbers, reason).catch(console.error);
+    }
   };
 
   const clearTable = (number: number) => {
-    setTables(prev => prev.map(t =>
+    setLocalTables(prev => prev.map(t =>
       t.number === number
         ? { ...t, status: 'livre', activeOrderId: undefined, reservationReason: undefined }
         : t
     ));
+    if (isSupabaseConfigured) {
+      void tablesHook.clear(number).catch(console.error);
+    }
   };
 
   const addCustomer = (customer: Customer) => {
@@ -468,9 +591,31 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setStockMovements(prev => [...prev, movement]);
   };
 
+  const addLoyaltyEntry = (entry: Omit<LoyaltyEntry, 'id' | 'empresaId' | 'createdAt'>) => {
+    const newEntry: LoyaltyEntry = {
+      ...entry,
+      id: crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2),
+      empresaId: currentEmpresa.id,
+      createdAt: new Date().toISOString()
+    };
+    setLoyaltyEntries(prev => [...prev, newEntry]);
+
+    // Atualiza pontos do cliente no estado local
+    setCustomers(prev => prev.map(c => {
+      if (c.id === entry.customerId) {
+        return {
+          ...c,
+          loyaltyPoints: c.loyaltyPoints + entry.points
+        };
+      }
+      return c;
+    }));
+  };
+
   return (
     <AppContext.Provider value={{
       products, stockItems, suppliers, tables, waiters, orders, expenses, cashierSession, cashierHistory, customers, collaborators, stockMovements, settings, readGuides, theme, draftOrder,
+      promotions, combos, campaigns, currentEmpresa, currentUser, loyaltyConfig, loyaltyEntries, supabaseOnline,
       setTheme, updateProduct, addProduct, deleteProduct,
       updateStockItem, addStockItem, deleteStockItem,
       updateSupplier, addSupplier, deleteSupplier,
@@ -479,7 +624,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       addCustomer, updateCustomer, deleteCustomer,
       addCollaborator, updateCollaborator, deleteCollaborator,
       addStockMovement, updateSettings, toggleGuideRead, importData, exportData, resetToMocks,
-      setDraftOrder, clearDraftOrder, updateOrderItemKitchenStatus,
+      setDraftOrder, clearDraftOrder, updateOrderItemKitchenStatus, addLoyaltyEntry,
     }}>
       {children}
     </AppContext.Provider>

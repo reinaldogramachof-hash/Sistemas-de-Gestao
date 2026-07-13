@@ -6,7 +6,9 @@ export const useModules = () => {
   const [currentPlan, setCurrentPlan] = useState<PlanType>('base');
 
   useEffect(() => {
-    const storedPlan = localStorage.getItem('gestao_gastro_plan') as PlanType;
+    // A fonte confiável para definição do plano é a resposta validada da API de licença
+    // gravada sob a chave 'gestao_gastro_verified_plan'. Fallback inicial é sempre 'base'.
+    const storedPlan = localStorage.getItem('gestao_gastro_verified_plan') as PlanType;
     const validPlans: PlanType[] = ['base', 'premium', 'master'];
 
     if (storedPlan && validPlans.includes(storedPlan)) {

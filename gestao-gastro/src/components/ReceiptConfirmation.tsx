@@ -15,13 +15,6 @@ export const ReceiptConfirmation: React.FC<ReceiptConfirmationProps> = ({ onConf
 
     const email = localStorage.getItem('ml_license_email');
     const licenseKey = localStorage.getItem('plena_license');
-    const masterMode = localStorage.getItem('ml_master_mode');
-
-    if (masterMode === 'true') {
-      localStorage.setItem('ml_receipt_confirmed', 'true');
-      onConfirmed();
-      return;
-    }
 
     try {
       const response = await fetch('../api_licenca_ml.php?action=confirm_receipt', {

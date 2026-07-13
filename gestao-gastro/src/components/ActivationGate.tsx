@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Shield, Key, Mail, Loader, CheckCircle } from 'lucide-react';
 import { ReceiptConfirmation } from './ReceiptConfirmation';
 
@@ -17,13 +17,7 @@ export const ActivationGate: React.FC<ActivationGateProps> = ({ children }) => {
   const checkLicense = async () => {
     const savedKey = localStorage.getItem('plena_license');
     const savedEmail = localStorage.getItem('ml_license_email');
-    const masterMode = localStorage.getItem('ml_master_mode');
     const receiptConfirmed = localStorage.getItem('ml_receipt_confirmed');
-
-    if (masterMode === 'true') {
-      setIsAuthorized(true);
-      return;
-    }
 
     if (!savedKey || !savedEmail) {
       setIsAuthorized(false);
@@ -52,10 +46,16 @@ export const ActivationGate: React.FC<ActivationGateProps> = ({ children }) => {
 
       if (data.status === 'success' && data.license_status === 'active') {
         setIsAuthorized(true);
+        if (data.plan) {
+          localStorage.setItem('gestao_gastro_verified_plan', data.plan);
+        } else {
+          localStorage.setItem('gestao_gastro_verified_plan', 'base');
+        }
         if (receiptConfirmed !== 'true') setNeedsReceipt(true);
       } else if (data.status === 'success' && (data.license_status === 'blocked' || data.license_status === 'expired')) {
         localStorage.removeItem('plena_license');
         localStorage.removeItem('ml_license_email');
+        localStorage.removeItem('gestao_gastro_verified_plan');
         setIsAuthorized(false);
         setError(data.message || 'Sua licença esta bloqueada ou expirada.');
       } else {
@@ -79,17 +79,6 @@ export const ActivationGate: React.FC<ActivationGateProps> = ({ children }) => {
     setError('');
     setLoading(true);
 
-    const masterKeys = ['MASTER123', 'ADMIN_ML', 'TESTE2026'];
-
-    if (masterKeys.includes(licenseKey.toUpperCase())) {
-      localStorage.setItem('ml_master_mode', 'true');
-      localStorage.setItem('plena_license', licenseKey.toUpperCase());
-      localStorage.setItem('ml_license_email', email);
-      setIsAuthorized(true);
-      setLoading(false);
-      return;
-    }
-
     try {
       let deviceId = localStorage.getItem('device_id');
       if (!deviceId) {
@@ -108,6 +97,11 @@ export const ActivationGate: React.FC<ActivationGateProps> = ({ children }) => {
       if (data.status === 'success') {
         localStorage.setItem('plena_license', licenseKey);
         localStorage.setItem('ml_license_email', email);
+        if (data.plan) {
+          localStorage.setItem('gestao_gastro_verified_plan', data.plan);
+        } else {
+          localStorage.setItem('gestao_gastro_verified_plan', 'base');
+        }
         setIsAuthorized(true);
         setNeedsReceipt(true);
       } else {

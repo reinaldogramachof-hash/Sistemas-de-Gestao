@@ -21,10 +21,22 @@ import { Settings } from './components/Settings';
 import { Security } from './components/Security';
 import { ActivationGate } from './components/ActivationGate';
 import { EvolutionCenter } from './components/EvolutionCenter';
+import { getClientRouteFromPath } from './config/clientRoutes';
 
 const AppContent = () => {
   const { currentView, setCurrentView } = useNavigation();
   const { checkAccess } = useModules();
+
+  React.useEffect(() => {
+    const storedRole = localStorage.getItem('gestao_gastro_user_role');
+    if (storedRole === 'waiter') {
+      const clientRoute = getClientRouteFromPath(window.location.pathname);
+      const targetPath = clientRoute?.comandaPath ?? '/comanda';
+      if (window.location.pathname !== targetPath) {
+        window.location.replace(targetPath);
+      }
+    }
+  }, []);
 
   const renderContent = () => {
     if (!checkAccess(currentView as AppModule)) {

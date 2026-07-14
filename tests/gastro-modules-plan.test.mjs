@@ -73,6 +73,30 @@ test('Base plan exposes commercial module aliases for licensing', () => {
   assert.match(configContent, /getCommercialModuleName/, 'Should provide helper for commercial module names');
 });
 
+test('Waiter role is restricted independently from the client plan', () => {
+  const configPath = path.join(gastroDir, 'src', 'config', 'modulesConfig.ts');
+  const configContent = fs.readFileSync(configPath, 'utf-8');
+  const hookPath = path.join(gastroDir, 'src', 'hooks', 'useModules.ts');
+  const hookContent = fs.readFileSync(hookPath, 'utf-8');
+
+  assert.match(configContent, /export type UserRole/, 'Should declare user roles separately from plans');
+  assert.match(configContent, /roleModuleMatrix/, 'Should expose roleModuleMatrix');
+  assert.match(configContent, /waiter:\s*\[[\s\S]*'mesas'[\s\S]*'produtos'[\s\S]*\]/, 'waiter should only get mesas and cardapio modules');
+
+  const waiterMatch = configContent.match(/waiter:\s*\[([\s\S]*?)\]/);
+  assert.ok(waiterMatch, 'Should find waiter role module list');
+  assert.ok(!waiterMatch[1].includes("'dashboard'"), 'waiter must not see dashboard');
+  assert.ok(!waiterMatch[1].includes("'caixa'"), 'waiter must not access full cashier module');
+  assert.ok(!waiterMatch[1].includes("'estoque'"), 'waiter must not see stock');
+  assert.ok(!waiterMatch[1].includes("'relatorios'"), 'waiter must not see finance reports');
+  assert.ok(!waiterMatch[1].includes("'configuracoes'"), 'waiter must not see settings');
+
+  assert.match(configContent, /waiterCapabilities/, 'Should document waiter operational capabilities');
+  assert.match(configContent, /pre-fechamento/, 'waiter capabilities should include account pre-closing/request flow');
+  assert.match(hookContent, /gestao_gastro_user_role/, 'useModules should read the verified user role');
+  assert.match(hookContent, /isModuleAllowed\(module,\s*currentPlan,\s*currentRole\)/, 'checkAccess should consider plan and role');
+});
+
 test('Inspect Layout.tsx for menu filtering based on access', () => {
   const layoutPath = path.join(gastroDir, 'src', 'components', 'Layout.tsx');
   const layoutContent = fs.readFileSync(layoutPath, 'utf-8');

@@ -5,6 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Painel de Gestão - Controle de Licenças</title>
+    <link rel="icon" href="data:,">
     <script src="../assets/libs/tailwindcss.js"></script>
     <script src="../assets/libs/lucide.js"></script>
     <style>
@@ -25,6 +26,60 @@
             to {
                 opacity: 1;
             }
+        }
+
+        /* Sidebar transitions */
+        .nav-text,
+        .logo-text,
+        .category-header,
+        .user-info {
+            transition: opacity 0.3s ease, width 0.3s ease, transform 0.3s ease;
+            transform-origin: left;
+            white-space: nowrap;
+        }
+
+        .sidebar-collapsed .nav-text,
+        .sidebar-collapsed .logo-text,
+        .sidebar-collapsed .category-header,
+        .sidebar-collapsed .user-info {
+            opacity: 0;
+            width: 0;
+            transform: scaleX(0);
+            pointer-events: none;
+            overflow: hidden;
+            margin: 0;
+            padding: 0;
+        }
+
+        /* Smooth padding and centering transitions */
+        .nav-btn,
+        .logo-container,
+        .user-container {
+            transition: padding 0.3s ease, justify-content 0.3s ease;
+        }
+
+        .sidebar-collapsed .nav-btn {
+            justify-content: center;
+            padding-left: 0.5rem;
+            padding-right: 0.5rem;
+        }
+
+        .sidebar-collapsed .logo-container {
+            justify-content: center;
+            padding-left: 0;
+            padding-right: 0;
+        }
+
+        .sidebar-collapsed .logo-icon,
+        .sidebar-collapsed .user-icon {
+            margin-right: 0;
+            transition: margin 0.3s ease;
+        }
+
+        .sidebar-collapsed .user-container {
+            justify-content: center;
+            padding-left: 0;
+            padding-right: 0;
         }
     </style>
 </head>
@@ -54,223 +109,768 @@
     </div>
 
     <!-- MAIN APP -->
-    <div id="admin-panel" class="hidden flex flex-col min-h-screen">
-        <!-- Sidebar/Nav -->
-        <!-- Sidebar/Nav -->
-        <nav class="bg-white border-b border-slate-200 px-6 py-4 flex justify-between items-center sticky top-0 z-40">
-            <div class="flex items-center gap-3">
-                <div class="bg-blue-600 text-white p-2 rounded-lg">
+    <div id="admin-panel" class="hidden flex h-screen bg-slate-50 overflow-hidden text-slate-800">
+        <!-- Sidebar Escura -->
+        <aside id="sidebar"
+            class="w-64 bg-slate-900 text-white flex flex-col flex-shrink-0 transition-all duration-300 z-50">
+            <!-- Logo -->
+            <div class="logo-container h-16 flex items-center px-6 border-b border-slate-800 transition-all">
+                <div class="logo-icon bg-blue-600 p-1.5 rounded-lg mr-3 shadow-lg shadow-blue-500/30">
                     <i data-lucide="layout-dashboard" class="w-5 h-5"></i>
                 </div>
-                <h1 class="font-bold text-xl tracking-tight">Painel de Gestão</h1>
-                <div id="status-connection" class="text-[10px] font-bold uppercase tracking-tighter"></div>
+                <h1 class="logo-text font-bold text-lg tracking-tight truncate">Central SaaS</h1>
             </div>
-            <div class="flex items-center gap-6">
-                <div class="hidden md:flex gap-1 text-sm font-medium text-slate-500">
-                    <button onclick="switchTab('dashboard')"
-                        class="px-3 py-2 rounded-lg hover:bg-slate-50 text-blue-600 bg-blue-50 nav-btn"
-                        data-tab="dashboard">Dashboard</button>
-                    <button onclick="switchTab('licenses')" class="px-3 py-2 rounded-lg hover:bg-slate-50 nav-btn"
-                        data-tab="licenses">Licenças</button>
-                    <button onclick="switchTab('receipts')" class="px-3 py-2 rounded-lg hover:bg-slate-50 nav-btn"
-                        data-tab="receipts">Recibos Digitais</button>
-                    <button onclick="switchTab('logs')" class="px-3 py-2 rounded-lg hover:bg-slate-50 nav-btn"
-                        data-tab="logs">Logs do Sistema</button>
-                    <button onclick="switchTab('notifications')" class="px-3 py-2 rounded-lg hover:bg-slate-50 nav-btn"
-                        data-tab="notifications">Notificações</button>
-                </div>
-                <button onclick="downloadBackup()" class="text-slate-400 hover:text-blue-600 transition-colors"
-                    title="Fazer Backup do Banco de Dados">
-                    <i data-lucide="database" class="w-5 h-5"></i>
+
+            <!-- Menu -->
+            <div class="flex-1 overflow-y-auto py-6 px-4 space-y-1 custom-scrollbar">
+                <button onclick="switchTab('dashboard')"
+                    class="nav-btn w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-400 hover:text-white hover:bg-slate-800 transition-all group"
+                    data-tab="dashboard" title="Dashboard">
+                    <i data-lucide="bar-chart-3"
+                        class="w-5 h-5 group-hover:scale-110 transition-transform shrink-0"></i> <span
+                        class="nav-text truncate">Dashboard</span>
                 </button>
-                <button onclick="logout()" class="text-slate-400 hover:text-red-500 transition-colors" title="Sair">
+                <button onclick="switchTab('customers')"
+                    class="nav-btn w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-400 hover:text-white hover:bg-slate-800 transition-all group"
+                    data-tab="customers" title="Clientes (CRM)">
+                    <i data-lucide="users" class="w-5 h-5 group-hover:scale-110 transition-transform shrink-0"></i>
+                    <span class="nav-text truncate">Clientes (CRM)</span>
+                </button>
+                <button onclick="switchTab('provision')"
+                    class="nav-btn w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-400 hover:text-white hover:bg-slate-800 transition-all group"
+                    data-tab="provision" title="Provisionamento">
+                    <i data-lucide="zap" class="w-5 h-5 group-hover:scale-110 transition-transform shrink-0"></i> <span
+                        class="nav-text truncate">Provisionamento</span>
+                </button>
+                <button onclick="switchTab('licenses')"
+                    class="nav-btn w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-400 hover:text-white hover:bg-slate-800 transition-all group"
+                    data-tab="licenses" title="Licenças Ativas">
+                    <i data-lucide="key" class="w-5 h-5 group-hover:scale-110 transition-transform shrink-0"></i> <span
+                        class="nav-text truncate">Licenças Ativas</span>
+                </button>
+
+                <div class="pt-6 pb-2 category-header">
+                    <p class="px-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">Catálogo</p>
+                </div>
+                <button onclick="switchTab('systems')"
+                    class="nav-btn w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-400 hover:text-white hover:bg-slate-800 transition-all group"
+                    data-tab="systems" title="Sistemas & Planos">
+                    <i data-lucide="layers" class="w-5 h-5 group-hover:scale-110 transition-transform shrink-0"></i>
+                    <span class="nav-text truncate">Sistemas & Planos</span>
+                </button>
+                <button onclick="switchTab('receipts')"
+                    class="nav-btn w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-400 hover:text-white hover:bg-slate-800 transition-all group"
+                    data-tab="receipts" title="Histórico Vendas">
+                    <i data-lucide="receipt" class="w-5 h-5 group-hover:scale-110 transition-transform shrink-0"></i>
+                    <span class="nav-text truncate">Histórico Vendas</span>
+                </button>
+
+                <div class="pt-6 pb-2 category-header">
+                    <p class="px-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">Auditoria</p>
+                </div>
+                <button onclick="switchTab('logs')"
+                    class="nav-btn w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-400 hover:text-white hover:bg-slate-800 transition-all group"
+                    data-tab="logs" title="Logs Sistema">
+                    <i data-lucide="activity" class="w-5 h-5 group-hover:scale-110 transition-transform shrink-0"></i>
+                    <span class="nav-text truncate">Logs Sistema</span>
+                </button>
+                <button onclick="switchTab('notifications')"
+                    class="nav-btn w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-400 hover:text-white hover:bg-slate-800 transition-all group"
+                    data-tab="notifications" title="Notificações">
+                    <i data-lucide="bell" class="w-5 h-5 group-hover:scale-110 transition-transform shrink-0"></i> <span
+                        class="nav-text truncate">Notificações</span>
+                </button>
+            </div>
+
+            <!-- User Info / Footer -->
+            <div class="user-container p-4 bg-slate-950 border-t border-slate-800 flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <div
+                        class="user-icon shrink-0 w-9 h-9 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center font-bold text-slate-300">
+                        <i data-lucide="user" class="w-4 h-4"></i>
+                    </div>
+                    <div class="user-info">
+                        <p class="text-sm font-bold text-slate-200">Administrador</p>
+                        <div class="flex items-center gap-1.5">
+                            <div class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
+                            <p id="status-connection"
+                                class="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Online</p>
+                        </div>
+                    </div>
+                </div>
+                <button onclick="logout()"
+                    class="user-info text-slate-500 hover:text-red-400 transition-colors p-2 hover:bg-slate-800 rounded-lg">
                     <i data-lucide="log-out" class="w-5 h-5"></i>
                 </button>
             </div>
-        </nav>
+        </aside>
 
-        <!-- Content -->
-        <main class="flex-1 p-6 max-w-7xl mx-auto w-full">
+        <!-- Content Area -->
+        <div class="flex-1 flex flex-col min-w-0 bg-slate-50/50">
+            <!-- Header (Topbar) -->
+            <header
+                class="h-16 bg-white/80 backdrop-blur-md border-b border-slate-200 flex items-center justify-between px-8 shrink-0 z-40 sticky top-0">
+                <div class="flex items-center gap-4">
+                    <button onclick="toggleSidebar()"
+                        class="p-2 -ml-2 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors focus:outline-none">
+                        <i data-lucide="menu" class="w-5 h-5"></i>
+                    </button>
+                    <h2 id="page-title" class="text-xl font-black text-slate-800 tracking-tight">Dashboard</h2>
+                </div>
+                <div class="flex items-center gap-4">
+                    <button onclick="downloadBackup()"
+                        class="flex items-center gap-2 px-4 py-2 text-sm font-bold text-slate-600 bg-slate-100 rounded-xl hover:bg-slate-200 transition-all hover:shadow-sm">
+                        <i data-lucide="database" class="w-4 h-4"></i> Fazer Backup
+                    </button>
+                </div>
+            </header>
 
-            <!-- DASHBOARD TAB -->
-            <div id="tab-dashboard" class="tab-content fade-in">
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                    <!-- Stats Cards -->
-                    <div
-                        class="bg-white p-8 rounded-2xl border border-slate-100 shadow-lg group hover:scale-[1.02] transition-transform">
-                        <div class="flex justify-between items-start mb-4">
-                            <div class="p-3 bg-green-100 text-green-600 rounded-xl">
-                                <i data-lucide="trending-up" class="w-6 h-6"></i>
+            <!-- Main Scrollable Content -->
+            <main class="flex-1 overflow-y-auto p-8 relative">
+
+                <!-- DASHBOARD TAB -->
+                <div id="tab-dashboard" class="tab-content fade-in max-w-7xl mx-auto">
+
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-2xl font-bold">Resumo Comercial</h2>
+                        <div class="flex items-center gap-4">
+                            <span id="dashboard-last-updated" class="text-xs text-slate-500 font-mono">Última
+                                atualização: --:--:--</span>
+                            <div id="dashboard-loading" class="hidden text-blue-500">
+                                <i data-lucide="loader-2" class="w-5 h-5 animate-spin"></i>
+                            </div>
+                            <div id="dashboard-error"
+                                class="hidden text-red-500 text-xs font-bold bg-red-50 px-2 py-1 rounded border border-red-200">
+                                Falha ao carregar
                             </div>
                         </div>
-                        <p class="text-sm font-bold text-slate-400 uppercase tracking-wider">Total Vendido</p>
-                        <h3 class="text-3xl font-black text-slate-800 mt-2" id="stat-revenue">R$ 0,00</h3>
                     </div>
 
-                    <div
-                        class="bg-white p-8 rounded-2xl border border-slate-100 shadow-lg group hover:scale-[1.02] transition-transform">
-                        <div class="flex justify-between items-start mb-4">
-                            <div class="p-3 bg-blue-100 text-blue-600 rounded-xl">
-                                <i data-lucide="shield-check" class="w-6 h-6"></i>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                        <!-- Stats Cards -->
+                        <div
+                            class="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group">
+                            <div
+                                class="absolute right-0 top-0 w-32 h-32 bg-green-50 rounded-bl-full -mr-8 -mt-8 transition-transform group-hover:scale-110">
+                            </div>
+                            <div class="flex justify-between items-start mb-4 relative z-10">
+                                <div class="p-4 bg-green-100 text-green-600 rounded-2xl">
+                                    <i data-lucide="trending-up" class="w-6 h-6"></i>
+                                </div>
+                            </div>
+                            <p class="text-xs font-bold text-slate-400 uppercase tracking-widest relative z-10">Receita
+                                Recorrente</p>
+                            <h3 class="text-4xl font-black text-slate-800 mt-2 relative z-10" id="stat-revenue">R$ 0,00
+                            </h3>
+                            <p class="text-xs text-slate-500 mt-2 relative z-10" id="stat-total-revenue">Receita Total
+                                Vendida: R$ 0,00</p>
+                        </div>
+
+                        <div
+                            class="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group">
+                            <div
+                                class="absolute right-0 top-0 w-32 h-32 bg-blue-50 rounded-bl-full -mr-8 -mt-8 transition-transform group-hover:scale-110">
+                            </div>
+                            <div class="flex justify-between items-start mb-4 relative z-10">
+                                <div class="p-4 bg-blue-100 text-blue-600 rounded-2xl">
+                                    <i data-lucide="users" class="w-6 h-6"></i>
+                                </div>
+                            </div>
+                            <p class="text-xs font-bold text-slate-400 uppercase tracking-widest relative z-10">Licenças
+                                Ativas</p>
+                            <h3 class="text-4xl font-black text-blue-600 mt-2 relative z-10" id="stat-active">0</h3>
+                        </div>
+
+                        <div
+                            class="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group">
+                            <div
+                                class="absolute right-0 top-0 w-32 h-32 bg-amber-50 rounded-bl-full -mr-8 -mt-8 transition-transform group-hover:scale-110">
+                            </div>
+                            <div class="flex justify-between items-start mb-4 relative z-10">
+                                <div class="p-4 bg-amber-100 text-amber-600 rounded-2xl">
+                                    <i data-lucide="alert-circle" class="w-6 h-6"></i>
+                                </div>
+                            </div>
+                            <p class="text-xs font-bold text-slate-400 uppercase tracking-widest relative z-10">
+                                Pendentes</p>
+                            <h3 class="text-4xl font-black text-amber-500 mt-2 relative z-10" id="stat-pending">0</h3>
+                            <div class="flex flex-col gap-1 mt-3 relative z-10">
+                                <div class="text-[10px] text-slate-500 flex justify-between"><span>Trials Ativos:</span>
+                                    <span id="stat-trial-active" class="font-bold text-slate-700">0</span></div>
+                                <div class="text-[10px] text-slate-500 flex justify-between"><span>Trials
+                                        Expirados:</span> <span id="stat-trial-expired"
+                                        class="font-bold text-slate-700">0</span></div>
+                                <div class="text-[10px] text-slate-500 flex justify-between"><span>Bloqueadas:</span>
+                                    <span id="stat-blocked" class="font-bold text-slate-700">0</span></div>
                             </div>
                         </div>
-                        <p class="text-sm font-bold text-slate-400 uppercase tracking-wider">Licenças Ativas</p>
-                        <h3 class="text-3xl font-black text-blue-600 mt-2" id="stat-active">0</h3>
                     </div>
 
-                    <div
-                        class="bg-white p-8 rounded-2xl border border-slate-100 shadow-lg group hover:scale-[1.02] transition-transform">
-                        <div class="flex justify-between items-start mb-4">
-                            <div class="p-3 bg-amber-100 text-amber-600 rounded-xl">
-                                <i data-lucide="clock" class="w-6 h-6"></i>
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                        <div class="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm">
+                            <h3 class="font-bold text-xl mb-6">Distribuição de Sistemas</h3>
+                            <div id="top-products-list" class="space-y-4">
+                                <!-- Dynamic -->
                             </div>
                         </div>
-                        <p class="text-sm font-bold text-slate-400 uppercase tracking-wider">Aguardando Ativação</p>
-                        <h3 class="text-3xl font-black text-amber-500 mt-2" id="stat-pending">0</h3>
+
+                        <div class="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm">
+                            <h3 class="font-bold text-xl mb-6">Resumo por Plano e Canal</h3>
+
+                            <div class="mb-4">
+                                <h4 class="text-xs font-black text-slate-400 uppercase tracking-widest mb-3">Planos</h4>
+                                <div id="plans-distribution-list" class="space-y-2">
+                                    <!-- Dynamic -->
+                                </div>
+                            </div>
+
+                            <div>
+                                <h4 class="text-xs font-black text-slate-400 uppercase tracking-widest mb-3">Canais de
+                                    Venda</h4>
+                                <div id="channels-distribution-list" class="space-y-2">
+                                    <!-- Dynamic -->
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
-                <div class="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
-                    <h3 class="font-bold text-lg mb-4">Top Produtos</h3>
-                    <div id="top-products-list" class="space-y-3">
+                <!-- CRM / CUSTOMERS TAB -->
+                <div id="tab-customers" class="tab-content hidden fade-in max-w-7xl mx-auto">
+                    <div class="flex justify-between items-center mb-8">
+                        <div>
+                            <h2 class="text-2xl font-black text-slate-800">Clientes (CRM)</h2>
+                            <p class="text-slate-500 text-sm mt-1">Gestão unificada de clientes e propriedades em todos
+                                os sistemas.</p>
+                        </div>
+                        <button onclick="switchTab('provision')"
+                            class="bg-blue-600 text-white px-5 py-2.5 rounded-xl text-sm font-bold hover:bg-blue-700 shadow-lg shadow-blue-500/30 transition-all flex items-center gap-2">
+                            <i data-lucide="plus" class="w-4 h-4"></i> Novo Cliente
+                        </button>
+                    </div>
+
+                    <div class="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden">
+                        <div class="p-4 border-b border-slate-100 flex items-center gap-4 bg-slate-50/50">
+                            <div class="relative flex-1 max-w-md">
+                                <i data-lucide="search"
+                                    class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                                <input type="text" id="customers-search" oninput="filterCustomers()"
+                                    placeholder="Buscar cliente por nome ou email..."
+                                    class="w-full bg-white border border-slate-200 rounded-lg pl-10 pr-4 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 transition-all">
+                            </div>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-sm text-left">
+                                <thead
+                                    class="bg-slate-50 text-slate-500 font-bold uppercase text-[10px] tracking-wider border-b border-slate-100">
+                                    <tr>
+                                        <th class="px-6 py-4">Cliente</th>
+                                        <th class="px-6 py-4">Sistemas Contratados</th>
+                                        <th class="px-6 py-4">Plano Atual</th>
+                                        <th class="px-6 py-4 text-center">Status</th>
+                                        <th class="px-6 py-4 text-right">Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="customers-table" class="divide-y divide-slate-100">
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SYSTEMS & PLANS TAB -->
+                <div id="tab-systems" class="tab-content hidden fade-in max-w-7xl mx-auto">
+                    <div class="flex justify-between items-center mb-8">
+                        <div>
+                            <h2 class="text-2xl font-black text-slate-800">Catálogo de Sistemas e Planos</h2>
+                            <p class="text-slate-500 text-sm mt-1">Configure os módulos e recursos oferecidos em cada
+                                plano do SaaS.</p>
+                        </div>
+                        <button onclick="openSystemCatalogAction('new')"
+                            class="bg-slate-800 text-white px-5 py-2.5 rounded-xl text-sm font-bold hover:bg-slate-900 shadow-lg shadow-slate-900/30 transition-all flex items-center gap-2">
+                            <i data-lucide="plus" class="w-4 h-4"></i> Novo Sistema
+                        </button>
+                    </div>
+
+                    <div id="systems-catalog-status" class="hidden mb-4 rounded-xl border px-4 py-3 text-sm"></div>
+                    <div class="mb-6 rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-xs text-blue-800">
+                        Regra de impacto: alteração de plano padrão afeta novos provisionamentos. Clientes já provisionados mantêm os módulos em tenant_modules; mudanças em clientes ativos devem ser feitas por tenant em etapa futura.
+                    </div>
+
+                    <div id="systems-grid" class="grid grid-cols-1 md:grid-cols-2 gap-8">
                         <!-- Dynamic -->
                     </div>
                 </div>
-            </div>
 
-            <!-- LICENSES TAB -->
-            <div id="tab-licenses" class="tab-content hidden fade-in">
-                <div class="flex justify-between items-center mb-6">
-                    <div class="flex items-center">
-                        <h2 class="text-2xl font-bold">Gerenciar Licenças</h2>
-                        <button onclick="openGenerateModal()"
-                            class="bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-green-700 ml-4 flex items-center gap-2">
-                            <i data-lucide="plus-circle" class="w-4 h-4"></i> Nova Licença
-                        </button>
-                        <button id="btn-preview-archive" onclick="previewArchiveInactive()"
-                            class="bg-amber-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-amber-700 ml-2 flex items-center gap-2">
-                            <i data-lucide="archive" class="w-4 h-4"></i> Arquivar Inativas
-                        </button>
-                        <button id="btn-archive-selected" onclick="archiveSelectedLicenses()"
-                            class="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-indigo-700 ml-2 flex items-center gap-2 hidden">
-                            <i data-lucide="check-square" class="w-4 h-4"></i> Arquivar Selecionadas (<span id="selected-archive-count">0</span>)
-                        </button>
-                    </div>
-                    <div class="flex gap-2">
-                        <select id="license-status-filter" onchange="loadLicenses()"
-                            class="border rounded-lg px-4 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white">
-                            <option value="current">Ativas / Pendentes</option>
-                            <option value="trial_expired">Testes Expirados</option>
-                            <option value="archived">Arquivadas</option>
-                        </select>
-                        <input type="text" id="search-lic" placeholder="Buscar cliente ou chave..."
-                            class="border rounded-lg px-4 py-2 text-sm w-64 focus:ring-2 focus:ring-blue-500 outline-none">
-                        <button onclick="loadLicenses()"
-                            class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-blue-700">
-                            <i data-lucide="refresh-cw" class="w-4 h-4"></i>
-                        </button>
-                    </div>
-                </div>
-                <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-sm text-left">
-                            <thead class="bg-slate-50 text-slate-500 font-bold uppercase text-xs">
-                                <tr>
-                                    <th class="px-6 py-4 w-12">
-                                        <input type="checkbox" id="select-visible-licenses" onchange="toggleVisibleLicenseSelection()" class="rounded border-slate-300">
-                                    </th>
-                                    <th class="px-6 py-4">Data</th>
-                                    <th class="px-6 py-4">Cliente</th>
-                                    <th class="px-6 py-4">Produto</th>
-                                    <th class="px-6 py-4">Plano / Versão</th>
-                                    <th class="px-6 py-4">Licença</th>
-                                    <th class="px-6 py-4">Status</th>
-                                    <th class="px-6 py-4">Dispositivo</th>
-                                    <th class="px-6 py-4">Ações</th>
-                                </tr>
-                            </thead>
-                            <tbody id="licenses-table" class="divide-y divide-slate-100">
-                                <!-- Dynamic -->
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
 
-            <!-- RECEIPTS TAB -->
-            <div id="tab-receipts" class="tab-content hidden fade-in">
-                <div class="flex justify-between items-center mb-6">
-                    <div>
-                        <h2 class="text-2xl font-bold">Recibos Digitais (Auditoria)</h2>
-                        <p class="text-slate-500 text-sm">Provas de entrega e aceite de termos.</p>
+                <!-- PROVISION TAB -->
+                <div id="tab-provision" class="tab-content hidden fade-in">
+                    <div class="mb-6">
+                        <h2 class="text-2xl font-bold">Provisionamento Automático SaaS</h2>
+                        <p class="text-slate-500 text-sm">Crie um novo cliente (tenant) com dados iniciais e licença no
+                            Supabase de forma segura.</p>
                     </div>
-                    <button onclick="loadReceipts()"
-                        class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-blue-700">
-                        <i data-lucide="refresh-cw" class="w-4 h-4"></i> Atualizar
-                    </button>
-                </div>
-                <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-sm text-left">
-                            <thead class="bg-slate-50 text-slate-500 font-bold uppercase text-xs">
-                                <tr>
-                                    <th class="px-6 py-4">Data/Hora</th>
-                                    <th class="px-6 py-4">IP</th>
-                                    <th class="px-6 py-4">Cliente (Licença)</th>
-                                    <th class="px-6 py-4">Declaração</th>
-                                </tr>
-                            </thead>
-                            <tbody id="receipts-table" class="divide-y divide-slate-100">
-                                <!-- Dynamic -->
-                            </tbody>
-                        </table>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                        <!-- Formulário -->
+                        <div
+                            class="lg:col-span-2 bg-white p-8 rounded-2xl border border-slate-100 shadow-sm relative overflow-hidden">
+
+                            <!-- Overlay de loading -->
+                            <div id="prov-loading-overlay"
+                                class="absolute inset-0 bg-white/80 backdrop-blur-sm z-10 hidden flex-col items-center justify-center">
+                                <i data-lucide="loader-2" class="w-10 h-10 text-blue-600 animate-spin mb-4"></i>
+                                <h3 class="font-bold text-lg text-slate-800">Provisionando Cliente...</h3>
+                                <p id="prov-status-text" class="text-sm text-slate-500">1/3: Criando usuário Auth</p>
+                            </div>
+
+                            <form id="form-provision" onsubmit="provisionSaaSClient(event)" class="space-y-6">
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div>
+                                        <label class="block text-sm font-bold text-slate-700 mb-2">Nome
+                                            Comercial</label>
+                                        <input type="text" id="prov-name" required oninput="autoGenerateSlug()"
+                                            class="w-full border rounded-lg px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
+                                            placeholder="Ex: Cantinho da Resenha">
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-bold text-slate-700 mb-2">Slug Público</label>
+                                        <input type="text" id="prov-slug" required
+                                            oninput="slugManuallyEdited = true; updateSlugPreview()"
+                                            onblur="normalizeProvisionSlug()"
+                                            class="w-full border rounded-lg px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500 lowercase font-mono text-sm"
+                                            placeholder="cantinhodaresenha">
+                                        <p class="text-[10px] text-slate-400 mt-1 truncate">Link:
+                                            sistemasdegestao.tech/<span id="preview-system-path"
+                                                class="font-bold text-blue-600">gestao-gastro</span>/<span
+                                                id="preview-slug-text" class="font-bold text-blue-600">...</span></p>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label class="block text-sm font-bold text-slate-700 mb-2">E-mail do Admin
+                                        (Financeiro/Dono)</label>
+                                    <input type="email" id="prov-email" required
+                                        class="w-full border rounded-lg px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
+                                        placeholder="email@cliente.com">
+                                </div>
+
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div>
+                                        <label class="block text-sm font-bold text-slate-700 mb-2">Sistema Base</label>
+                                        <select id="prov-system"
+                                            class="w-full border rounded-lg px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
+                                            onchange="updateProvisionPlanOptions()">
+                                            <option value="gestao-gastro">Gestão Gastro</option>
+                                            <option value="gestao-barbearia">Gestão Barbearia</option>
+                                            <option value="gestao-beleza">Gestão Beleza</option>
+                                            <option value="gestao-pizzaria">Gestão Pizzaria</option>
+                                            <option value="gestao-hamburgueria">Gestão Hamburgueria</option>
+                                            <option value="gestao-delivery">Gestão Delivery</option>
+                                            <!-- Outros sistemas podem ser preenchidos dinamicamente ou listados aqui -->
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-bold text-slate-700 mb-2">Plano Inicial</label>
+                                        <select id="prov-plan"
+                                            class="w-full border rounded-lg px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
+                                            onchange="updatePlanPreview()">
+                                            <option value="basic">Básico</option>
+                                            <option value="premium">Premium</option>
+                                            <option value="trial">Trial (14 dias)</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <!-- Toast de erro inline -->
+                                <div id="prov-error-toast"
+                                    class="hidden bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg text-sm flex items-center gap-2">
+                                    <i data-lucide="alert-triangle" class="w-4 h-4"></i>
+                                    <span id="prov-error-msg">Erro ao provisionar.</span>
+                                </div>
+
+                                <div class="pt-4 flex gap-4">
+                                    <button type="submit" id="btn-provision"
+                                        class="flex-1 bg-blue-600 text-white font-bold py-3 px-6 rounded-lg shadow-lg hover:bg-blue-700 transition-all flex items-center justify-center gap-2">
+                                        <i data-lucide="zap" class="w-5 h-5"></i>
+                                        Provisionar Cliente
+                                    </button>
+                                    <button type="button" id="btn-provision-another" onclick="resetProvisionForm()"
+                                        class="hidden bg-slate-200 text-slate-700 font-bold py-3 px-6 rounded-lg hover:bg-slate-300 transition-all items-center justify-center gap-2">
+                                        <i data-lucide="plus" class="w-5 h-5"></i>
+                                        Novo Cadastro
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+
+                        <!-- Resumo Dinâmico / Resultado -->
+                        <div class="bg-slate-50 p-6 rounded-2xl border border-slate-200 flex flex-col">
+                            <div id="prov-summary-panel">
+                                <h3 class="font-bold text-slate-800 mb-4 flex items-center gap-2">
+                                    <i data-lucide="info" class="w-5 h-5 text-blue-500"></i> Resumo do Plano
+                                </h3>
+                                <div class="space-y-4 text-sm text-slate-600">
+                                    <p><strong>Sistema:</strong> <span id="preview-system-name"
+                                            class="text-slate-800">Gestão Gastro</span></p>
+                                    <p><strong>Plano:</strong> <span id="preview-plan-name"
+                                            class="text-slate-800 uppercase font-bold text-xs bg-slate-200 px-2 py-1 rounded">BÁSICO</span>
+                                    </p>
+
+                                    <div class="border-t border-slate-200 pt-4 mt-4">
+                                        <p class="font-bold text-slate-700 mb-2">Módulos Incluídos:</p>
+                                        <ul class="space-y-2" id="preview-modules-list">
+                                            <li class="flex items-center gap-2"><i data-lucide="check"
+                                                    class="w-4 h-4 text-green-500"></i> PDV (Caixa)</li>
+                                            <li class="flex items-center gap-2"><i data-lucide="check"
+                                                    class="w-4 h-4 text-green-500"></i> Dashboard</li>
+                                            <li class="flex items-center gap-2 text-slate-400 line-through"><i
+                                                    data-lucide="x" class="w-4 h-4"></i> Kitchen Display</li>
+                                        </ul>
+                                    </div>
+                                    <div class="bg-blue-50 text-blue-700 p-3 rounded-lg text-xs mt-4">
+                                        O banco de dados será isolado no Supabase usando RLS. Para Gestão Gastro, as
+                                        mesas iniciais serão pré-criadas conforme regra do plano.
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Card de Sucesso -->
+                            <div id="prov-result" class="hidden h-full flex flex-col justify-center">
+                                <div class="text-center mb-6">
+                                    <div
+                                        class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                                        <i data-lucide="check-circle" class="w-8 h-8 text-green-600"></i>
+                                    </div>
+                                    <h3 class="font-bold text-xl text-slate-800">Sucesso!</h3>
+                                    <p class="text-sm text-slate-500">O cliente foi provisionado.</p>
+                                </div>
+
+                                <div class="bg-white border border-slate-200 rounded-xl p-4 text-sm space-y-3 mb-6">
+                                    <div>
+                                        <span class="text-xs text-slate-400 font-bold uppercase block">Login
+                                            (E-mail)</span>
+                                        <span id="res-email" class="font-medium text-slate-800"></span>
+                                    </div>
+                                    <div>
+                                        <span class="text-xs text-slate-400 font-bold uppercase block mb-1">Senha
+                                            temporária - troca obrigatória</span>
+                                        <code id="res-pass"
+                                            class="font-mono bg-amber-50 px-3 py-1.5 rounded-lg border border-amber-200 text-amber-700 text-lg shadow-inner block text-center font-bold tracking-widest"></code>
+                                    </div>
+                                    <div>
+                                        <span class="text-xs text-slate-400 font-bold uppercase block mb-1">Link de
+                                            Acesso</span>
+                                        <code id="res-license"
+                                            class="hidden font-mono bg-slate-100 px-2 py-1 rounded border text-slate-700"></code>
+                                        <a href="#" id="res-link" target="_blank"
+                                            class="text-blue-600 underline font-bold truncate block break-all text-center"></a>
+                                    </div>
+                                    <div>
+                                        <span class="text-xs text-slate-400 font-bold uppercase block mb-1">Módulos
+                                            Liberados</span>
+                                        <span id="res-modules"
+                                            class="text-xs text-slate-600 leading-relaxed block"></span>
+                                    </div>
+                                </div>
+
+                                <button type="button" onclick="copyProvCredentials()"
+                                    class="w-full bg-slate-800 text-white font-bold py-3 rounded-lg hover:bg-slate-900 transition-all flex items-center justify-center gap-2">
+                                    <i data-lucide="copy" class="w-4 h-4"></i> Copiar Credenciais
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
-            </div>
 
-            <!-- LOGS TAB -->
-            <div id="tab-logs" class="tab-content hidden fade-in">
-                <div class="flex justify-between items-center mb-6">
-                    <h2 class="text-2xl font-bold">Logs de Auditoria</h2>
-                    <button onclick="loadLogs()"
-                        class="bg-slate-800 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-slate-900 flex items-center gap-2">
-                        <i data-lucide="refresh-cw" class="w-4 h-4"></i> Atualizar Logs
-                    </button>
-                </div>
-                <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-xs text-left">
-                            <thead class="bg-slate-900 text-slate-400 font-bold uppercase">
-                                <tr>
-                                    <th class="px-6 py-3">Timestamp</th>
-                                    <th class="px-6 py-3">Tipo</th>
-                                    <th class="px-6 py-3">Evento</th>
-                                    <th class="px-6 py-3">IP</th>
-                                </tr>
-                            </thead>
-                            <tbody id="logs-table" class="divide-y divide-slate-100 font-mono">
-                                <!-- Dynamic -->
-                            </tbody>
-                        </table>
+                <!-- LICENSES TAB -->
+                <div id="tab-licenses" class="tab-content hidden fade-in">
+                    <div class="flex justify-between items-center mb-6">
+                        <div class="flex items-center">
+                            <h2 class="text-2xl font-bold">Gerenciar Licenças</h2>
+                            <button onclick="openGenerateModal()"
+                                class="bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-green-700 ml-4 flex items-center gap-2">
+                                <i data-lucide="plus-circle" class="w-4 h-4"></i> Nova Licença
+                            </button>
+                            <button id="btn-preview-archive" onclick="previewArchiveInactive()"
+                                class="bg-amber-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-amber-700 ml-2 flex items-center gap-2">
+                                <i data-lucide="archive" class="w-4 h-4"></i> Arquivar Inativas
+                            </button>
+                            <button id="btn-archive-selected" onclick="archiveSelectedLicenses()"
+                                class="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-indigo-700 ml-2 flex items-center gap-2 hidden">
+                                <i data-lucide="check-square" class="w-4 h-4"></i> Arquivar Selecionadas (<span
+                                    id="selected-archive-count">0</span>)
+                            </button>
+                        </div>
+                        <div class="flex gap-2">
+                            <select id="license-status-filter" onchange="loadLicenses()"
+                                class="border rounded-lg px-4 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white">
+                                <option value="current">Ativas / Pendentes</option>
+                                <option value="trial_expired">Testes Expirados</option>
+                                <option value="archived">Arquivadas</option>
+                            </select>
+                            <input type="text" id="search-lic" placeholder="Buscar cliente ou chave..."
+                                class="border rounded-lg px-4 py-2 text-sm w-64 focus:ring-2 focus:ring-blue-500 outline-none">
+                            <button onclick="loadLicenses()"
+                                class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-blue-700">
+                                <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-sm text-left">
+                                <thead class="bg-slate-50 text-slate-500 font-bold uppercase text-xs">
+                                    <tr>
+                                        <th class="px-6 py-4 w-12">
+                                            <input type="checkbox" id="select-visible-licenses"
+                                                onchange="toggleVisibleLicenseSelection()"
+                                                class="rounded border-slate-300">
+                                        </th>
+                                        <th class="px-6 py-4">Data</th>
+                                        <th class="px-6 py-4">Cliente</th>
+                                        <th class="px-6 py-4">Produto</th>
+                                        <th class="px-6 py-4">Plano / Versão</th>
+                                        <th class="px-6 py-4">Licença</th>
+                                        <th class="px-6 py-4">Status</th>
+                                        <th class="px-6 py-4">Dispositivo</th>
+                                        <th class="px-6 py-4">Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="licenses-table" class="divide-y divide-slate-100">
+                                    <!-- Dynamic -->
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
-            </div>
 
-            <!-- NOTIFICATIONS TAB -->
-            <div id="tab-notifications" class="tab-content hidden fade-in">
-                <div class="flex justify-between items-center mb-6">
-                    <h2 class="text-2xl font-bold">Central de Notificações</h2>
-                    <button onclick="openNotifModal()"
-                        class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-blue-700 flex items-center gap-2">
-                        <i data-lucide="bell-plus" class="w-4 h-4"></i> Nova Notificação
-                    </button>
-                </div>
-                <div class="space-y-4" id="notifications-list">
-                    <!-- Dynamic -->
-                </div>
-            </div>
+                <!-- SALES HISTORY TAB -->
+                <div id="tab-receipts" class="tab-content hidden fade-in">
+                    <div class="flex justify-between items-center mb-6">
+                        <div>
+                            <h2 class="text-2xl font-bold">Histórico de Vendas</h2>
+                            <p class="text-slate-500 text-sm">Vendas entregues, aceite de termos, planos, canais e valores vinculados.</p>
+                        </div>
+                        <div class="flex gap-2">
+                            <button onclick="exportSalesHistoryCsv()"
+                                class="bg-slate-800 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-slate-900 flex items-center gap-2">
+                                <i data-lucide="download" class="w-4 h-4"></i> Exportar CSV
+                            </button>
+                            <button onclick="loadReceipts()"
+                                class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-blue-700 flex items-center gap-2">
+                                <i data-lucide="refresh-cw" class="w-4 h-4"></i> Atualizar
+                            </button>
+                        </div>
+                    </div>
 
-        </main>
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                        <div class="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm">
+                            <p class="text-xs font-black uppercase tracking-widest text-slate-400">Entregas Confirmadas</p>
+                            <h3 id="sales-history-summary-total" class="text-2xl font-black text-slate-800 mt-2">0</h3>
+                        </div>
+                        <div class="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm">
+                            <p class="text-xs font-black uppercase tracking-widest text-slate-400">Valor Entregue</p>
+                            <h3 id="sales-history-summary-value" class="text-2xl font-black text-emerald-600 mt-2">R$ 0,00</h3>
+                        </div>
+                        <div class="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm">
+                            <p class="text-xs font-black uppercase tracking-widest text-slate-400">Recorrência</p>
+                            <h3 id="sales-history-summary-recurring" class="text-2xl font-black text-blue-600 mt-2">R$ 0,00</h3>
+                        </div>
+                        <div class="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm">
+                            <p class="text-xs font-black uppercase tracking-widest text-slate-400">Filtrados</p>
+                            <h3 id="sales-history-summary-filtered" class="text-2xl font-black text-amber-600 mt-2">0</h3>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 mb-4">
+                        <div class="grid grid-cols-1 lg:grid-cols-4 gap-3">
+                            <div class="relative lg:col-span-2">
+                                <i data-lucide="search" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                                <input id="sales-history-search" type="text" oninput="filterSalesHistory()"
+                                    placeholder="Buscar por cliente, licença, produto, plano ou IP..."
+                                    class="w-full border border-slate-200 rounded-lg pl-10 pr-4 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500">
+                            </div>
+                            <select id="sales-history-channel-filter" onchange="filterSalesHistory()"
+                                class="border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                                <option value="">Todos os canais</option>
+                            </select>
+                            <select id="sales-history-status-filter" onchange="filterSalesHistory()"
+                                class="border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                                <option value="">Todos os status</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-sm text-left">
+                                <thead class="bg-slate-50 text-slate-500 font-bold uppercase text-xs">
+                                    <tr>
+                                        <th class="px-6 py-4">Data/Hora</th>
+                                        <th class="px-6 py-4">Cliente / Licença</th>
+                                        <th class="px-6 py-4">Produto</th>
+                                        <th class="px-6 py-4">Plano / Canal</th>
+                                        <th class="px-6 py-4">Valor</th>
+                                        <th class="px-6 py-4">IP</th>
+                                        <th class="px-6 py-4">Declaração</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="receipts-table" class="divide-y divide-slate-100">
+                                    <!-- Dynamic -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- LOGS TAB -->
+                <div id="tab-logs" class="tab-content hidden fade-in max-w-7xl mx-auto">
+                    <div class="flex justify-between items-center mb-6">
+                        <div>
+                            <h2 class="text-2xl font-bold">Logs do Sistema</h2>
+                            <p class="text-sm text-slate-500">Eventos operacionais, alertas e erros do painel central.</p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button onclick="exportSystemLogsCsv()"
+                                class="bg-white border border-slate-200 text-slate-700 px-4 py-2 rounded-lg text-sm font-bold hover:bg-slate-50 flex items-center gap-2">
+                                <i data-lucide="download" class="w-4 h-4"></i> Exportar CSV
+                            </button>
+                            <button onclick="loadLogs()"
+                                class="bg-slate-800 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-slate-900 flex items-center gap-2">
+                                <i data-lucide="refresh-cw" class="w-4 h-4"></i> Atualizar
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                        <div class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+                            <p class="text-xs font-bold text-slate-400 uppercase tracking-widest">Total</p>
+                            <h3 id="logs-summary-total" class="text-2xl font-black text-slate-800 mt-2">0</h3>
+                        </div>
+                        <div class="bg-white border border-red-100 rounded-xl p-5 shadow-sm">
+                            <p class="text-xs font-bold text-red-400 uppercase tracking-widest">Erros</p>
+                            <h3 id="logs-summary-errors" class="text-2xl font-black text-red-600 mt-2">0</h3>
+                        </div>
+                        <div class="bg-white border border-amber-100 rounded-xl p-5 shadow-sm">
+                            <p class="text-xs font-bold text-amber-500 uppercase tracking-widest">Alertas</p>
+                            <h3 id="logs-summary-warnings" class="text-2xl font-black text-amber-600 mt-2">0</h3>
+                        </div>
+                        <div class="bg-white border border-blue-100 rounded-xl p-5 shadow-sm">
+                            <p class="text-xs font-bold text-blue-400 uppercase tracking-widest">Informações</p>
+                            <h3 id="logs-summary-info" class="text-2xl font-black text-blue-600 mt-2">0</h3>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 mb-4">
+                        <div class="grid grid-cols-1 md:grid-cols-[1fr_220px] gap-3">
+                            <div class="relative">
+                                <i data-lucide="search"
+                                    class="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2"></i>
+                                <input id="logs-search" type="search" oninput="filterSystemLogs()"
+                                    placeholder="Buscar por evento, IP ou tipo"
+                                    class="w-full border border-slate-200 rounded-lg pl-10 pr-3 py-2 text-sm outline-none focus:ring-2 focus:ring-slate-300">
+                            </div>
+                            <select id="logs-type-filter" onchange="filterSystemLogs()"
+                                class="border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-slate-300">
+                                <option value="all">Todos os tipos</option>
+                                <option value="error">Erros</option>
+                                <option value="warning">Alertas</option>
+                                <option value="info">Informações</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-xs text-left">
+                                <thead class="bg-slate-900 text-slate-400 font-bold uppercase">
+                                    <tr>
+                                        <th class="px-6 py-3">Data/Hora</th>
+                                        <th class="px-6 py-3">Tipo</th>
+                                        <th class="px-6 py-3">Evento</th>
+                                        <th class="px-6 py-3">IP</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="logs-table" class="divide-y divide-slate-100 font-mono">
+                                    <!-- Dynamic -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- NOTIFICATIONS TAB -->
+                <div id="tab-notifications" class="tab-content hidden fade-in max-w-7xl mx-auto">
+                    <div class="flex justify-between items-center mb-6">
+                        <div>
+                            <h2 class="text-2xl font-bold">Central de Notificações</h2>
+                            <p class="text-sm text-slate-500">Comunicados por sistema, prioridade, versão e cliente.</p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button onclick="exportNotificationsCsv()"
+                                class="bg-white border border-slate-200 text-slate-700 px-4 py-2 rounded-lg text-sm font-bold hover:bg-slate-50 flex items-center gap-2">
+                                <i data-lucide="download" class="w-4 h-4"></i> Exportar CSV
+                            </button>
+                            <button onclick="openNotifModal()"
+                                class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-blue-700 flex items-center gap-2">
+                                <i data-lucide="bell-plus" class="w-4 h-4"></i> Nova Notificação
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                        <div class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+                            <p class="text-xs font-bold text-slate-400 uppercase tracking-widest">Total</p>
+                            <h3 id="notifications-summary-total" class="text-2xl font-black text-slate-800 mt-2">0</h3>
+                        </div>
+                        <div class="bg-white border border-green-100 rounded-xl p-5 shadow-sm">
+                            <p class="text-xs font-bold text-green-500 uppercase tracking-widest">Ativas</p>
+                            <h3 id="notifications-summary-active" class="text-2xl font-black text-green-600 mt-2">0</h3>
+                        </div>
+                        <div class="bg-white border border-amber-100 rounded-xl p-5 shadow-sm">
+                            <p class="text-xs font-bold text-amber-500 uppercase tracking-widest">Agendadas</p>
+                            <h3 id="notifications-summary-scheduled" class="text-2xl font-black text-amber-600 mt-2">0</h3>
+                        </div>
+                        <div class="bg-white border border-red-100 rounded-xl p-5 shadow-sm">
+                            <p class="text-xs font-bold text-red-400 uppercase tracking-widest">Expiradas</p>
+                            <h3 id="notifications-summary-expired" class="text-2xl font-black text-red-600 mt-2">0</h3>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 mb-4">
+                        <div class="grid grid-cols-1 md:grid-cols-[1fr_180px_180px] gap-3">
+                            <div class="relative">
+                                <i data-lucide="search"
+                                    class="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2"></i>
+                                <input id="notifications-search" type="search" oninput="filterNotifications()"
+                                    placeholder="Buscar por título, mensagem, versão ou licença"
+                                    class="w-full border border-slate-200 rounded-lg pl-10 pr-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-200">
+                            </div>
+                            <select id="notifications-target-filter" onchange="filterNotifications()"
+                                class="border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-200">
+                                <option value="all">Todos os alvos</option>
+                                <option value="barbearia">Barbearia</option>
+                                <option value="beleza">Beleza</option>
+                                <option value="gastro">Gastro</option>
+                            </select>
+                            <select id="notifications-status-filter" onchange="filterNotifications()"
+                                class="border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-200">
+                                <option value="all">Todos os status</option>
+                                <option value="active">Ativas</option>
+                                <option value="scheduled">Agendadas</option>
+                                <option value="expired">Expiradas</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="space-y-4" id="notifications-list">
+                        <!-- Dynamic -->
+                    </div>
+                </div>
+
+            </main>
+        </div>
     </div>
 
     <!-- GENERATE LICENSE MODAL -->
@@ -289,7 +889,8 @@
                     <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Produto</label>
                     <select id="gen-product"
                         class="w-full border border-slate-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500">
-                        <option value="Gestão Barbearia" selected>Gestão Barbearia</option>
+                        <option value="Gestão Gastro" selected>Gestão Gastro</option>
+                        <option value="Gestão Barbearia">Gestão Barbearia</option>
                         <option value="Gestão Pizzaria">Gestão Pizzaria</option>
                         <option value="Gestão PDV">Gestão PDV</option>
                         <option value="Gestão Aluguéis">Gestão Aluguéis</option>
@@ -320,9 +921,44 @@
                         <option value="Gestão Terapia">Gestão Terapia</option>
                     </select>
                 </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Sistema</label>
+                        <select id="gen-system" onchange="updateGenerateSystemPlanOptions()"
+                            class="w-full border border-slate-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="gestao-gastro" selected>Gestão Gastro</option>
+                            <option value="gestao-barbearia">Gestão Barbearia</option>
+                            <option value="gestao-beleza">Gestão Beleza</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Segmento</label>
+                        <select id="gen-segment" onchange="syncGeneratePlanPrice()"
+                            class="w-full border border-slate-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="restaurante" selected>Restaurante</option>
+                            <option value="bar">Bar</option>
+                            <option value="lanchonete">Lanchonete</option>
+                            <option value="pizzaria">Pizzaria</option>
+                            <option value="hamburgueria">Hamburgueria</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Plano do Sistema</label>
+                        <select id="gen-system-plan" onchange="syncGeneratePlanPrice()"
+                            class="w-full border border-slate-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500">
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Slug do Cliente</label>
+                        <input type="text" id="gen-tenant-slug" placeholder="ex: cantinhodaresenha"
+                            class="w-full border border-slate-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                </div>
                 <div>
-                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Plano</label>
-                    <select id="gen-plan"
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Modelo Comercial</label>
+                    <select id="gen-plan" onchange="syncGeneratePlanPrice()"
                         class="w-full border border-slate-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500">
                         <option value="ml_lifetime" selected>ML Vitalício</option>
                         <option value="direct_lifetime">Direto Vitalício</option>
@@ -343,14 +979,17 @@
 
                 <div class="bg-orange-50 p-3 rounded-lg border border-orange-100 space-y-2">
                     <div class="flex items-center gap-2">
-                        <input type="checkbox" id="gen-trial" class="w-4 h-4 text-orange-600 rounded focus:ring-orange-500" onchange="toggleTrialDays()">
+                        <input type="checkbox" id="gen-trial"
+                            class="w-4 h-4 text-orange-600 rounded focus:ring-orange-500" onchange="toggleTrialDays()">
                         <div>
-                            <label for="gen-trial" class="block text-sm font-bold text-slate-700">Licença de Teste (Trial)</label>
+                            <label for="gen-trial" class="block text-sm font-bold text-slate-700">Licença de Teste
+                                (Trial)</label>
                             <p class="text-xs text-slate-500">Expira automaticamente após o período definido abaixo.</p>
                         </div>
                     </div>
                     <div id="trial-days-wrapper" class="hidden flex items-center gap-2 pt-1">
-                        <label class="text-xs font-bold text-slate-500 uppercase whitespace-nowrap">Duração (dias):</label>
+                        <label class="text-xs font-bold text-slate-500 uppercase whitespace-nowrap">Duração
+                            (dias):</label>
                         <input type="number" id="gen-trial-days" value="3" min="1" max="30"
                             class="w-20 border border-orange-200 rounded-lg px-2 py-1 text-sm text-center outline-none focus:ring-2 focus:ring-orange-400 bg-white">
                         <span class="text-xs text-slate-400">Ex: 3 = 72h, 1 = 24h</span>
@@ -397,7 +1036,8 @@
     </div>
 
     <!-- NOTIF MODAL -->
-    <div id="notif-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm hidden p-4">
+    <div id="notif-modal"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm hidden p-4">
         <div class="bg-white rounded-2xl shadow-2xl w-full max-w-3xl overflow-hidden flex flex-col max-h-[90vh]">
             <div class="bg-slate-50 px-6 py-4 border-b border-slate-100 flex justify-between items-center">
                 <h3 class="font-bold text-lg text-slate-800">Nova Notificação</h3>
@@ -411,7 +1051,8 @@
                     <div class="grid grid-cols-2 gap-4">
                         <div>
                             <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Tipo</label>
-                            <select id="notif-type" onchange="updateNotifPreview()" class="w-full border border-slate-300 rounded-lg px-3 py-2 outline-none">
+                            <select id="notif-type" onchange="updateNotifPreview()"
+                                class="w-full border border-slate-300 rounded-lg px-3 py-2 outline-none">
                                 <option value="update">Update</option>
                                 <option value="security">Security</option>
                                 <option value="backup">Backup</option>
@@ -421,7 +1062,8 @@
                         </div>
                         <div>
                             <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Prioridade</label>
-                            <select id="notif-priority" class="w-full border border-slate-300 rounded-lg px-3 py-2 outline-none">
+                            <select id="notif-priority"
+                                class="w-full border border-slate-300 rounded-lg px-3 py-2 outline-none">
                                 <option value="normal">Normal</option>
                                 <option value="high">High</option>
                                 <option value="low">Low</option>
@@ -430,49 +1072,63 @@
                     </div>
                     <div>
                         <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Título</label>
-                        <input type="text" id="notif-title" required oninput="updateNotifPreview()" class="w-full border border-slate-300 rounded-lg px-3 py-2 outline-none">
+                        <input type="text" id="notif-title" required oninput="updateNotifPreview()"
+                            class="w-full border border-slate-300 rounded-lg px-3 py-2 outline-none">
                     </div>
                     <div>
                         <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Corpo</label>
-                        <textarea id="notif-body" required rows="2" oninput="updateNotifPreview()" class="w-full border border-slate-300 rounded-lg px-3 py-2 outline-none resize-none"></textarea>
+                        <textarea id="notif-body" required rows="2" oninput="updateNotifPreview()"
+                            class="w-full border border-slate-300 rounded-lg px-3 py-2 outline-none resize-none"></textarea>
                     </div>
                     <div>
                         <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Detalhes (Opcional)</label>
-                        <textarea id="notif-details" rows="2" class="w-full border border-slate-300 rounded-lg px-3 py-2 outline-none resize-none"></textarea>
+                        <textarea id="notif-details" rows="2"
+                            class="w-full border border-slate-300 rounded-lg px-3 py-2 outline-none resize-none"></textarea>
                     </div>
                     <div class="grid grid-cols-2 gap-4">
                         <div>
                             <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Expira em</label>
-                            <input type="datetime-local" id="notif-expires" class="w-full border border-slate-300 rounded-lg px-3 py-2 outline-none">
+                            <input type="datetime-local" id="notif-expires"
+                                class="w-full border border-slate-300 rounded-lg px-3 py-2 outline-none">
                         </div>
                         <div>
-                            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Versão (Opcional)</label>
-                            <input type="text" id="notif-version" placeholder="ex: 4.2" class="w-full border border-slate-300 rounded-lg px-3 py-2 outline-none">
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Versão
+                                (Opcional)</label>
+                            <input type="text" id="notif-version" placeholder="ex: 4.2"
+                                class="w-full border border-slate-300 rounded-lg px-3 py-2 outline-none">
                         </div>
                     </div>
                     <div>
-                        <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Sistema Alvo (Target)</label>
-                        <select id="notif-target-select" onchange="filterNotifClients()" class="w-full border border-slate-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500">
-                            <option value="all">🚀 Todos os Sistemas</option>
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Sistema Alvo
+                            (Target)</label>
+                        <select id="notif-target-select" onchange="filterNotifClients()"
+                            class="w-full border border-slate-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="all">Todos os Sistemas</option>
                             <option value="barbearia">Gestão Barbearia</option>
                             <option value="beleza">Gestão Beleza</option>
+                            <option value="gastro">Gestão Gastro</option>
                         </select>
                     </div>
                     <div class="border border-slate-200 rounded-xl p-4 bg-white">
-                        <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Restringir a Cliente Específico <span class="font-normal text-slate-400 normal-case">(opcional)</span></label>
-                        <input type="text" id="notif-client-search" placeholder="Buscar por nome, e-mail ou chave…"
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Restringir a Cliente
+                            Específico <span class="font-normal text-slate-400 normal-case">(opcional)</span></label>
+                        <input type="text" id="notif-client-search" placeholder="Buscar por nome, e-mail ou chave..."
                             oninput="filterNotifClients()"
                             class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 mb-2">
-                        <select id="notif-license-select" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500">
+                        <select id="notif-license-select"
+                            class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500">
                             <option value="">-- Todos os Clientes do Sistema Alvo --</option>
                         </select>
-                        <p class="text-xs text-slate-400 mt-2">🔒 Se selecionado, a notificação será entregue apenas para essa licença.</p>
+                        <p class="text-xs text-slate-400 mt-2">Se selecionado, a notificação será entregue apenas
+                            para essa licença.</p>
                     </div>
                 </div>
                 <div class="bg-slate-50 p-6 rounded-2xl border border-slate-200 flex flex-col items-center">
-                    <h4 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4 w-full text-center">Preview em Tempo Real</h4>
+                    <h4 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4 w-full text-center">
+                        Preview em Tempo Real</h4>
 
-                    <div class="w-full max-w-sm bg-white rounded-2xl shadow-lg border border-slate-100 overflow-hidden relative">
+                    <div
+                        class="w-full max-w-sm bg-white rounded-2xl shadow-lg border border-slate-100 overflow-hidden relative">
                         <div id="preview-badge" class="absolute top-4 right-4 w-2 h-2 rounded-full bg-blue-500"></div>
                         <div class="p-5">
                             <div class="flex items-center gap-3 mb-3">
@@ -480,20 +1136,24 @@
                                     <i id="preview-icon" data-lucide="bell" class="w-5 h-5"></i>
                                 </div>
                                 <div>
-                                    <h4 id="preview-title" class="font-bold text-slate-800 text-base leading-tight">Título da Notificação</h4>
-                                    <span class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Agora mesmo</span>
+                                    <h4 id="preview-title" class="font-bold text-slate-800 text-base leading-tight">
+                                        Título da Notificação</h4>
+                                    <span class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Agora
+                                        mesmo</span>
                                 </div>
                             </div>
                             <p id="preview-body" class="text-slate-600 text-sm leading-relaxed mb-4">
                                 Este é um resumo da mensagem que o cliente verá no card...
                             </p>
-                            <button class="w-full border border-slate-200 text-slate-600 font-bold py-2 rounded-xl text-sm hover:bg-slate-50 transition-colors">
+                            <button
+                                class="w-full border border-slate-200 text-slate-600 font-bold py-2 rounded-xl text-sm hover:bg-slate-50 transition-colors">
                                 Ver Detalhes
                             </button>
                         </div>
                     </div>
 
-                    <button onclick="createNotification()" class="w-full mt-auto bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-lg shadow-lg transition-all flex items-center justify-center gap-2">
+                    <button onclick="createNotification()"
+                        class="w-full mt-auto bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-lg shadow-lg transition-all flex items-center justify-center gap-2">
                         <i data-lucide="check" class="w-5 h-5"></i>
                         Confirmar e Enviar
                     </button>
@@ -532,6 +1192,7 @@
 
         // Mapeamento dos Produtos (Garante o link limpo)
         const PRODUCT_SLUGS = {
+            'Gestão Gastro': 'gestao-gastro',
             'Gestão Barbearia': 'gestao-barbearia',
             'Gestão Pizzaria': 'gestao-pizzaria',
             'Gestão PDV': 'gestao-pdv',
@@ -563,9 +1224,565 @@
             'Gestão Terapia': 'gestao-terapia'
         };
 
+        // Fallback local: usado apenas quando o catálogo SaaS do Supabase/API não estiver disponível.
+        const SAAS_CATALOG_FALLBACK = {
+            'gestao-gastro': {
+                title: 'Gestão Gastro',
+                description: 'Restaurantes, bares e lanchonetes',
+                status: 'active',
+                icon: 'utensils',
+                tone: 'from-orange-500 to-amber-500',
+                publicPath: 'gestao-gastro',
+                plans: {
+                    basic: {
+                        name: 'Básico',
+                        price: 'R$ 97/mês',
+                        priceCents: 9700,
+                        billingModel: 'monthly',
+                        maxUsers: 12,
+                        maxDevices: 3,
+                        status: 'active',
+                        modules: [['pdv', 'PDV'], ['mesas_garcom_mobile', 'Mesas e garçom mobile'], ['caixa', 'Caixa'], ['dashboard', 'Dashboard'], ['cardapio', 'Cardápio'], ['financeiro', 'Financeiro'], ['estoque', 'Estoque'], ['manual', 'Manual'], ['configuracao', 'Configuração'], ['suporte', 'Suporte']]
+                    },
+                    premium: {
+                        name: 'Premium',
+                        price: 'R$ 197/mês',
+                        priceCents: 19700,
+                        billingModel: 'monthly',
+                        maxUsers: null,
+                        maxDevices: null,
+                        status: 'active',
+                        modules: [['pdv', 'PDV'], ['mesas_garcom_mobile', 'Mesas e garçom mobile'], ['caixa', 'Caixa'], ['dashboard', 'Dashboard'], ['cardapio', 'Cardápio'], ['financeiro', 'Financeiro'], ['estoque', 'Estoque'], ['manual', 'Manual'], ['configuracao', 'Configuração'], ['suporte', 'Suporte'], ['kds', 'Kitchen Display'], ['relatorios_avancados', 'Relatórios avançados']]
+                    },
+                    trial: {
+                        name: 'Trial',
+                        price: '14 dias',
+                        priceCents: 0,
+                        billingModel: 'trial',
+                        maxUsers: 12,
+                        maxDevices: 3,
+                        status: 'active',
+                        modules: [['pdv', 'PDV'], ['mesas_garcom_mobile', 'Mesas e garçom mobile'], ['caixa', 'Caixa'], ['dashboard', 'Dashboard'], ['cardapio', 'Cardápio'], ['financeiro', 'Financeiro'], ['estoque', 'Estoque'], ['manual', 'Manual'], ['configuracao', 'Configuração'], ['suporte', 'Suporte']]
+                    }
+                }
+            },
+            'gestao-barbearia': {
+                title: 'Gestão Barbearia',
+                description: 'Barbearias e serviços com agenda',
+                status: 'active',
+                icon: 'scissors',
+                tone: 'from-indigo-500 to-sky-500',
+                publicPath: 'gestao-barbearia',
+                plans: {
+                    basic: { name: 'Básico', price: 'R$ 59/mês', priceCents: 5900, billingModel: 'monthly', maxUsers: 6, maxDevices: 2, status: 'active', modules: [['agenda', 'Agenda'], ['caixa', 'Caixa'], ['clientes', 'Clientes'], ['servicos', 'Serviços'], ['profissionais', 'Profissionais'], ['relatorios', 'Relatórios'], ['suporte', 'Suporte']] },
+                    premium: { name: 'Premium Online', price: 'R$ 99/mês', priceCents: 9900, billingModel: 'monthly', maxUsers: null, maxDevices: null, status: 'active', modules: [['agenda', 'Agenda'], ['caixa', 'Caixa'], ['clientes', 'Clientes'], ['servicos', 'Serviços'], ['profissionais', 'Profissionais'], ['relatorios', 'Relatórios'], ['comissoes', 'Comissões'], ['agendamento_online', 'Agendamento online'], ['suporte', 'Suporte']] },
+                    trial: { name: 'Trial', price: '14 dias', priceCents: 0, billingModel: 'trial', maxUsers: 6, maxDevices: 2, status: 'active', modules: [['agenda', 'Agenda'], ['caixa', 'Caixa'], ['clientes', 'Clientes'], ['servicos', 'Serviços'], ['profissionais', 'Profissionais'], ['relatorios', 'Relatórios'], ['suporte', 'Suporte']] }
+                }
+            },
+            'gestao-beleza': {
+                title: 'Gestão Beleza',
+                description: 'Salões, estética e pacotes',
+                status: 'active',
+                icon: 'sparkles',
+                tone: 'from-rose-500 to-fuchsia-500',
+                publicPath: 'gestao-beleza',
+                plans: {
+                    basic: { name: 'Básico', price: 'R$ 69/mês', priceCents: 6900, billingModel: 'monthly', maxUsers: 6, maxDevices: 2, status: 'active', modules: [['agenda', 'Agenda'], ['caixa', 'Caixa'], ['clientes', 'Clientes'], ['servicos', 'Serviços'], ['estoque', 'Estoque'], ['suporte', 'Suporte']] },
+                    premium: { name: 'Premium', price: 'R$ 129/mês', priceCents: 12900, billingModel: 'monthly', maxUsers: null, maxDevices: null, status: 'active', modules: [['agenda', 'Agenda'], ['caixa', 'Caixa'], ['clientes', 'Clientes'], ['servicos', 'Serviços'], ['estoque', 'Estoque'], ['pacotes', 'Pacotes'], ['relatorios', 'Relatórios'], ['suporte', 'Suporte']] },
+                    trial: { name: 'Trial', price: '14 dias', priceCents: 0, billingModel: 'trial', maxUsers: 6, maxDevices: 2, status: 'active', modules: [['agenda', 'Agenda'], ['caixa', 'Caixa'], ['clientes', 'Clientes'], ['servicos', 'Serviços'], ['estoque', 'Estoque'], ['suporte', 'Suporte']] }
+                }
+            }
+        };
+        const SAAS_CATALOG = SAAS_CATALOG_FALLBACK;
+
+        const SAAS_CLIENTS_SEED = [];
+
+        const COMMERCIAL_PLAN_METADATA = {
+            ml_lifetime: { name: 'ML Vitalicio', billing: 'one_time', channel: 'mercado_livre', version: 'standalone_ml', basePrice: 97.00 },
+            direct_lifetime: { name: 'Direto Vitalicio', billing: 'one_time', channel: 'venda_direta', version: 'standalone_direct', basePrice: 299.90 },
+            pro_lifetime: { name: 'Pro Vitalicio', billing: 'one_time', channel: 'venda_direta', version: 'standalone_pro', basePrice: 599.90 },
+            premium_monthly: { name: 'Premium Online Mensal', billing: 'recurring', channel: 'premium_online', version: 'premium_online', basePrice: 0.00 }
+        };
+
+        const LICENSE_SEGMENTS_BY_SYSTEM = {
+            'gestao-gastro': ['restaurante', 'bar', 'lanchonete', 'pizzaria', 'hamburgueria'],
+            'gestao-barbearia': ['barbearia'],
+            'gestao-beleza': ['salao', 'estetica']
+        };
+
+        const PRODUCT_BY_SYSTEM = {
+            'gestao-gastro': 'Gestão Gastro',
+            'gestao-barbearia': 'Gestão Barbearia',
+            'gestao-beleza': 'Gestão Beleza'
+        };
+
+        function normalizeAdminSlug(value) {
+            return (value || '').toLowerCase()
+                .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+                .replace(/[^a-z0-9\s-]/g, '')
+                .trim()
+                .replace(/\s+/g, '-')
+                .replace(/-+/g, '-')
+                .replace(/^-|-$/g, '');
+        }
+
+        function updateGenerateSystemPlanOptions() {
+            const systemId = document.getElementById('gen-system')?.value || 'gestao-gastro';
+            const systemConfig = SAAS_CATALOG[systemId] || SAAS_CATALOG['gestao-gastro'];
+            const planSelect = document.getElementById('gen-system-plan');
+            const segmentSelect = document.getElementById('gen-segment');
+            const productSelect = document.getElementById('gen-product');
+
+            if (planSelect) {
+                planSelect.innerHTML = Object.entries(systemConfig.plans || {}).map(([slug, plan]) => `
+                    <option value="${escapeHtml(slug)}">${escapeHtml(plan.name)} - ${escapeHtml(plan.price || 'sob consulta')}</option>
+                `).join('');
+            }
+
+            if (segmentSelect) {
+                const segments = LICENSE_SEGMENTS_BY_SYSTEM[systemId] || ['geral'];
+                segmentSelect.innerHTML = segments.map(segment => `
+                    <option value="${escapeHtml(segment)}">${escapeHtml(segment.replace(/-/g, ' '))}</option>
+                `).join('');
+            }
+
+            if (productSelect && PRODUCT_BY_SYSTEM[systemId]) {
+                productSelect.value = PRODUCT_BY_SYSTEM[systemId];
+            }
+
+            syncGeneratePlanPrice();
+        }
+
+        function resolveLicenseGenerationContext() {
+            const systemId = document.getElementById('gen-system')?.value || 'gestao-gastro';
+            const systemConfig = SAAS_CATALOG[systemId] || SAAS_CATALOG['gestao-gastro'];
+            const systemPlanSlug = document.getElementById('gen-system-plan')?.value || 'basic';
+            const systemPlan = systemConfig.plans?.[systemPlanSlug] || systemConfig.plans?.basic || {};
+            const commercialPlan = document.getElementById('gen-plan')?.value || 'ml_lifetime';
+            const tenantSlug = normalizeAdminSlug(document.getElementById('gen-tenant-slug')?.value || '');
+            const modules = (systemPlan.modules || []).map(module => Array.isArray(module) ? module[0] : module);
+
+            return {
+                systemId,
+                systemName: systemConfig.title || systemId,
+                segment: document.getElementById('gen-segment')?.value || 'geral',
+                systemPlanSlug,
+                systemPlanName: systemPlan.name || systemPlanSlug,
+                commercialPlan,
+                operationMode: commercialPlan === 'premium_monthly' ? 'saas' : 'local',
+                modules,
+                maxUsers: systemPlan.maxUsers ?? null,
+                maxDevices: systemPlan.maxDevices ?? null,
+                tenantSlug,
+                publicPath: systemConfig.publicPath || systemId,
+                priceCents: systemPlan.priceCents || 0
+            };
+        }
+
+        function syncGeneratePlanPrice() {
+            const planCode = document.getElementById('gen-plan')?.value || 'ml_lifetime';
+            const priceInput = document.getElementById('gen-price');
+            const planMeta = COMMERCIAL_PLAN_METADATA[planCode] || COMMERCIAL_PLAN_METADATA.ml_lifetime;
+            if (!priceInput) return;
+
+            if (planCode === 'premium_monthly') {
+                const context = resolveLicenseGenerationContext();
+                priceInput.value = context.priceCents ? (context.priceCents / 100).toFixed(2) : '';
+                priceInput.placeholder = context.priceCents ? '' : 'Definir pelo plano mensal SaaS';
+                return;
+            }
+
+            priceInput.value = planMeta.basePrice.toFixed(2);
+            priceInput.placeholder = '';
+        }
+
+        function getClientAccessLink(systemSlug, clientSlug) {
+            const system = SAAS_CATALOG[systemSlug];
+            return `${BASE_URL}${system?.publicPath || systemSlug}/${clientSlug}`;
+        }
+
+        let loadedCustomers = [];
+
+        function getFallbackSaasCustomers() {
+            return SAAS_CLIENTS_SEED.map(c => ({
+                ...c,
+                is_fallback: true,
+                sales_channel: 'premium_online',
+                plan_code: 'premium_monthly',
+                plan_name: 'Premium Online Mensal',
+                billing_model: 'recurring',
+                total_licenses: c.users || 1,
+                active_licenses: c.status === 'active' ? (c.users || 1) : 0,
+                last_created_at: new Date().toISOString().slice(0, 19).replace('T', ' '),
+                systems: [c.system === 'gestao-gastro' ? 'Gestão Gastro' : (c.system === 'gestao-barbearia' ? 'Gestão Barbearia' : 'Gestão Beleza')]
+            }));
+        }
+
+        async function renderSaasCustomers() {
+            const tbody = document.getElementById('customers-table');
+            if (!tbody) return;
+
+            tbody.innerHTML = '<tr><td colspan="5" class="px-6 py-4 text-center text-slate-500">Carregando clientes...</td></tr>';
+
+            const legacy = await apiCall('customers_summary') || [];
+            const fallback = legacy.length === 0 ? getFallbackSaasCustomers() : [];
+
+            loadedCustomers = [...legacy, ...fallback];
+            applyCustomersRender(loadedCustomers);
+        }
+
+        function showCustomerDetails(name) {
+            console.log("Detalhes do cliente selecionado:", name);
+            alert("Detalhes de " + name + ": Funcionalidade em desenvolvimento.");
+        }
+
+        function applyCustomersRender(customersList) {
+            const tbody = document.getElementById('customers-table');
+            if (!tbody) return;
+
+            if (customersList.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" class="px-6 py-4 text-center text-slate-500 font-medium">Nenhum cliente encontrado</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = customersList.map(client => {
+                const name = client.name || 'Desconhecido';
+                const email = client.email || 'Sem e-mail';
+                const clientSlug = client.slug || '';
+                const planText = client.plan_name || client.plan || 'N/A';
+                const isFallback = !!client.is_fallback;
+                const channelCode = client.plan_code || '';
+
+                const systemsArray = Array.isArray(client.systems) ? client.systems : [client.systems || 'Sistema'];
+                const systemsHtml = systemsArray.map(sys => {
+                    const catalogKey = sys.toLowerCase().includes('gastro') ? 'gestao-gastro' :
+                        (sys.toLowerCase().includes('barbearia') ? 'gestao-barbearia' :
+                            (sys.toLowerCase().includes('beleza') ? 'gestao-beleza' : 'gestao-gastro'));
+                    const systemMeta = SAAS_CATALOG[catalogKey];
+                    const icon = systemMeta?.icon || 'layers';
+                    return `
+                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-orange-50 text-orange-700 border border-orange-100">
+                            <i data-lucide="${icon}" class="w-3 h-3"></i> ${escapeHtml(sys)}
+                        </span>
+                    `;
+                }).join(' ');
+
+                let channelTag = '';
+                if (channelCode === 'ml_lifetime') {
+                    channelTag = `<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200">Mercado Livre</span>`;
+                } else if (channelCode === 'direct_lifetime') {
+                    channelTag = `<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-100 text-indigo-800 border border-indigo-200">Direto</span>`;
+                } else if (channelCode === 'pro_lifetime') {
+                    channelTag = `<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-800 border border-purple-200">Pro</span>`;
+                } else if (channelCode === 'premium_monthly') {
+                    if (isFallback) {
+                        channelTag = `<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-300" title="Fallback local sem dados reais">SaaS</span>`;
+                    } else {
+                        channelTag = `<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">SaaS</span>`;
+                    }
+                } else {
+                    if (client.sales_channel === 'mercado_livre') {
+                        channelTag = `<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200">Mercado Livre</span>`;
+                    } else if (client.sales_channel === 'venda_direta') {
+                        channelTag = `<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-100 text-indigo-800 border border-indigo-200">Direto</span>`;
+                    } else if (client.sales_channel === 'premium_online') {
+                        channelTag = `<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">SaaS</span>`;
+                    } else {
+                        channelTag = `<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-800 border border-slate-200">${escapeHtml(client.sales_channel || 'Outro')}</span>`;
+                    }
+                }
+
+                const statusActive = client.status === 'active';
+                const statusText = statusActive ? 'Ativo' : (client.status === 'pending' ? 'Pendente' : 'Bloqueado');
+                const statusColorClass = statusActive ? 'bg-green-100 text-green-700 border border-green-200' : (client.status === 'pending' ? 'bg-amber-100 text-amber-700 border border-amber-200' : 'bg-red-100 text-red-700 border border-red-200');
+                const statusDotColorClass = statusActive ? 'bg-green-500' : (client.status === 'pending' ? 'bg-amber-500' : 'bg-red-500');
+
+                const initials = name.split(' ').slice(0, 2).map(part => part[0]).join('').toUpperCase();
+                const link = client.public_link || '';
+                const licenseKey = client.license_key || '';
+
+                let systemSlug = 'gestao-gastro';
+                const actSys = client.active_system || systemsArray[0] || '';
+                if (actSys.toLowerCase().includes('gastro')) systemSlug = 'gestao-gastro';
+                else if (actSys.toLowerCase().includes('barbearia')) systemSlug = 'gestao-barbearia';
+                else if (actSys.toLowerCase().includes('beleza')) systemSlug = 'gestao-beleza';
+                const systemOpenUrl = link || (clientSlug ? getClientAccessLink(systemSlug, clientSlug) : '');
+
+                return `
+                    <tr class="hover:bg-slate-50/80 transition-colors group">
+                        <td class="px-6 py-4">
+                            <div class="flex items-center gap-3">
+                                <div class="w-10 h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold">${escapeHtml(initials)}</div>
+                                <div>
+                                    <div class="font-bold text-slate-800">${escapeHtml(name)}</div>
+                                    <div class="text-xs text-slate-500">${escapeHtml(email)}</div>
+                                    ${clientSlug ? `<div class="text-[10px] text-slate-400 font-mono mt-0.5">${escapeHtml(clientSlug)}</div>` : ''}
+                                </div>
+                            </div>
+                        </td>
+                        <td class="px-6 py-4">
+                            ${systemsHtml}
+                        </td>
+                        <td class="px-6 py-4">
+                            <span class="font-bold text-slate-700">${escapeHtml(planText)}</span>
+                            <div class="mt-1">${channelTag}</div>
+                        </td>
+                        <td class="px-6 py-4 text-center">
+                            <div class="flex flex-col items-center gap-1">
+                                <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${statusColorClass}">
+                                    <span class="w-1.5 h-1.5 rounded-full ${statusDotColorClass}"></span> ${escapeHtml(statusText)}
+                                </span>
+                                <div class="text-[10px] text-slate-400">${client.active_licenses || 0} / ${client.total_licenses || 1} ativas</div>
+                            </div>
+                        </td>
+                        <td class="px-6 py-4 text-right">
+                            <div class="flex justify-end gap-2">
+                                ${link ? `
+                                <button onclick="copyToClip('${escapeHtml(link)}')" class="p-2 text-slate-400 hover:text-blue-600 transition-colors bg-white rounded-lg hover:bg-slate-100 border border-transparent hover:border-slate-200" title="Copiar link público">
+                                    <i data-lucide="copy" class="w-4 h-4"></i>
+                                </button>
+                                ` : ''}
+                                ${systemOpenUrl ? `
+                                <a href="${escapeHtml(systemOpenUrl)}" target="_blank" class="p-2 text-slate-400 hover:text-blue-600 transition-colors bg-white rounded-lg hover:bg-slate-100 border border-transparent hover:border-slate-200" title="Abrir sistema">
+                                    <i data-lucide="external-link" class="w-4 h-4"></i>
+                                </a>
+                                ` : ''}
+                                ${licenseKey ? `
+                                <button onclick="copyToClip('${escapeHtml(licenseKey)}')" class="p-2 text-slate-400 hover:text-blue-600 transition-colors bg-white rounded-lg hover:bg-slate-100 border border-transparent hover:border-slate-200" title="Copiar chave de licença">
+                                    <i data-lucide="key" class="w-4 h-4"></i>
+                                </button>
+                                ` : ''}
+                                <button onclick="showCustomerDetails('${escapeHtml(name)}')" class="p-2 text-slate-400 hover:text-blue-600 transition-colors bg-white rounded-lg hover:bg-slate-100 border border-transparent hover:border-slate-200" title="Detalhes do cliente">
+                                    <i data-lucide="info" class="w-4 h-4"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+            lucide.createIcons();
+        }
+
+        function filterCustomers() {
+            const searchInput = document.getElementById('customers-search');
+            if (!searchInput) return;
+
+            const query = searchInput.value.toLowerCase().trim();
+            if (!query) {
+                applyCustomersRender(loadedCustomers);
+                return;
+            }
+
+            const filtered = loadedCustomers.filter(client => {
+                const name = (client.name || '').toLowerCase();
+                const email = (client.email || '').toLowerCase();
+                const slug = (client.slug || '').toLowerCase();
+                const plan = (client.plan_name || client.plan || '').toLowerCase();
+
+                const systemsArray = Array.isArray(client.systems) ? client.systems : [client.systems || ''];
+                const matchesSystem = systemsArray.some(sys => sys.toLowerCase().includes(query));
+
+                const statusActive = client.status === 'active';
+                const statusText = (statusActive ? 'ativo' : (client.status === 'pending' ? 'pendente' : 'bloqueado')).toLowerCase();
+
+                return name.includes(query) ||
+                    email.includes(query) ||
+                    slug.includes(query) ||
+                    plan.includes(query) ||
+                    matchesSystem ||
+                    statusText.includes(query);
+            });
+
+            applyCustomersRender(filtered);
+        }
+
+        function formatCatalogPrice(plan) {
+            if (plan.price) return plan.price;
+            if (plan.billingModel === 'trial' || plan.billing_model === 'trial') return 'Trial';
+            const cents = plan.priceCents ?? plan.price_cents ?? 0;
+            return fmtMoney(cents / 100);
+        }
+
+        function getBillingLabel(model) {
+            const labels = {
+                monthly: 'Mensal SaaS',
+                trial: 'Trial',
+                lifetime: 'Vitalício',
+                one_time: 'Venda única'
+            };
+            return labels[model] || model || 'Plano';
+        }
+
+        function normalizeSystemsCatalogPayload(payload) {
+            if (!Array.isArray(payload)) return null;
+
+            return Object.fromEntries(payload.map(system => {
+                const metadata = system.metadata || {};
+                const systemSlug = system.slug;
+                const plansArray = Array.isArray(system.plans) ? system.plans : [];
+                const plans = Object.fromEntries(plansArray.map(plan => {
+                    const modulesArray = Array.isArray(plan.plan_modules) ? plan.plan_modules : [];
+                    return [plan.slug, {
+                        name: plan.name,
+                        priceCents: plan.price_cents || 0,
+                        billingModel: plan.billing_model,
+                        maxUsers: plan.max_users,
+                        maxDevices: plan.max_devices,
+                        status: plan.status || 'active',
+                        modules: modulesArray.map(module => [module.module_key, module.module_name])
+                    }];
+                }));
+
+                return [systemSlug, {
+                    title: system.name,
+                    description: system.description || '',
+                    status: system.status || 'active',
+                    icon: metadata.icon || SAAS_CATALOG_FALLBACK[systemSlug]?.icon || 'layers',
+                    tone: SAAS_CATALOG_FALLBACK[systemSlug]?.tone || 'from-slate-600 to-slate-800',
+                    publicPath: metadata.public_path || systemSlug,
+                    plans
+                }];
+            }));
+        }
+
+        async function loadSystemsCatalog() {
+            try {
+                const response = await fetch('../api_provisioning.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'systems_catalog', admin_secret: AUTH_SECRET })
+                });
+                const data = await response.json();
+
+                if (data.status === 'success') {
+                    const catalog = normalizeSystemsCatalogPayload(data.data);
+                    if (catalog && Object.keys(catalog).length > 0) {
+                        return { catalog, source: 'supabase' };
+                    }
+                }
+            } catch (error) {
+                console.warn('Falha ao carregar catálogo SaaS do Supabase.', error);
+            }
+
+            return { catalog: SAAS_CATALOG_FALLBACK, source: 'fallback' };
+        }
+
+        function openSystemCatalogAction(action, systemSlug = '', planSlug = '') {
+            const subject = planSlug ? `plano ${planSlug} do sistema ${systemSlug}` : (systemSlug ? `sistema ${systemSlug}` : 'catálogo de sistemas');
+            alert(`Edição de ${subject}: funcionalidade de catálogo em próxima etapa.`);
+        }
+
+        async function renderSaasSystems() {
+            const grid = document.getElementById('systems-grid');
+            if (!grid) return;
+
+            const statusBox = document.getElementById('systems-catalog-status');
+            grid.innerHTML = '<div class="col-span-full bg-white border border-slate-200 rounded-2xl p-6 text-sm text-slate-500">Carregando catálogo de sistemas...</div>';
+
+            const { catalog, source } = await loadSystemsCatalog();
+
+            if (statusBox) {
+                statusBox.classList.remove('hidden', 'border-emerald-200', 'bg-emerald-50', 'text-emerald-800', 'border-amber-200', 'bg-amber-50', 'text-amber-800');
+                if (source === 'supabase') {
+                    statusBox.classList.add('border-emerald-200', 'bg-emerald-50', 'text-emerald-800');
+                    statusBox.innerText = 'Catálogo conectado ao Supabase.';
+                } else {
+                    statusBox.classList.add('border-amber-200', 'bg-amber-50', 'text-amber-800');
+                    statusBox.innerText = 'Catálogo local/fallback em uso. Configure o Supabase para governança centralizada.';
+                }
+            }
+
+            grid.innerHTML = Object.entries(catalog).map(([systemSlug, system]) => {
+                const plans = Object.entries(system.plans).map(([planSlug, plan]) => `
+                    <div class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm flex justify-between items-start gap-4 group">
+                        <div>
+                            <h5 class="font-bold text-slate-800">${escapeHtml(plan.name)}</h5>
+                            <p class="text-xs text-slate-500 mt-1">${plan.modules.slice(0, 5).map(([, name]) => escapeHtml(name)).join(', ')}${plan.modules.length > 5 ? '...' : ''}</p>
+                            <div class="flex flex-wrap gap-1.5 mt-2">
+                                <span class="text-[10px] bg-blue-50 text-blue-700 border border-blue-100 rounded px-2 py-0.5 font-bold">${escapeHtml(getBillingLabel(plan.billingModel))}</span>
+                                <span class="text-[10px] bg-slate-50 text-slate-500 border border-slate-100 rounded px-2 py-0.5">${plan.modules.length} módulos vinculados</span>
+                                <span class="text-[10px] bg-slate-50 text-slate-500 border border-slate-100 rounded px-2 py-0.5">${plan.maxUsers || '∞'} usuários</span>
+                                <span class="text-[10px] bg-slate-50 text-slate-500 border border-slate-100 rounded px-2 py-0.5">${plan.maxDevices || '∞'} dispositivos</span>
+                            </div>
+                        </div>
+                        <div class="text-right shrink-0">
+                            <span class="block font-black text-slate-700">${escapeHtml(formatCatalogPrice(plan))}</span>
+                            <span class="block text-[10px] text-slate-400 uppercase font-bold">${escapeHtml(plan.status || 'active')}</span>
+                            <button type="button" onclick="openSystemCatalogAction('edit-plan', '${escapeHtml(systemSlug)}', '${escapeHtml(planSlug)}')" class="text-blue-600 text-xs font-bold uppercase tracking-wider opacity-0 group-hover:opacity-100 transition-opacity">Editar</button>
+                        </div>
+                    </div>
+                `).join('');
+                const totalModules = Object.values(system.plans).reduce((total, plan) => total + plan.modules.length, 0);
+
+                return `
+                    <div class="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
+                        <div class="p-6 bg-gradient-to-r ${system.tone} flex justify-between items-center text-white">
+                            <div class="flex items-center gap-4">
+                                <div class="bg-white/20 p-3 rounded-2xl backdrop-blur-sm">
+                                    <i data-lucide="${system.icon}" class="w-8 h-8"></i>
+                                </div>
+                                <div>
+                                    <h3 class="font-black text-xl">${escapeHtml(system.title)}</h3>
+                                    <p class="text-white/80 text-sm font-medium">${escapeHtml(system.description)}</p>
+                                </div>
+                            </div>
+                            <div class="text-right">
+                                <span class="bg-white/15 text-white text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full">${escapeHtml(systemSlug)}</span>
+                                <button type="button" onclick="openSystemCatalogAction('edit-system', '${escapeHtml(systemSlug)}')" class="block mt-2 ml-auto text-white/80 hover:text-white transition-colors bg-white/10 p-2 rounded-lg backdrop-blur-sm" title="Editar sistema">
+                                    <i data-lucide="settings" class="w-4 h-4"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="p-6 flex-1 bg-slate-50/50">
+                            <div class="flex items-center justify-between mb-4">
+                                <h4 class="text-xs font-black text-slate-400 uppercase tracking-widest">Planos Ativos</h4>
+                                <span class="text-[10px] font-bold text-slate-400">${Object.keys(system.plans).length} planos · ${totalModules} módulos</span>
+                            </div>
+                            <div class="flex flex-wrap gap-2 mb-4">
+                                <span class="text-[10px] bg-white border border-slate-200 text-slate-500 rounded px-2 py-1 font-bold">Status: ${escapeHtml(system.status || 'active')}</span>
+                                <span class="text-[10px] bg-white border border-slate-200 text-slate-500 rounded px-2 py-1 font-bold">Path: ${escapeHtml(system.publicPath || systemSlug)}</span>
+                            </div>
+                            <div class="space-y-4">${plans}</div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            lucide.createIcons();
+        }
+
+        function populateProvisionCatalog() {
+            const systemSelect = document.getElementById('prov-system');
+            const planSelect = document.getElementById('prov-plan');
+            if (!systemSelect || !planSelect) return;
+
+            systemSelect.innerHTML = Object.entries(SAAS_CATALOG).map(([slug, system]) =>
+                `<option value="${escapeHtml(slug)}">${escapeHtml(system.title)}</option>`
+            ).join('');
+            updateProvisionPlanOptions();
+        }
+
+        function updateProvisionPlanOptions() {
+            const systemSelect = document.getElementById('prov-system');
+            const planSelect = document.getElementById('prov-plan');
+            if (!systemSelect || !planSelect) return;
+
+            const selectedSystem = SAAS_CATALOG[systemSelect.value] || SAAS_CATALOG['gestao-gastro'];
+            planSelect.innerHTML = Object.entries(selectedSystem.plans).map(([slug, plan]) =>
+                `<option value="${escapeHtml(slug)}">${escapeHtml(plan.name)}</option>`
+            ).join('');
+            updatePlanPreview();
+        }
+
+        function renderSaasConsole() {
+            renderSaasCustomers();
+            renderSaasSystems();
+            populateProvisionCatalog();
+        }
+
         // INIT
         document.addEventListener('DOMContentLoaded', () => {
             lucide.createIcons();
+            renderSaasConsole();
             const savedToken = sessionStorage.getItem('admin_token');
             if (savedToken) {
                 AUTH_SECRET = savedToken;
@@ -716,46 +1933,127 @@
 
             document.querySelectorAll('.nav-btn').forEach(btn => {
                 if (btn.dataset.tab === tabId) {
-                    btn.classList.add('text-blue-600', 'bg-blue-50');
+                    btn.classList.remove('text-slate-400', 'hover:text-white', 'hover:bg-slate-800');
+                    btn.classList.add('text-white', 'bg-slate-800', 'border-l-4', 'border-blue-500');
                 } else {
-                    btn.classList.remove('text-blue-600', 'bg-blue-50');
+                    btn.classList.remove('text-white', 'bg-slate-800', 'border-l-4', 'border-blue-500');
+                    btn.classList.add('text-slate-400', 'hover:text-white', 'hover:bg-slate-800');
                 }
             });
 
             if (tabId === 'dashboard') loadDashboard();
+            if (tabId === 'customers') { if (typeof renderSaasCustomers === 'function') renderSaasCustomers(); }
+            if (tabId === 'systems') { if (typeof renderSaasSystems === 'function') renderSaasSystems(); }
             if (tabId === 'licenses') loadLicenses();
-            if (tabId === 'receipts') loadReceipts();
-            if (tabId === 'logs') loadLogs();
-            if (tabId === 'notifications') loadNotifications();
+            if (tabId === 'receipts') { if (typeof loadReceipts === 'function') loadReceipts(); }
+            if (tabId === 'logs') { if (typeof loadLogs === 'function') loadLogs(); }
+            if (tabId === 'notifications') { if (typeof loadNotifications === 'function') loadNotifications(); }
+            return true;
         }
 
         // DATA LOADING
         async function loadDashboard() {
+            const loading = document.getElementById('dashboard-loading');
+            const error = document.getElementById('dashboard-error');
+            const updated = document.getElementById('dashboard-last-updated');
+
+            if (loading) loading.classList.remove('hidden');
+            if (error) error.classList.add('hidden');
+
             const data = await apiCall('dashboard_stats');
-            if (!data) return false;
 
-            // Compute Pending licenses manually if not in data, or expect it
-            const licenses = await apiCall('list');
-            const pending = licenses ? licenses.filter(l => l.status === 'pending').length : 0;
-            const active = licenses ? licenses.filter(l => l.status === 'active').length : 0;
-            const trial = licenses ? licenses.filter(l => l.type === 'trial' || l.is_trial).length : 0;
+            if (loading) loading.classList.add('hidden');
 
-            const revenue = licenses ? licenses.filter(l => l.type !== 'trial').reduce((sum, l) => sum + (l.price || 0), 0) : 0;
+            if (!data) {
+                if (error) error.classList.remove('hidden');
+                return false;
+            }
 
-            document.getElementById('stat-revenue').innerText = fmtMoney(revenue);
-            document.getElementById('stat-active').innerText = active;
-            document.getElementById('stat-pending').innerText = pending + trial; // Pendentes + Trial contam
+            const sr = document.getElementById('stat-revenue');
+            if (sr) sr.innerText = fmtMoney(data.recurring_revenue || 0);
+
+            const srt = document.getElementById('stat-total-revenue');
+            if (srt) srt.innerText = 'Receita Total Vendida: ' + fmtMoney(data.revenue_total || 0);
+
+            const sa = document.getElementById('stat-active');
+            if (sa) sa.innerText = data.active_licenses || 0;
+
+            const sp = document.getElementById('stat-pending');
+            if (sp) sp.innerText = data.pending_licenses || 0;
+
+            const sta = document.getElementById('stat-trial-active');
+            if (sta) sta.innerText = data.trial_active || 0;
+
+            const ste = document.getElementById('stat-trial-expired');
+            if (ste) ste.innerText = data.trial_expired || 0;
+
+            const sb = document.getElementById('stat-blocked');
+            if (sb) sb.innerText = data.blocked_licenses || 0;
 
             const topProd = document.getElementById('top-products-list');
-            topProd.innerHTML = Object.entries(data.top_products || {}).map(([name, count]) => `
-                <div class="flex justify-between items-center p-3 bg-slate-50 rounded-lg">
-                    <span class="font-medium">${name}</span>
-                    <span class="bg-blue-100 text-blue-800 text-xs font-bold px-2 py-1 rounded-full">${count} ativos</span>
-                </div>
-            `).join('');
+            if (topProd) {
+                topProd.innerHTML = Object.entries(data.by_product || {}).map(([name, stats]) => `
+                    <div class="flex justify-between items-center p-3 bg-slate-50 rounded-lg">
+                        <span class="font-medium text-slate-800">${escapeHtml(name)}</span>
+                        <div class="flex gap-2">
+                            <span class="bg-blue-100 text-blue-800 text-xs font-bold px-2 py-1 rounded-full" title="Ativos">${stats.active || 0} A</span>
+                            <span class="bg-amber-100 text-amber-800 text-xs font-bold px-2 py-1 rounded-full" title="Pendentes">${stats.pending || 0} P</span>
+                            <span class="bg-red-100 text-red-800 text-xs font-bold px-2 py-1 rounded-full" title="Bloqueados">${stats.blocked || 0} B</span>
+                        </div>
+                    </div>
+                `).join('');
+            }
+
+            const plansDist = document.getElementById('plans-distribution-list');
+            if (plansDist) {
+                plansDist.innerHTML = Object.entries(data.by_plan_code || {}).map(([name, count]) => `
+                    <div class="flex justify-between items-center p-2 border-b border-slate-100 last:border-0">
+                        <span class="text-sm text-slate-600">${escapeHtml(name)}</span>
+                        <span class="text-sm font-bold text-slate-800">${count}</span>
+                    </div>
+                `).join('');
+            }
+
+            const channelsDist = document.getElementById('channels-distribution-list');
+            if (channelsDist) {
+                channelsDist.innerHTML = Object.entries(data.by_sales_channel || {}).map(([name, count]) => `
+                    <div class="flex justify-between items-center p-2 border-b border-slate-100 last:border-0">
+                        <span class="text-sm text-slate-600">${escapeHtml(name)}</span>
+                        <span class="text-sm font-bold text-slate-800">${count}</span>
+                    </div>
+                `).join('');
+            }
+
+            if (updated) {
+                const now = new Date();
+                updated.innerText = 'Última atualização: ' + now.toLocaleTimeString('pt-BR');
+            }
 
             return true;
         }
+
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            if (sidebar) {
+                const isCollapsed = sidebar.classList.toggle('sidebar-collapsed');
+                sidebar.classList.toggle('w-64', !isCollapsed);
+                sidebar.classList.toggle('w-20', isCollapsed);
+                localStorage.setItem('sidebar-collapsed', isCollapsed ? 'true' : 'false');
+            }
+        }
+
+        // Recupera o estado da sidebar ao carregar a tela
+        document.addEventListener('DOMContentLoaded', () => {
+            const isCollapsed = localStorage.getItem('sidebar-collapsed') === 'true';
+            if (isCollapsed) {
+                const sidebar = document.getElementById('sidebar');
+                if (sidebar) {
+                    sidebar.classList.add('sidebar-collapsed');
+                    sidebar.classList.add('w-20');
+                    sidebar.classList.remove('w-64');
+                }
+            }
+        });
 
         function isArchiveCandidateRecord(l) {
             const protectedStatuses = ['active', 'pending'];
@@ -965,19 +2263,121 @@
             lucide.createIcons();
         }
 
-        async function loadReceipts() {
-            const list = await apiCall('get_receipts');
-            if (!list) return;
+        let loadedSalesReceipts = [];
+        let filteredSalesReceipts = [];
 
+        function normalizeSalesHistoryResponse(response) {
+            if (Array.isArray(response)) {
+                return { receipts: response, summary: { total_receipts: response.length, total_value: 0, recurring_value: 0 } };
+            }
+            return {
+                receipts: Array.isArray(response?.receipts) ? response.receipts : [],
+                summary: response?.summary || { total_receipts: 0, total_value: 0, recurring_value: 0 }
+            };
+        }
+
+        function populateSalesHistoryFilters(receipts) {
+            const channelSelect = document.getElementById('sales-history-channel-filter');
+            const statusSelect = document.getElementById('sales-history-status-filter');
+            if (!channelSelect || !statusSelect) return;
+
+            const currentChannel = channelSelect.value;
+            const currentStatus = statusSelect.value;
+            const channels = [...new Set(receipts.map(r => r.sales_channel || 'mercado_livre'))].sort();
+            const statuses = [...new Set(receipts.map(r => r.license_status || 'receipt_only'))].sort();
+
+            channelSelect.innerHTML = '<option value="">Todos os canais</option>' + channels.map(channel =>
+                `<option value="${escapeHtml(channel)}">${escapeHtml(channel)}</option>`
+            ).join('');
+            statusSelect.innerHTML = '<option value="">Todos os status</option>' + statuses.map(status =>
+                `<option value="${escapeHtml(status)}">${escapeHtml(status)}</option>`
+            ).join('');
+
+            channelSelect.value = channels.includes(currentChannel) ? currentChannel : '';
+            statusSelect.value = statuses.includes(currentStatus) ? currentStatus : '';
+        }
+
+        async function loadReceipts() {
+            const response = await apiCall('get_receipts');
+            if (!response) return;
+
+            const normalized = normalizeSalesHistoryResponse(response);
+            loadedSalesReceipts = normalized.receipts;
+            populateSalesHistoryFilters(loadedSalesReceipts);
+            updateSalesHistorySummary(normalized.summary, loadedSalesReceipts.length);
+            filterSalesHistory();
+        }
+
+        function updateSalesHistorySummary(summary, filteredCount) {
+            const totalEl = document.getElementById('sales-history-summary-total');
+            const valueEl = document.getElementById('sales-history-summary-value');
+            const recurringEl = document.getElementById('sales-history-summary-recurring');
+            const filteredEl = document.getElementById('sales-history-summary-filtered');
+
+            if (totalEl) totalEl.innerText = summary.total_receipts || 0;
+            if (valueEl) valueEl.innerText = fmtMoney(summary.total_value || 0);
+            if (recurringEl) recurringEl.innerText = fmtMoney(summary.recurring_value || 0);
+            if (filteredEl) filteredEl.innerText = filteredCount || 0;
+        }
+
+        function filterSalesHistory() {
+            const term = (document.getElementById('sales-history-search')?.value || '').toLowerCase().trim();
+            const channel = document.getElementById('sales-history-channel-filter')?.value || '';
+            const status = document.getElementById('sales-history-status-filter')?.value || '';
+
+            filteredSalesReceipts = loadedSalesReceipts.filter(r => {
+                const haystack = [
+                    r.client_email,
+                    r.license_key,
+                    r.product,
+                    r.plan_name,
+                    r.plan_code,
+                    r.sales_channel,
+                    r.license_status,
+                    r.ip
+                ].join(' ').toLowerCase();
+
+                const matchesTerm = !term || haystack.includes(term);
+                const matchesChannel = !channel || (r.sales_channel || 'mercado_livre') === channel;
+                const matchesStatus = !status || (r.license_status || 'receipt_only') === status;
+                return matchesTerm && matchesChannel && matchesStatus;
+            });
+
+            const summary = {
+                total_receipts: loadedSalesReceipts.length,
+                total_value: loadedSalesReceipts.reduce((acc, r) => acc + (Number(r.price) || 0), 0),
+                recurring_value: loadedSalesReceipts
+                    .filter(r => r.billing_model === 'recurring' || r.plan_code === 'premium_monthly')
+                    .reduce((acc, r) => acc + (Number(r.price) || 0), 0)
+            };
+            updateSalesHistorySummary(summary, filteredSalesReceipts.length);
+            renderSalesHistoryRows(filteredSalesReceipts);
+        }
+
+        function renderSalesHistoryRows(receipts) {
             const tbody = document.getElementById('receipts-table');
-            tbody.innerHTML = list.map(r => `
+            if (!tbody) return;
+
+            if (receipts.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" class="px-6 py-8 text-center text-slate-500 font-medium">Nenhuma venda encontrada para os filtros atuais.</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = receipts.map(r => `
                 <tr class="hover:bg-slate-50 transition-colors">
-                    <td class="px-6 py-4 font-mono text-xs text-slate-500">${r.timestamp}</td>
-                    <td class="px-6 py-4 font-mono text-xs">${r.ip}</td>
+                    <td class="px-6 py-4 font-mono text-xs text-slate-500">${escapeHtml(r.timestamp || '-')}</td>
                     <td class="px-6 py-4">
-                        <div class="text-sm font-bold text-slate-800">${r.client_email}</div>
-                        <div class="text-xs font-mono text-slate-400">${r.license_key}</div>
+                        <div class="text-sm font-bold text-slate-800">${escapeHtml(r.client_email || 'N/A')}</div>
+                        <div class="text-xs font-mono text-slate-400">${escapeHtml(r.license_key || '-')}</div>
                     </td>
+                    <td class="px-6 py-4 text-sm text-slate-700">${escapeHtml(r.product || 'N/A')}</td>
+                    <td class="px-6 py-4">
+                        <div class="text-sm font-bold text-slate-800">${escapeHtml(r.plan_name || r.plan_code || 'Plano não informado')}</div>
+                        <div class="text-xs text-slate-500">${escapeHtml(r.sales_channel || 'mercado_livre')} · ${escapeHtml(r.billing_model || 'one_time')}</div>
+                        <div class="text-[10px] uppercase font-bold text-slate-400">${escapeHtml(r.license_status || 'receipt_only')}</div>
+                    </td>
+                    <td class="px-6 py-4 font-black text-emerald-600">${fmtMoney(Number(r.price) || 0)}</td>
+                    <td class="px-6 py-4 font-mono text-xs">${escapeHtml(r.ip || '-')}</td>
                     <td class="px-6 py-4 text-xs italic text-slate-600 max-w-xs truncate" title="${escapeHtml(r.confirmation_text)}">
                         ${escapeHtml(r.confirmation_text)}
                     </td>
@@ -985,26 +2385,140 @@
             `).join('');
         }
 
+        function exportSalesHistoryCsv() {
+            const rows = filteredSalesReceipts.length ? filteredSalesReceipts : loadedSalesReceipts;
+            const header = ['Data/Hora', 'Cliente', 'Licença', 'Produto', 'Plano', 'Canal', 'Status', 'Valor', 'IP'];
+            const csvRows = [header, ...rows.map(r => [
+                r.timestamp || '',
+                r.client_email || '',
+                r.license_key || '',
+                r.product || '',
+                r.plan_name || r.plan_code || '',
+                r.sales_channel || '',
+                r.license_status || '',
+                String(Number(r.price) || 0).replace('.', ','),
+                r.ip || ''
+            ])];
+            const csv = csvRows.map(row => row.map(value => `"${String(value).replace(/"/g, '""')}"`).join(';')).join('\n');
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = 'historico-vendas.csv';
+            link.click();
+            URL.revokeObjectURL(url);
+        }
+
+        let loadedSystemLogs = [];
+        let filteredSystemLogs = [];
+
+        function normalizeLogRecord(log) {
+            const type = ['error', 'warning', 'info'].includes(String(log.type || '').toLowerCase())
+                ? String(log.type).toLowerCase()
+                : 'info';
+
+            return {
+                timestamp: log.timestamp || '',
+                type,
+                message: log.message || log.msg || '',
+                ip: log.ip || '-'
+            };
+        }
+
+        function updateSystemLogsSummary(summary, filteredCount) {
+            const total = summary?.total ?? loadedSystemLogs.length;
+            document.getElementById('logs-summary-total').innerText = `${filteredCount ?? total} / ${total}`;
+            document.getElementById('logs-summary-errors').innerText = summary?.error ?? loadedSystemLogs.filter(log => log.type === 'error').length;
+            document.getElementById('logs-summary-warnings').innerText = summary?.warning ?? loadedSystemLogs.filter(log => log.type === 'warning').length;
+            document.getElementById('logs-summary-info').innerText = summary?.info ?? loadedSystemLogs.filter(log => log.type === 'info').length;
+        }
+
         async function loadLogs() {
             const res = await apiCall('read_logs');
             if (!res) return;
 
-            const tbody = document.getElementById('logs-table');
-            const logs = [...res.logs].reverse(); // Reverse for most recent first
+            const logsPayload = Array.isArray(res.logs) ? res.logs : [];
+            loadedSystemLogs = logsPayload.map(normalizeLogRecord);
+            filteredSystemLogs = loadedSystemLogs;
+            updateSystemLogsSummary(res.summary, loadedSystemLogs.length);
+            renderSystemLogsRows(filteredSystemLogs);
+        }
 
-            tbody.innerHTML = logs.map(l => `
+        function filterSystemLogs() {
+            const search = (document.getElementById('logs-search')?.value || '').toLowerCase().trim();
+            const type = document.getElementById('logs-type-filter')?.value || 'all';
+
+            filteredSystemLogs = loadedSystemLogs.filter(log => {
+                const typeMatches = type === 'all' || log.type === type;
+                const haystack = [log.timestamp, log.type, log.message, log.ip].join(' ').toLowerCase();
+                return typeMatches && (!search || haystack.includes(search));
+            });
+
+            updateSystemLogsSummary({
+                total: loadedSystemLogs.length,
+                error: loadedSystemLogs.filter(log => log.type === 'error').length,
+                warning: loadedSystemLogs.filter(log => log.type === 'warning').length,
+                info: loadedSystemLogs.filter(log => log.type === 'info').length
+            }, filteredSystemLogs.length);
+            renderSystemLogsRows(filteredSystemLogs);
+        }
+
+        function renderSystemLogsRows(logs) {
+            const tbody = document.getElementById('logs-table');
+
+            if (!logs.length) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="4" class="px-6 py-10 text-center text-slate-400">
+                            Nenhum log encontrado para os filtros aplicados.
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            const badgeClass = {
+                error: 'bg-red-100 text-red-700',
+                warning: 'bg-amber-100 text-amber-700',
+                info: 'bg-blue-100 text-blue-700'
+            };
+
+            const label = {
+                error: 'Erro',
+                warning: 'Alerta',
+                info: 'Info'
+            };
+
+            tbody.innerHTML = logs.map(log => `
                 <tr class="hover:bg-slate-50">
-                    <td class="px-6 py-3 text-slate-500">${l.timestamp}</td>
+                    <td class="px-6 py-3 text-slate-500 font-mono whitespace-nowrap">${escapeHtml(log.timestamp)}</td>
                     <td class="px-6 py-3">
-                        <span class="px-2 py-1 rounded text-[10px] font-bold uppercase ${l.type === 'error' ? 'bg-red-100 text-red-700' : (l.type === 'warning' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700')}">
-                            ${l.type}
+                        <span class="px-2 py-1 rounded text-[10px] font-bold uppercase ${badgeClass[log.type] || badgeClass.info}">
+                            ${label[log.type] || label.info}
                         </span>
                     </td>
-                    <td class="px-6 py-3 text-slate-700">${l.msg || l.message}</td>
-                    <td class="px-6 py-3 text-slate-400">${l.ip || '-'}</td>
+                    <td class="px-6 py-3 text-slate-700">${escapeHtml(log.message)}</td>
+                    <td class="px-6 py-3 text-slate-400 font-mono">${escapeHtml(log.ip)}</td>
                 </tr>
             `).join('');
             lucide.createIcons();
+        }
+
+        function exportSystemLogsCsv() {
+            const rows = filteredSystemLogs.length ? filteredSystemLogs : loadedSystemLogs;
+            const header = ['timestamp', 'type', 'message', 'ip'];
+            const csvRows = [header.join(';')].concat(rows.map(log => header.map(key => {
+                const value = String(log[key] ?? '').replace(/"/g, '""');
+                return `"${value}"`;
+            }).join(';')));
+
+            const blob = new Blob([csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = 'logs-sistema.csv';
+            link.click();
+            URL.revokeObjectURL(url);
         }
 
         async function notifAdminCall(action, payload = {}) {
@@ -1030,51 +2544,154 @@
             }
         }
 
+        let loadedNotifications = [];
+        let filteredNotifications = [];
+
+        function normalizeNotificationRecord(notification) {
+            const type = ['update', 'security', 'backup', 'info', 'promo'].includes(String(notification.type || '').toLowerCase())
+                ? String(notification.type).toLowerCase()
+                : 'info';
+            const priority = ['low', 'normal', 'high'].includes(String(notification.priority || '').toLowerCase())
+                ? String(notification.priority).toLowerCase()
+                : 'normal';
+            const targets = Array.isArray(notification.targets) && notification.targets.length
+                ? notification.targets.map(target => String(target).toLowerCase())
+                : ['all'];
+            const now = Date.now();
+            const publishedAt = notification.published ? new Date(notification.published).getTime() : 0;
+            const expiresAt = notification.expires ? new Date(notification.expires).getTime() : 0;
+            const status = notification.status || (publishedAt > now ? 'scheduled' : (expiresAt && expiresAt < now ? 'expired' : 'active'));
+
+            return {
+                id: notification.id || '',
+                type,
+                priority,
+                title: notification.title || '',
+                body: notification.body || '',
+                details: notification.details || '',
+                published: notification.published || '',
+                expires: notification.expires || null,
+                targets,
+                version: notification.version || '',
+                target_license: notification.target_license || '',
+                status
+            };
+        }
+
+        function updateNotificationsSummary(summary, filteredCount) {
+            const total = summary?.total ?? loadedNotifications.length;
+            document.getElementById('notifications-summary-total').innerText = `${filteredCount ?? total} / ${total}`;
+            document.getElementById('notifications-summary-active').innerText = summary?.active ?? loadedNotifications.filter(n => n.status === 'active').length;
+            document.getElementById('notifications-summary-scheduled').innerText = summary?.scheduled ?? loadedNotifications.filter(n => n.status === 'scheduled').length;
+            document.getElementById('notifications-summary-expired').innerText = summary?.expired ?? loadedNotifications.filter(n => n.status === 'expired').length;
+        }
+
         async function loadNotifications() {
-            const list = await notifAdminCall('list');
+            const response = await notifAdminCall('list');
+            const list = Array.isArray(response) ? response : (response?.notifications || []);
+
+            loadedNotifications = list.map(normalizeNotificationRecord)
+                .sort((a, b) => new Date(b.published || 0) - new Date(a.published || 0));
+            filteredNotifications = loadedNotifications;
+            updateNotificationsSummary(response?.summary, loadedNotifications.length);
+            renderNotificationCards(filteredNotifications);
+        }
+
+        function filterNotifications() {
+            const search = (document.getElementById('notifications-search')?.value || '').toLowerCase().trim();
+            const target = document.getElementById('notifications-target-filter')?.value || 'all';
+            const status = document.getElementById('notifications-status-filter')?.value || 'all';
+
+            filteredNotifications = loadedNotifications.filter(notification => {
+                const targetMatches = target === 'all' || notification.targets.includes(target);
+                const statusMatches = status === 'all' || notification.status === status;
+                const haystack = [
+                    notification.title,
+                    notification.body,
+                    notification.details,
+                    notification.type,
+                    notification.priority,
+                    notification.version,
+                    notification.target_license,
+                    notification.targets.join(' ')
+                ].join(' ').toLowerCase();
+                return targetMatches && statusMatches && (!search || haystack.includes(search));
+            });
+
+            updateNotificationsSummary({
+                total: loadedNotifications.length,
+                active: loadedNotifications.filter(n => n.status === 'active').length,
+                scheduled: loadedNotifications.filter(n => n.status === 'scheduled').length,
+                expired: loadedNotifications.filter(n => n.status === 'expired').length
+            }, filteredNotifications.length);
+            renderNotificationCards(filteredNotifications);
+        }
+
+        function renderNotificationCards(notifications) {
             const container = document.getElementById('notifications-list');
 
-            if (!list || !Array.isArray(list) || list.length === 0) {
-                container.innerHTML = '<p class="text-slate-500 text-sm py-6">Nenhuma notificação ativa.</p>';
+            if (!notifications.length) {
+                container.innerHTML = '<p class="text-slate-500 text-sm py-6">Nenhuma notificação encontrada.</p>';
                 return;
             }
 
-            // Ordena da mais recente para a mais antiga (topo = mais recente)
-            list.sort((a, b) => new Date(b.published) - new Date(a.published));
-
             const colors = { update: 'blue', security: 'red', backup: 'amber', info: 'slate', promo: 'green' };
+            const statusLabel = { active: 'Ativa', scheduled: 'Agendada', expired: 'Expirada' };
 
-            container.innerHTML = list.map(n => {
-                const c = colors[n.type] || 'slate';
-                const targets = n.targets.includes('all') ? 'Todos os sistemas' : n.targets.join(', ');
-                const pubDate = new Date(n.published).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-                const expDate = n.expires ? new Date(n.expires).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
+            container.innerHTML = notifications.map(notification => {
+                const c = colors[notification.type] || 'slate';
+                const targets = notification.targets.includes('all') ? 'Todos os sistemas' : notification.targets.join(', ');
+                const pubDate = notification.published ? new Date(notification.published).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '-';
+                const expDate = notification.expires ? new Date(notification.expires).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
+                const deleteId = escapeHtml(notification.id);
 
                 return `
                 <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5 flex items-start gap-4">
                     <div class="p-3 bg-${c}-50 text-${c}-600 rounded-xl shrink-0 mt-1">
                         <i data-lucide="bell" class="w-6 h-6"></i>
                     </div>
-                    <div class="flex-1">
-                        <div class="flex items-center gap-2 mb-1">
-                            <span class="bg-${c}-100 text-${c}-700 text-[10px] uppercase font-bold tracking-wider px-2 py-1 rounded-full">${n.type}</span>
-                            <span class="text-[10px] text-slate-400 font-mono">${(n.version ? 'v'+n.version : '')}</span>
+                    <div class="flex-1 min-w-0">
+                        <div class="flex flex-wrap items-center gap-2 mb-1">
+                            <span class="bg-${c}-100 text-${c}-700 text-[10px] uppercase font-bold tracking-wider px-2 py-1 rounded-full">${escapeHtml(notification.type)}</span>
+                            <span class="bg-slate-100 text-slate-600 text-[10px] uppercase font-bold tracking-wider px-2 py-1 rounded-full">${escapeHtml(statusLabel[notification.status] || notification.status)}</span>
+                            ${notification.priority === 'high' ? '<span class="bg-red-100 text-red-700 text-[10px] uppercase font-bold tracking-wider px-2 py-1 rounded-full">Alta</span>' : ''}
+                            <span class="text-[10px] text-slate-400 font-mono">${escapeHtml(notification.version ? 'v' + notification.version : '')}</span>
                         </div>
-                        <h4 class="font-bold text-lg text-slate-800 mb-1">${escapeHtml(n.title)}</h4>
-                        <p class="text-sm text-slate-600 mb-3">${n.body}</p>
-                        <div class="flex items-center gap-4 text-[11px] font-medium text-slate-400">
-                            <div class="flex items-center gap-1"><i data-lucide="target" class="w-3 h-3"></i> <span class="truncate max-w-[200px] capitalize">${targets}</span></div>
-                            <div class="flex items-center gap-1"><i data-lucide="calendar" class="w-3 h-3"></i> ${pubDate}</div>
-                            ${n.expires ? `<div class="flex items-center gap-1"><i data-lucide="clock" class="w-3 h-3"></i> Expira: ${expDate}</div>` : ''}
+                        <h4 class="font-bold text-lg text-slate-800 mb-1">${escapeHtml(notification.title)}</h4>
+                        <p class="text-sm text-slate-600 mb-3">${escapeHtml(notification.body)}</p>
+                        ${notification.details ? `<p class="text-xs text-slate-500 mb-3 bg-slate-50 border border-slate-100 rounded-lg p-3">${escapeHtml(notification.details)}</p>` : ''}
+                        <div class="flex flex-wrap items-center gap-4 text-[11px] font-medium text-slate-400">
+                            <div class="flex items-center gap-1"><i data-lucide="target" class="w-3 h-3"></i> <span class="truncate max-w-[220px] capitalize">${escapeHtml(targets)}</span></div>
+                            <div class="flex items-center gap-1"><i data-lucide="calendar" class="w-3 h-3"></i> ${escapeHtml(pubDate)}</div>
+                            ${notification.expires ? `<div class="flex items-center gap-1"><i data-lucide="clock" class="w-3 h-3"></i> Expira: ${escapeHtml(expDate)}</div>` : ''}
+                            ${notification.target_license ? `<div class="flex items-center gap-1"><i data-lucide="key" class="w-3 h-3"></i> ${escapeHtml(notification.target_license)}</div>` : ''}
                         </div>
                     </div>
-                    <button onclick="deleteNotification('${n.id}')" class="text-slate-400 hover:text-red-500 transition-colors p-2 shrink-0">
+                    <button onclick="deleteNotification('${deleteId}')" class="text-slate-400 hover:text-red-500 transition-colors p-2 shrink-0">
                         <i data-lucide="trash-2" class="w-5 h-5"></i>
                     </button>
                 </div>
                 `;
             }).join('');
             lucide.createIcons();
+        }
+
+        function exportNotificationsCsv() {
+            const rows = filteredNotifications.length ? filteredNotifications : loadedNotifications;
+            const header = ['id', 'status', 'type', 'priority', 'title', 'targets', 'version', 'target_license', 'published', 'expires'];
+            const csvRows = [header.join(';')].concat(rows.map(notification => header.map(key => {
+                const raw = key === 'targets' ? notification.targets.join(', ') : notification[key];
+                const value = String(raw ?? '').replace(/"/g, '""');
+                return `"${value}"`;
+            }).join(';')));
+
+            const blob = new Blob([csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = 'notificacoes.csv';
+            link.click();
+            URL.revokeObjectURL(url);
         }
 
         async function deleteNotification(id) {
@@ -1110,13 +2727,10 @@
 
             select.innerHTML = '<option value="">-- Todos os Clientes do Sistema Alvo --</option>';
 
-            const MASTER_KEYS = ['MASTER123', 'ADMIN_ML', 'TESTE2026'];
-
-            // Restringe a clientes ativos ou perfis de teste master
+            // Restringe a clientes ativos ou perfis marcados explicitamente como master
             let filtered = _allNotifLicensesCache.filter(l =>
                 l.status === 'active' ||
-                l.is_master === true ||
-                MASTER_KEYS.includes((l.key || '').toUpperCase())
+                l.is_master === true
             );
 
             // Filtro por sistema alvo selecionado no combo-box
@@ -1125,8 +2739,8 @@
                     const prod = (l.product || '').toLowerCase();
                     if (targetSys === 'beleza' && prod.includes('beleza')) return true;
                     if (targetSys === 'barbearia' && prod.includes('barbearia')) return true;
-                    // Master keys bypass the product filter so we can target them anytime for testing
-                    if (l.is_master === true || MASTER_KEYS.includes((l.key || '').toUpperCase())) return true;
+                    if (targetSys === 'gastro' && prod.includes('gastro')) return true;
+                    if (l.is_master === true) return true;
                     return false;
                 });
             }
@@ -1186,7 +2800,7 @@
         }
 
         function generateNotifId() {
-            const dateStr = new Date().toISOString().slice(0,10).replace(/-/g, '');
+            const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
             const rand = Math.random().toString(36).substring(2, 6);
             return 'notif_' + dateStr + '_' + rand;
         }
@@ -1275,10 +2889,12 @@
 
         function openGenerateModal() {
             document.getElementById('generate-modal').classList.remove('hidden');
+            updateGenerateSystemPlanOptions();
         }
 
         async function confirmGenerate() {
-            const product = document.getElementById('gen-product').value;
+            const context = resolveLicenseGenerationContext();
+            const product = document.getElementById('gen-product').value || context.systemName;
             const client = document.getElementById('gen-client').value || 'Cliente';
             const price = document.getElementById('gen-price').value;
             const isTrial = document.getElementById('gen-trial').checked;
@@ -1295,12 +2911,13 @@
                 'pro_lifetime': { name: 'Pro Vitalício', billing: 'one_time', channel: 'venda_direta', version: 'standalone_pro' },
                 'premium_monthly': { name: 'Premium Online Mensal', billing: 'recurring', channel: 'premium_online', version: 'premium_online' }
             };
-            const planMeta = PLAN_METADATA[planCode] || PLAN_METADATA['ml_lifetime'];
+            const planMeta = COMMERCIAL_PLAN_METADATA[planCode] || COMMERCIAL_PLAN_METADATA.ml_lifetime;
+            const effectivePrice = price || planMeta.basePrice;
 
             const res = await apiCall('generate', {
                 product: product,
                 client: client,
-                price: price,
+                price: effectivePrice,
                 quantity: 1,
                 trial: isTrial,
                 trial_days: trialDays,
@@ -1309,7 +2926,16 @@
                 billing_model: planMeta.billing,
                 sales_channel: planMeta.channel,
                 system_version: planMeta.version,
-                package_version: planMeta.version
+                package_version: planMeta.version,
+                system_id: context.systemId,
+                segment: context.segment,
+                plan_slug: context.systemPlanSlug,
+                system_plan_name: context.systemPlanName,
+                modules: context.modules,
+                max_users: context.maxUsers,
+                max_devices: context.maxDevices,
+                tenant_slug: context.tenantSlug,
+                operation_mode: context.operationMode
             });
 
             if (res && res.status === 'success' && res.keys && res.keys.length > 0) {
@@ -1318,9 +2944,10 @@
                 loadLicenses();
 
                 // Lógica de Identificação de Link e Slug
-                const productSlug = PRODUCT_SLUGS[product] || 'app';
-                // O link final será: https://sistemasdegestao.tech/gestao-barbearia/
-                const appLink = BASE_URL + productSlug + '/';
+                const productSlug = PRODUCT_SLUGS[product] || context.publicPath || 'app';
+                const appLink = context.operationMode === 'saas' && context.tenantSlug
+                    ? `${BASE_URL}${productSlug}/${context.tenantSlug}`
+                    : `${BASE_URL}${productSlug}/`;
 
                 let message = '';
 
@@ -1435,6 +3062,145 @@ Qualquer dúvida, estamos à disposição!`;
         function copyToClip(text) {
             navigator.clipboard.writeText(text);
             alert('Copiado!');
+        }
+
+        // --- SaaS Provisioning Functions ---
+        let slugManuallyEdited = false;
+
+        function normalizeProvisionSlugValue(value) {
+            return (value || '').toLowerCase()
+                .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+                .replace(/[^a-z0-9\s-]/g, '')
+                .trim()
+                .replace(/\s+/g, '-')
+                .replace(/-+/g, '-')
+                .replace(/^-|-$/g, '');
+        }
+
+        function updateSlugPreview() {
+            const slug = document.getElementById('prov-slug').value;
+            document.getElementById('preview-slug-text').innerText = slug || '...';
+        }
+
+        function normalizeProvisionSlug() {
+            const slugInput = document.getElementById('prov-slug');
+            slugInput.value = normalizeProvisionSlugValue(slugInput.value);
+            updateSlugPreview();
+        }
+
+        function autoGenerateSlug() {
+            if (slugManuallyEdited) return;
+            const name = document.getElementById('prov-name').value;
+            const slug = normalizeProvisionSlugValue(name);
+
+            document.getElementById('prov-slug').value = slug;
+            updateSlugPreview();
+        }
+
+
+        function updatePlanPreview() {
+            const sys = document.getElementById('prov-system');
+            const plan = document.getElementById('prov-plan');
+            const systemConfig = SAAS_CATALOG[sys.value] || SAAS_CATALOG['gestao-gastro'];
+            const planConfig = systemConfig.plans[plan.value] || systemConfig.plans.basic;
+
+            document.getElementById('preview-system-name').innerText = systemConfig.title;
+            document.getElementById('preview-plan-name').innerText = planConfig.name;
+            document.getElementById('preview-system-path').innerText = systemConfig.publicPath;
+
+            const mods = document.getElementById('preview-modules-list');
+            mods.innerHTML = planConfig.modules.map(([, moduleName]) => `
+                <li class="flex items-center gap-2"><i data-lucide="check" class="w-4 h-4 text-green-500"></i> ${escapeHtml(moduleName)}</li>
+            `).join('');
+            lucide.createIcons();
+        }
+
+        function resetProvisionForm() {
+            document.getElementById('form-provision').reset();
+            slugManuallyEdited = false;
+            document.getElementById('prov-result').classList.add('hidden');
+            document.getElementById('prov-summary-panel').classList.remove('hidden');
+            document.getElementById('btn-provision').classList.remove('hidden');
+            document.getElementById('btn-provision-another').classList.add('hidden');
+            document.getElementById('prov-error-toast').classList.add('hidden');
+            autoGenerateSlug();
+            updatePlanPreview();
+        }
+
+        function copyProvCredentials() {
+            const email = document.getElementById('res-email').innerText;
+            const pass = document.getElementById('res-pass').innerText;
+            const license = document.getElementById('res-license')?.innerText || '';
+            const link = document.getElementById('res-link').href;
+
+            const text = `Suas credenciais de acesso:\nLink: ${link}\nEmail: ${email}\nLicença: ${license}\nSenha temporária - troca obrigatória: ${pass}\n\nAltere a senha no primeiro acesso.`;
+            navigator.clipboard.writeText(text);
+            alert('Credenciais copiadas para a área de transferência!');
+        }
+
+        async function provisionSaaSClient(e) {
+            e.preventDefault();
+
+            const btn = document.getElementById('btn-provision');
+            const overlay = document.getElementById('prov-loading-overlay');
+            const statusTxt = document.getElementById('prov-status-text');
+            const errToast = document.getElementById('prov-error-toast');
+
+            btn.disabled = true;
+            overlay.classList.remove('hidden');
+            overlay.classList.add('flex');
+            errToast.classList.add('hidden');
+
+            const payload = {
+                admin_secret: AUTH_SECRET, // Usando a auth via cookie/senha mestra correta
+                action: 'provision_tenant',
+                name: document.getElementById('prov-name').value,
+                slug: document.getElementById('prov-slug').value,
+                email: document.getElementById('prov-email').value,
+                system: document.getElementById('prov-system').value,
+                plan: document.getElementById('prov-plan').value
+            };
+
+            try {
+                statusTxt.innerText = '1/3: Criando usuário Auth...';
+
+                const res = await fetch('../api_provisioning.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                statusTxt.innerText = '2/3: Provisionando Banco e Tabelas...';
+                const data = await res.json();
+
+                if (data.status === 'success') {
+                    statusTxt.innerText = '3/3: Finalizando...';
+
+                    document.getElementById('prov-summary-panel').classList.add('hidden');
+                    document.getElementById('prov-result').classList.remove('hidden');
+
+                    document.getElementById('res-email').innerText = data.credentials.email;
+                    document.getElementById('res-pass').innerText = data.credentials.password;
+                    document.getElementById('res-license').innerText = data.credentials.license_key || '';
+                    document.getElementById('res-link').href = data.credentials.link;
+                    document.getElementById('res-link').innerText = data.credentials.link;
+                    document.getElementById('res-modules').innerText = (data.credentials.modules || []).join(', ');
+
+                    document.getElementById('btn-provision').classList.add('hidden');
+                    document.getElementById('btn-provision-another').classList.remove('hidden');
+                } else {
+                    document.getElementById('prov-error-msg').innerText = data.message || 'Erro desconhecido.';
+                    errToast.classList.remove('hidden');
+                }
+            } catch (err) {
+                document.getElementById('prov-error-msg').innerText = 'Erro ao conectar com API de provisionamento.';
+                errToast.classList.remove('hidden');
+                console.error(err);
+            } finally {
+                btn.disabled = false;
+                overlay.classList.remove('flex');
+                overlay.classList.add('hidden');
+            }
         }
 
         function fmtMoney(val) {

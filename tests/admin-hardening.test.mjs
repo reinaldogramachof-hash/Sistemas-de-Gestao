@@ -39,8 +39,11 @@ test('admin rendering uses escaping helpers for user-controlled text', () => {
 
   assert.match(source, /function escapeHtml\(value\)/);
   assert.match(source, /escapeHtml\(l\.client \|\| 'Mercado Livre'\)/);
-  assert.match(source, /escapeHtml\(n\.title\)/);
+  assert.match(source, /escapeHtml\((n|notification)\.title\)/);
   assert.match(source, /escapeHtml\(r\.confirmation_text\)/);
+  assert.match(source, /escapeHtml\(r\.client_email/);
+  assert.match(source, /escapeHtml\(r\.license_key/);
+  assert.match(source, /escapeHtml\(r\.ip/);
 });
 
 test('marketplace trial delivery copy does not route customers to external WhatsApp', () => {
@@ -110,6 +113,79 @@ test('archived licenses UI and backend integration tests', () => {
   assert.match(htmlSource, /const action = isArchived \? 'list_archived' : 'list'/);
   assert.match(htmlSource, /statusText = 'ARQUIVADA'/);
   assert.match(htmlSource, /canArchive = isArchiveCandidateRecord\(l\) && !isArchived/);
+});
+
+test('sales history module exposes filters summary export and enriched backend', () => {
+  const phpSource = read('api_licenca_ml.php');
+  const htmlSource = read('admin/index.html');
+
+  assert.match(htmlSource, /Histórico de Vendas/);
+  assert.match(htmlSource, /id="sales-history-search"/);
+  assert.match(htmlSource, /id="sales-history-channel-filter"/);
+  assert.match(htmlSource, /id="sales-history-status-filter"/);
+  assert.match(htmlSource, /id="sales-history-summary-total"/);
+  assert.match(htmlSource, /function filterSalesHistory\(\)/);
+  assert.match(htmlSource, /function exportSalesHistoryCsv\(\)/);
+  assert.match(htmlSource, /let loadedSalesReceipts = \[\]/);
+
+  assert.match(phpSource, /if \(\$action === 'get_receipts'\)/);
+  assert.match(phpSource, /\$licenses = getDB\(\$fileLicenses\)/);
+  assert.match(phpSource, /sales_channel/);
+  assert.match(phpSource, /billing_model/);
+  assert.match(phpSource, /total_value/);
+  assert.match(phpSource, /'status' => 'success'/);
+  assert.match(phpSource, /'receipts' => \$enrichedReceipts/);
+});
+
+test('system logs module exposes operational filters summary export and enriched backend', () => {
+  const phpSource = read('api_licenca_ml.php');
+  const htmlSource = read('admin/index.html');
+
+  assert.match(htmlSource, /Logs do Sistema/);
+  assert.match(htmlSource, /id="logs-search"/);
+  assert.match(htmlSource, /id="logs-type-filter"/);
+  assert.match(htmlSource, /id="logs-summary-total"/);
+  assert.match(htmlSource, /id="logs-summary-errors"/);
+  assert.match(htmlSource, /id="logs-summary-warnings"/);
+  assert.match(htmlSource, /function normalizeLogRecord\(/);
+  assert.match(htmlSource, /function filterSystemLogs\(\)/);
+  assert.match(htmlSource, /function exportSystemLogsCsv\(\)/);
+  assert.match(htmlSource, /let loadedSystemLogs = \[\]/);
+  assert.match(htmlSource, /escapeHtml\(log\.message\)/);
+  assert.match(htmlSource, /escapeHtml\(log\.ip\)/);
+
+  assert.match(phpSource, /if \(\$action === 'read_logs'\)/);
+  assert.match(phpSource, /\$summary = \[/);
+  assert.match(phpSource, /\$safeLogs/);
+  assert.match(phpSource, /'status' => 'success'/);
+  assert.match(phpSource, /'logs' => \$safeLogs/);
+  assert.match(phpSource, /JSON_UNESCAPED_UNICODE/);
+});
+
+test('notifications module exposes filters summary export and safe backend normalization', () => {
+  const phpSource = read('api_notificacoes_admin.php');
+  const htmlSource = read('admin/index.html');
+
+  assert.match(htmlSource, /Central de Notificações/);
+  assert.match(htmlSource, /id="notifications-search"/);
+  assert.match(htmlSource, /id="notifications-target-filter"/);
+  assert.match(htmlSource, /id="notifications-status-filter"/);
+  assert.match(htmlSource, /id="notifications-summary-total"/);
+  assert.match(htmlSource, /function normalizeNotificationRecord\(/);
+  assert.match(htmlSource, /function filterNotifications\(\)/);
+  assert.match(htmlSource, /function exportNotificationsCsv\(\)/);
+  assert.match(htmlSource, /let loadedNotifications = \[\]/);
+  assert.match(htmlSource, /escapeHtml\(notification\.body\)/);
+  assert.match(htmlSource, /escapeHtml\(notification\.title\)/);
+
+  assert.match(phpSource, /if \(\$action === 'list'\)/);
+  assert.match(phpSource, /\$safeNotifications/);
+  assert.match(phpSource, /\$summary = \[/);
+  assert.match(phpSource, /\$ALLOWED_TYPES/);
+  assert.match(phpSource, /\$ALLOWED_PRIORITIES/);
+  assert.match(phpSource, /'status' => 'success'/);
+  assert.match(phpSource, /'notifications' => \$safeNotifications/);
+  assert.match(phpSource, /JSON_UNESCAPED_UNICODE/);
 });
 
 test('master licenses do not expire or bind to a single device', () => {

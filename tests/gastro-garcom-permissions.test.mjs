@@ -132,6 +132,44 @@ describe('Garçom Permissions — gestao-gastro', () => {
     );
   });
 
+  test('ComandaMobileApp deve persistir e limpar o role real do garcom', () => {
+    const content = readSrc('components/ComandaMobileApp.tsx');
+
+    assert.ok(
+      content.includes('USER_ROLE_KEY'),
+      'ComandaMobileApp deve centralizar a chave do role do usuario',
+    );
+    assert.ok(
+      content.includes('localStorage.setItem(USER_ROLE_KEY, member.role)'),
+      'apos validar tenant_members, ComandaMobileApp deve persistir o role real',
+    );
+    assert.ok(
+      content.includes('localStorage.removeItem(USER_ROLE_KEY)'),
+      'logout deve remover role para nao contaminar outro usuario no mesmo navegador',
+    );
+  });
+
+  test('App administrativo deve redirecionar usuario waiter para rota comanda', () => {
+    const content = readSrc('App.tsx');
+
+    assert.ok(
+      content.includes('gestao_gastro_user_role'),
+      'App deve consultar o role persistido',
+    );
+    assert.ok(
+      content.includes("storedRole === 'waiter'"),
+      'App deve tratar explicitamente o perfil waiter',
+    );
+    assert.ok(
+      content.includes('window.location.replace'),
+      'App deve redirecionar waiter para a comanda em vez de renderizar painel completo',
+    );
+    assert.ok(
+      content.includes('getClientRouteFromPath'),
+      'redirecionamento deve preservar a rota do cliente quando houver slug',
+    );
+  });
+
   test('ComandaMobile deve usar waiterId na criação do pedido', () => {
     const content = readSrc('components/ComandaMobile.tsx');
     assert.ok(

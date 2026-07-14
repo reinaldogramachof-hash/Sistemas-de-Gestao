@@ -21,4 +21,4 @@ Este documento serve como registro de rastreabilidade para o cardápio do primei
 ---
 
 > [!NOTE]
-> **Status de Integração:** O aplicativo `gestao-gastro` atualmente opera no modelo *Local-First* utilizando `localStorage` e dados simulados (`mock.ts`) para garantir a velocidade e funcionamento offline total do plano básico. Nesta etapa de liberação, o sistema local **ainda não consome** o banco de dados Supabase de forma automática. A sincronização automática e o consumo direto do Supabase estão agendados para a próxima fase evolutiva do ecossistema.
+> **Status de Integracao:** O aplicativo `gestao-gastro` mantem fallback local para uso sem Supabase configurado, mas o fluxo de liberacao do Cantinho da Resenha ja usa Supabase Auth, `tenant_members`, cardapio online, mesas, pedidos e Realtime quando as variaveis `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` e `VITE_GASTRO_TENANT_ID` estao configuradas. Para homologacao real ainda e necessario provisionar usuarios Auth, vinculos em `tenant_members` e mesas do tenant.

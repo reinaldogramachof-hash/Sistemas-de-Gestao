@@ -40,6 +40,8 @@ api_data/debug_log.txt
 
 # Artefatos de deploy/pacotes locais
 *.zip
+*.zip.sha256
+deploy-*/
 
 # Sobras comuns de download/manual
 htaccess (2)

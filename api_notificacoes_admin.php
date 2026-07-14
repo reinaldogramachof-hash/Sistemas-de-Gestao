@@ -54,8 +54,97 @@ if (file_exists($DATA_FILE)) {
     $data = json_decode(file_get_contents($DATA_FILE), true) ?: [];
 }
 
+$ALLOWED_TYPES = ['update', 'security', 'backup', 'info', 'promo'];
+$ALLOWED_PRIORITIES = ['low', 'normal', 'high'];
+$ALLOWED_TARGETS = ['all', 'barbearia', 'beleza', 'gastro'];
+
 if ($action === 'list') {
-    echo json_encode($data);
+    $safeNotifications = [];
+    $summary = [
+        'total' => 0,
+        'active' => 0,
+        'scheduled' => 0,
+        'expired' => 0,
+        'high_priority' => 0,
+        'by_target' => [],
+        'by_type' => []
+    ];
+    $now = time();
+
+    foreach ($data as $notification) {
+        if (!is_array($notification)) {
+            continue;
+        }
+
+        $type = strtolower((string)($notification['type'] ?? 'info'));
+        if (!in_array($type, $ALLOWED_TYPES, true)) {
+            $type = 'info';
+        }
+
+        $priority = strtolower((string)($notification['priority'] ?? 'normal'));
+        if (!in_array($priority, $ALLOWED_PRIORITIES, true)) {
+            $priority = 'normal';
+        }
+
+        $targets = $notification['targets'] ?? ['all'];
+        if (!is_array($targets)) {
+            $targets = [$targets];
+        }
+        $targets = array_values(array_filter(array_map(
+            fn($target) => strtolower(trim((string)$target)),
+            $targets
+        )));
+        $targets = array_values(array_filter($targets, fn($target) => in_array($target, $ALLOWED_TARGETS, true)));
+        if (empty($targets)) {
+            $targets = ['all'];
+        }
+
+        $published = (string)($notification['published'] ?? '');
+        $expires = $notification['expires'] ?? null;
+        $publishedAt = $published ? strtotime($published) : false;
+        $expiresAt = $expires ? strtotime((string)$expires) : false;
+        $status = 'active';
+        if ($publishedAt && $publishedAt > $now) {
+            $status = 'scheduled';
+        } elseif ($expiresAt && $expiresAt < $now) {
+            $status = 'expired';
+        }
+
+        $safeNotifications[] = [
+            'id' => (string)($notification['id'] ?? ''),
+            'type' => $type,
+            'priority' => $priority,
+            'title' => (string)($notification['title'] ?? ''),
+            'body' => (string)($notification['body'] ?? ''),
+            'details' => (string)($notification['details'] ?? ''),
+            'published' => $published,
+            'expires' => $expires,
+            'targets' => $targets,
+            'version' => $notification['version'] ?? null,
+            'target_license' => $notification['target_license'] ?? null,
+            'status' => $status
+        ];
+
+        $summary['total']++;
+        $summary[$status]++;
+        if ($priority === 'high') {
+            $summary['high_priority']++;
+        }
+        $summary['by_type'][$type] = ($summary['by_type'][$type] ?? 0) + 1;
+        foreach ($targets as $target) {
+            $summary['by_target'][$target] = ($summary['by_target'][$target] ?? 0) + 1;
+        }
+    }
+
+    usort($safeNotifications, function ($a, $b) {
+        return strcmp($b['published'] ?? '', $a['published'] ?? '');
+    });
+
+    echo json_encode([
+        'status' => 'success',
+        'notifications' => $safeNotifications,
+        'summary' => $summary
+    ], JSON_UNESCAPED_UNICODE);
     exit;
 }
 
@@ -76,8 +165,6 @@ if ($action === 'create') {
         fn($t) => $t !== ''
     ));
 
-    // Whitelist de targets permitidos
-    $ALLOWED_TARGETS = ['all', 'barbearia', 'beleza'];
     $invalidTargets = array_filter($rawTargets, fn($t) => !in_array($t, $ALLOWED_TARGETS, true));
     if (!empty($invalidTargets)) {
         http_response_code(400);
@@ -94,10 +181,30 @@ if ($action === 'create') {
         exit;
     }
 
+    $type = strtolower(trim((string)$input['type']));
+    if (!in_array($type, $ALLOWED_TYPES, true)) {
+        http_response_code(400);
+        echo json_encode([
+            'error' => 'Invalid type: ' . $type,
+            'allowed_types' => $ALLOWED_TYPES,
+        ]);
+        exit;
+    }
+
+    $priority = strtolower(trim((string)($input['priority'] ?? 'normal')));
+    if (!in_array($priority, $ALLOWED_PRIORITIES, true)) {
+        http_response_code(400);
+        echo json_encode([
+            'error' => 'Invalid priority: ' . $priority,
+            'allowed_priorities' => $ALLOWED_PRIORITIES,
+        ]);
+        exit;
+    }
+
     $newNotif = [
         'id'             => $input['id'],
-        'type'           => $input['type'],
-        'priority'       => $input['priority'] ?? 'normal',
+        'type'           => $type,
+        'priority'       => $priority,
         'title'          => $input['title'],
         'body'           => $input['body'],
         'details'        => $input['details'] ?? '',

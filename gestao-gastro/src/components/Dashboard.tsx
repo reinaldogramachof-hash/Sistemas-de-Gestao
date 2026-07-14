@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ui } from '../ui/styles';
+import { getComandaAccessUrl } from '../utils/comandaAccess';
 
 export const Dashboard: React.FC = () => {
   const { orders, tables, products, stockItems, theme } = useApp();
@@ -64,15 +65,7 @@ export const Dashboard: React.FC = () => {
     { label: 'Mesas Ocupadas', value: occupiedTables.toString(), icon: TableIcon, color: 'text-amber-500', bg: 'bg-amber-500/10', trend: `${occupiedTables}/${tables.length}` },
   ];
 
-  const getComandaLink = () => {
-    const origin = window.location.origin;
-    // Pega o slug da URL se existir, senão usa /comanda
-    const match = window.location.pathname.match(/^\/gestao-gastro\/([^/]+)/);
-    if (match) {
-      return `${origin}/gestao-gastro/${match[1]}/comanda`;
-    }
-    return `${origin}/comanda`;
-  };
+  const comandaLink = getComandaAccessUrl(window.location.origin, window.location.pathname);
 
   return (
     <div className="space-y-8 animate-in fade-in duration-200 pb-12">
@@ -96,11 +89,11 @@ export const Dashboard: React.FC = () => {
           </div>
           <div>
             <p className="text-xs font-bold uppercase tracking-wide">Acesso Garçom (Comanda Mobile)</p>
-            <p className="text-[10px] font-bold opacity-50">{getComandaLink()}</p>
+            <p className="text-[10px] font-bold opacity-50">{comandaLink}</p>
           </div>
         </div>
         <button
-          onClick={() => navigator.clipboard.writeText(getComandaLink())}
+          onClick={() => navigator.clipboard.writeText(comandaLink)}
           className="px-4 py-2 bg-accent text-white rounded-lg text-[9px] font-bold uppercase tracking-wide transition-opacity hover:opacity-80"
         >
           Copiar Link

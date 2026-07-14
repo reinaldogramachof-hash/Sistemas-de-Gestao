@@ -732,6 +732,37 @@ function renderDashboard() {
     }
     renderWeeklyChart(chartValues, chartLabels);
 
+    // Avisos de Planos
+    const warningContainer = document.getElementById('dashboard-plan-warnings');
+    if (warningContainer) {
+        let warningsHTML = '';
+        const todayStrLocal = getLocalIsoDate();
+        const todayDate = new Date(todayStrLocal);
+
+        db.clients.forEach(c => {
+            if (c.planDate) {
+                const diffDays = Math.ceil((new Date(c.planDate) - todayDate) / (1000 * 60 * 60 * 24));
+                if (c.planDate < todayStrLocal) {
+                    warningsHTML += `<div class="bg-rose-50 dark:bg-rose-900/20 border-l-4 border-rose-500 p-3 rounded-r-lg text-rose-800 dark:text-rose-400 text-sm flex items-center justify-between"><div class="flex items-center gap-2"><i data-lucide="alert-triangle" class="w-4 h-4"></i> <strong>Cliente: ${sanitizeHTML(c.name)}</strong> - Plano Vencido (${fmtDate(c.planDate)})</div><button onclick="router('clients')" class="text-xs bg-white dark:bg-slate-800 px-2 py-1 rounded shadow-sm hover:bg-rose-100 dark:hover:bg-slate-700 font-bold transition">Ver</button></div>`;
+                } else if (diffDays <= 5) {
+                    warningsHTML += `<div class="bg-amber-50 dark:bg-amber-900/20 border-l-4 border-amber-500 p-3 rounded-r-lg text-amber-800 dark:text-amber-400 text-sm flex items-center justify-between"><div class="flex items-center gap-2"><i data-lucide="clock" class="w-4 h-4"></i> <strong>Cliente: ${sanitizeHTML(c.name)}</strong> - Plano vence em ${diffDays} dia(s)</div><button onclick="router('clients')" class="text-xs bg-white dark:bg-slate-800 px-2 py-1 rounded shadow-sm hover:bg-amber-100 dark:hover:bg-slate-700 font-bold transition">Ver</button></div>`;
+                }
+            }
+        });
+
+        db.team.forEach(t => {
+            if (t.planDate) {
+                const diffDays = Math.ceil((new Date(t.planDate) - todayDate) / (1000 * 60 * 60 * 24));
+                if (t.planDate < todayStrLocal) {
+                    warningsHTML += `<div class="bg-rose-50 dark:bg-rose-900/20 border-l-4 border-rose-500 p-3 rounded-r-lg text-rose-800 dark:text-rose-400 text-sm flex items-center justify-between"><div class="flex items-center gap-2"><i data-lucide="alert-triangle" class="w-4 h-4"></i> <strong>Equipe: ${sanitizeHTML(t.name)}</strong> - Plano Vencido (${fmtDate(t.planDate)})</div><button onclick="router('home')" class="text-xs bg-white dark:bg-slate-800 px-2 py-1 rounded shadow-sm hover:bg-rose-100 dark:hover:bg-slate-700 font-bold transition">Ver</button></div>`;
+                } else if (diffDays <= 5) {
+                    warningsHTML += `<div class="bg-amber-50 dark:bg-amber-900/20 border-l-4 border-amber-500 p-3 rounded-r-lg text-amber-800 dark:text-amber-400 text-sm flex items-center justify-between"><div class="flex items-center gap-2"><i data-lucide="clock" class="w-4 h-4"></i> <strong>Equipe: ${sanitizeHTML(t.name)}</strong> - Plano vence em ${diffDays} dia(s)</div><button onclick="router('home')" class="text-xs bg-white dark:bg-slate-800 px-2 py-1 rounded shadow-sm hover:bg-amber-100 dark:hover:bg-slate-700 font-bold transition">Ver</button></div>`;
+                }
+            }
+        });
+        warningContainer.innerHTML = warningsHTML;
+    }
+
     lucide.createIcons();
 }
 
@@ -882,6 +913,23 @@ function renderTeam() {
         const rawPhone = t.phone ? t.phone.replace(/\D/g, '') : '';
         const waLink = rawPhone ? `https://wa.me/55${rawPhone}` : null;
 
+        let planWarning = '';
+        let planDisplay = '';
+        if (t.planName) {
+            planDisplay = `<span class="text-[10px] font-bold text-slate-500 dark:text-slate-400 mt-1 block">${sanitizeHTML(t.planName)} - ${fmtMoney(t.planValue || 0)}</span>`;
+            if (t.planDate) {
+                const today = getLocalIsoDate();
+                if (t.planDate < today) {
+                    planWarning = `<div class="mt-2 text-[10px] text-rose-500 font-bold bg-rose-50 dark:bg-rose-900/20 p-1.5 rounded flex items-center gap-1"><i data-lucide="alert-circle" class="w-3 h-3"></i> Plano Vencido (${fmtDate(t.planDate)})</div>`;
+                } else {
+                    const daysUntil = Math.ceil((new Date(t.planDate) - new Date(today)) / (1000 * 60 * 60 * 24));
+                    if (daysUntil <= 5) {
+                        planWarning = `<div class="mt-2 text-[10px] text-amber-500 font-bold bg-amber-50 dark:bg-amber-900/20 p-1.5 rounded flex items-center gap-1"><i data-lucide="clock" class="w-3 h-3"></i> Vence em ${daysUntil} dia(s)</div>`;
+                    }
+                }
+            }
+        }
+
         return `
         <div class="bg-white dark:bg-barber-card p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-white/5 flex flex-col justify-between h-full card-hover">
             <div>
@@ -896,8 +944,10 @@ function renderTeam() {
                         <span class="text-[10px] font-bold text-brand-blue dark:text-brand-lightblue uppercase">Comissão: ${t.commission}%</span>
                     </div>
                 </div>
-                <h3 class="font-bold text-lg text-slate-800 dark:text-white mb-1">${sanitizeHTML(t.name)}</h3>
-                ${t.startDate ? `<p class="text-[10px] text-slate-400 dark:text-slate-500 mb-4 flex items-center"><i data-lucide="calendar" class="w-3 h-3 mr-1"></i> Desde ${fmtDate(t.startDate)}</p>` : '<div class="mb-4"></div>'}
+                <h3 class="font-bold text-lg text-slate-800 dark:text-white mb-0">${sanitizeHTML(t.name)}</h3>
+                ${planDisplay}
+                ${t.startDate ? `<p class="text-[10px] text-slate-400 dark:text-slate-500 mt-1 mb-3 flex items-center"><i data-lucide="calendar" class="w-3 h-3 mr-1"></i> Desde ${fmtDate(t.startDate)}</p>` : '<div class="mb-3"></div>'}
+                ${planWarning}
 
                 <div class="space-y-2 mt-4">
                     <div class="flex justify-between text-sm">
@@ -1078,10 +1128,32 @@ function renderClients() {
             ? `<span class="ml-2 text-[10px] font-bold bg-rose-100 text-rose-600 dark:bg-rose-900/40 dark:text-rose-400 px-1.5 py-0.5 rounded-full">Fiado ${fmtMoney(debtTotal)}</span>`
             : '';
 
+        let planBadge = '';
+        if (client.planName) {
+            let planStatusClass = 'bg-blue-100 text-blue-600 dark:bg-blue-900/40 dark:text-brand-lightblue';
+            if (client.planDate) {
+                const today = getLocalIsoDate();
+                if (client.planDate < today) {
+                    planStatusClass = 'bg-rose-100 text-rose-600 dark:bg-rose-900/40 dark:text-rose-400';
+                    planBadge += `<span class="ml-2 text-[10px] font-bold ${planStatusClass} px-1.5 py-0.5 rounded-full" title="Plano vencido em ${fmtDate(client.planDate)}">⚠️ ${sanitizeHTML(client.planName)}</span>`;
+                } else {
+                    const daysUntil = Math.ceil((new Date(client.planDate) - new Date(today)) / (1000 * 60 * 60 * 24));
+                    if (daysUntil <= 5) {
+                        planStatusClass = 'bg-amber-100 text-amber-600 dark:bg-amber-900/40 dark:text-amber-400';
+                        planBadge += `<span class="ml-2 text-[10px] font-bold ${planStatusClass} px-1.5 py-0.5 rounded-full" title="Vence em ${daysUntil} dia(s)">⚠️ ${sanitizeHTML(client.planName)}</span>`;
+                    } else {
+                        planBadge += `<span class="ml-2 text-[10px] font-bold ${planStatusClass} px-1.5 py-0.5 rounded-full">${sanitizeHTML(client.planName)}</span>`;
+                    }
+                }
+            } else {
+                planBadge += `<span class="ml-2 text-[10px] font-bold ${planStatusClass} px-1.5 py-0.5 rounded-full">${sanitizeHTML(client.planName)}</span>`;
+            }
+        }
+
         return `
             <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/50 border-b border-slate-100 dark:border-white/5 transition-colors">
                 <td class="px-6 py-4">
-                    <div class="font-medium text-slate-800 dark:text-white">${sanitizeHTML(client.name)}${debtBadge}</div>
+                    <div class="font-medium text-slate-800 dark:text-white flex items-center flex-wrap gap-y-1">${sanitizeHTML(client.name)}${debtBadge}${planBadge}</div>
                     ${client.email ? `<div class="text-xs text-slate-400 dark:text-slate-500">${sanitizeHTML(client.email)}</div>` : ''}
                 </td>
                 <td class="px-6 py-4 text-slate-600 dark:text-slate-400">${client.phone ? sanitizeHTML(client.phone) : '-'}</td>
@@ -1297,6 +1369,9 @@ function openTeamModal(professional = null) {
         document.getElementById('tm-phone').value = professional.phone || '';
         document.getElementById('tm-start-date').value = professional.startDate || '';
         document.getElementById('tm-notes').value = professional.notes || '';
+        document.getElementById('tm-plan-name').value = professional.planName || '';
+        document.getElementById('tm-plan-value').value = professional.planValue || '';
+        document.getElementById('tm-plan-date').value = professional.planDate || '';
         document.querySelector('#teamModal h3').textContent = 'Editar Barbeiro';
     } else {
         document.querySelector('#teamModal form').reset();
@@ -1346,6 +1421,9 @@ function openClientModal(client = null) {
         document.getElementById('cli-email').value = client.email || '';
         document.getElementById('cli-birthdate').value = client.birthDate || '';
         document.getElementById('cli-notes').value = client.notes || '';
+        document.getElementById('cli-plan-name').value = client.planName || '';
+        document.getElementById('cli-plan-value').value = client.planValue || '';
+        document.getElementById('cli-plan-date').value = client.planDate || '';
     } else {
         document.querySelector('#clientModal form').reset();
         document.getElementById('cli-id').value = '';
@@ -1481,6 +1559,9 @@ function submitTeam(e) {
     const phone = document.getElementById('tm-phone').value.trim();
     const startDate = document.getElementById('tm-start-date').value;
     const notes = document.getElementById('tm-notes').value.trim();
+    const planName = document.getElementById('tm-plan-name').value.trim();
+    const planValue = parseFloat(document.getElementById('tm-plan-value').value) || 0;
+    const planDate = document.getElementById('tm-plan-date').value;
 
     if (!name) {
         showNotification('Por favor, insira o nome do barbeiro.', 'error');
@@ -1494,7 +1575,10 @@ function submitTeam(e) {
         contract,
         phone,
         startDate,
-        notes
+        notes,
+        planName: planName || null,
+        planValue: planName ? planValue : null,
+        planDate: planName ? (planDate || null) : null
     };
 
     if (id) {
@@ -1582,6 +1666,9 @@ function submitClient(e) {
     const email = document.getElementById('cli-email').value.trim();
     const birthDate = document.getElementById('cli-birthdate').value;
     const notes = document.getElementById('cli-notes').value.trim();
+    const planName = document.getElementById('cli-plan-name').value.trim();
+    const planValue = parseFloat(document.getElementById('cli-plan-value').value) || 0;
+    const planDate = document.getElementById('cli-plan-date').value;
 
     if (!name) {
         alert('Por favor, insira o nome do cliente.');
@@ -1604,7 +1691,10 @@ function submitClient(e) {
         email: email || null,
         birthDate: birthDate || null,
         notes: notes || null,
-        createdAt: originalCreatedAt
+        createdAt: originalCreatedAt,
+        planName: planName || null,
+        planValue: planName ? planValue : null,
+        planDate: planName ? (planDate || null) : null
     };
 
     if (id) {

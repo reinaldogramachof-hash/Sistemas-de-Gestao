@@ -1,29 +1,34 @@
-import { useState, useEffect } from 'react';
-import { AppModule, PlanType, isModuleAllowed } from '../config/modulesConfig';
+import { useEffect, useState } from 'react';
+import { AppModule, PlanType, UserRole, isModuleAllowed } from '../config/modulesConfig';
+
+const USER_ROLE_KEY = 'gestao_gastro_user_role';
 
 export const useModules = () => {
-  // Simulando plano atual. Podera vir do localStorage ou da API de licenca.
   const [currentPlan, setCurrentPlan] = useState<PlanType>('base');
+  const [currentRole, setCurrentRole] = useState<UserRole>('admin');
 
   useEffect(() => {
-    // A fonte confiável para definição do plano é a resposta validada da API de licença
-    // gravada sob a chave 'gestao_gastro_verified_plan'. Fallback inicial é sempre 'base'.
     const storedPlan = localStorage.getItem('gestao_gastro_verified_plan') as PlanType;
     const validPlans: PlanType[] = ['base', 'premium', 'master'];
+    const storedRole = localStorage.getItem(USER_ROLE_KEY) as UserRole;
+    const validRoles: UserRole[] = ['owner', 'admin', 'cashier', 'waiter'];
 
     if (storedPlan && validPlans.includes(storedPlan)) {
       setCurrentPlan(storedPlan);
     } else {
       setCurrentPlan('base');
     }
+
+    setCurrentRole(storedRole && validRoles.includes(storedRole) ? storedRole : 'admin');
   }, []);
 
   const checkAccess = (module: AppModule): boolean => {
-    return isModuleAllowed(module, currentPlan);
+    return isModuleAllowed(module, currentPlan, currentRole);
   };
 
   return {
     currentPlan,
-    checkAccess
+    currentRole,
+    checkAccess,
   };
 };

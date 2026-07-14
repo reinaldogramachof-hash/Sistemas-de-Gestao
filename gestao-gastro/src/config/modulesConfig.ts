@@ -17,6 +17,7 @@ export type AppModule =
   | 'evolucao';
 
 export type PlanType = 'base' | 'premium' | 'master';
+export type UserRole = 'owner' | 'admin' | 'cashier' | 'waiter';
 
 export interface PlanConfig {
   plan: PlanType;
@@ -68,8 +69,37 @@ export const getCommercialModuleName = (module: AppModule): string => {
   return commercialModuleAliases[module] ?? module;
 };
 
+export const waiterCapabilities = [
+  'mesas',
+  'cardapio',
+  'pre-fechamento',
+] as const;
+
+export const roleModuleMatrix: Record<UserRole, AppModule[]> = {
+  owner: planMatrix.master.allowedModules,
+  admin: planMatrix.master.allowedModules,
+  cashier: [
+    'dashboard',
+    'pdv',
+    'mesas',
+    'caixa',
+    'produtos',
+    'relatorios',
+    'suporte',
+  ],
+  waiter: [
+    'mesas',
+    'produtos',
+  ],
+};
+
 // Funcao helper para verificar permissao do modulo baseada no plano
-export const isModuleAllowed = (module: AppModule, currentPlan: PlanType = 'base'): boolean => {
+export const isModuleAllowed = (
+  module: AppModule,
+  currentPlan: PlanType = 'base',
+  currentRole: UserRole = 'admin',
+): boolean => {
   const config = planMatrix[currentPlan];
-  return config ? config.allowedModules.includes(module) : false;
+  const roleModules = roleModuleMatrix[currentRole] ?? roleModuleMatrix.admin;
+  return config ? config.allowedModules.includes(module) && roleModules.includes(module) : false;
 };

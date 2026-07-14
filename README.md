@@ -55,8 +55,18 @@ O projeto trabalha com três camadas comerciais principais:
 A matriz oficial e as decisões comerciais ficam documentadas em:
 
 - `ROADMAP_SISTEMAS_DE_GESTAO.md`
+- `docs/POLITICA_COMERCIAL_PLANOS_E_LICENCAS.md`
 - `docs/ESTRATEGIA_PLANOS_VITALICIO_PREMIUM.md`
 - `docs/HIGIENE_E_SEGURANCA_REPO.md`
+
+Atualizacao oficial de canais e liberacoes:
+
+- `ml_lifetime`: venda Mercado Livre via API PHP, R$ 97,00.
+- `direct_lifetime`: venda direta cliente final via API PHP, R$ 299,90.
+- `pro_lifetime`: venda direta local robusta, ainda localStorage/PWA, R$ 599,90.
+- `premium_monthly`: evolucao SaaS mensal com PHP + Supabase, planos e funcionalidades por sistema.
+
+As nomenclaturas antigas como "ML/Vitalicio", "Premium Vitalicio" e "Master/Mensal" devem ser lidas como familias comerciais historicas. A fonte de verdade atual para precos, canais, billing, versao e liberacao evolutiva e `docs/POLITICA_COMERCIAL_PLANOS_E_LICENCAS.md`.
 
 ## Supabase
 

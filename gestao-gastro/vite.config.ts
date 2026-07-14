@@ -6,7 +6,7 @@ import {defineConfig} from 'vite';
 
 export default defineConfig(({mode}) => {
   return {
-    base: './',
+    base: '/gestao-gastro/',
     plugins: [
       react(),
       tailwindcss(),

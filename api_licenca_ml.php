@@ -5,7 +5,7 @@ require_once __DIR__ . '/env_loader.php';
 ini_set('display_errors', 0);
 error_reporting(E_ALL);
 
-// --- CORS DINÂMICO (V11.8) ---
+// --- CORS DINAMICO (V11.8) ---
 // Aceita o domínio de produção (qualquer variação) + localhost para dev
 $ALLOWED_ORIGIN_ENV = env('ALLOWED_ORIGIN', '*');
 $requestOrigin = $_SERVER['HTTP_ORIGIN'] ?? '';
@@ -255,27 +255,208 @@ if ($action === 'dashboard_stats') {
     }
     $db = getDB($fileLicenses);
     $stats = [
-        'total' => count($db),
-        'active' => 0,
-        'pending' => 0,
-        'trial' => 0,
-        'top_products' => []
+        'total_licenses' => count($db),
+        'active_licenses' => 0,
+        'pending_licenses' => 0,
+        'blocked_licenses' => 0,
+        'trial_active' => 0,
+        'trial_expired' => 0,
+        'revenue_total' => 0.0,
+        'recurring_revenue' => 0.0,
+        'by_plan_code' => [],
+        'by_sales_channel' => [],
+        'by_product' => []
     ];
+    $now = time();
     foreach ($db as $l) {
-        if (($l['status'] ?? '') === 'active')
-            $stats['active']++;
-        elseif (($l['status'] ?? '') === 'pending')
-            $stats['pending']++;
+        $status = $l['status'] ?? 'pending';
+        $type = $l['type'] ?? '';
+        $isTrial = !empty($l['is_trial']) || $type === 'trial';
 
-        if (!empty($l['is_trial']))
-            $stats['trial']++;
+        // Contadores Principais
+        if ($status === 'active') {
+            $stats['active_licenses']++;
+        } elseif ($status === 'pending') {
+            $stats['pending_licenses']++;
+        } elseif ($status === 'blocked') {
+            $stats['blocked_licenses']++;
+        }
+
+        // Trials
+        if ($isTrial) {
+            $isExpired = false;
+            if (!empty($l['expiration_date'])) {
+                if ($now > strtotime($l['expiration_date'])) {
+                    $isExpired = true;
+                }
+            }
+            if ($isExpired) {
+                $stats['trial_expired']++;
+            } else {
+                $stats['trial_active']++;
+            }
+        }
+
+        // Receita
+        if (!$isTrial) {
+            $price = isset($l['price']) ? (float)$l['price'] : 0.0;
+            $stats['revenue_total'] += $price;
+
+            $billingModel = $l['billing_model'] ?? '';
+            $planCode = $l['plan_code'] ?? '';
+            if ($billingModel === 'recurring' || $planCode === 'premium_monthly') {
+                $stats['recurring_revenue'] += $price;
+            }
+        }
+
+        // Agrupamentos
+        $planCode = $l['plan_code'] ?? 'ml_lifetime';
+        $stats['by_plan_code'][$planCode] = ($stats['by_plan_code'][$planCode] ?? 0) + 1;
+
+        $channel = $l['sales_channel'] ?? 'mercado_livre';
+        $stats['by_sales_channel'][$channel] = ($stats['by_sales_channel'][$channel] ?? 0) + 1;
 
         $pName = $l['product'] ?? 'Desconhecido';
-        if (!isset($stats['top_products'][$pName]))
-            $stats['top_products'][$pName] = 0;
-        $stats['top_products'][$pName]++;
+        if (!isset($stats['by_product'][$pName])) {
+            $stats['by_product'][$pName] = [
+                'total' => 0,
+                'active' => 0,
+                'pending' => 0,
+                'blocked' => 0
+            ];
+        }
+        $stats['by_product'][$pName]['total']++;
+        if ($status === 'active') {
+            $stats['by_product'][$pName]['active']++;
+        } elseif ($status === 'pending') {
+            $stats['by_product'][$pName]['pending']++;
+        } elseif ($status === 'blocked') {
+            $stats['by_product'][$pName]['blocked']++;
+        }
     }
     echo json_encode($stats);
+    exit;
+}
+
+if ($action === 'customers_summary') {
+    if (!validateSecret($jsonData, $ADMIN_SECRET)) {
+        http_response_code(403);
+        echo json_encode(['status' => 'error', 'message' => 'Acesso Negado']);
+        exit;
+    }
+
+    $db = getDB($fileLicenses);
+    $customers = [];
+
+    foreach ($db as $key => $l) {
+        $email = '';
+        if (!empty($l['email_activation'])) {
+            $email = trim($l['email_activation']);
+        } elseif (isset($l['client']) && str_contains($l['client'], '@')) {
+            $email = trim($l['client']);
+        }
+
+        $groupKey = !empty($email) ? strtolower($email) : trim($l['client'] ?? 'Desconhecido');
+        if (empty($groupKey)) {
+            $groupKey = 'Desconhecido';
+        }
+
+        $status = $l['status'] ?? 'pending';
+        $system = $l['product'] ?? 'Sistema';
+        $created_at = $l['created_at'] ?? '';
+
+        if (!isset($customers[$groupKey])) {
+            $name = $l['client'] ?? 'Desconhecido';
+            if (!empty($email) && $name === $email) {
+                $name = explode('@', $email)[0];
+            }
+
+            $customers[$groupKey] = [
+                'name' => $name,
+                'email' => $email,
+                'slug' => $l['slug'] ?? '',
+                'systems' => [$system],
+                'active_system' => ($status === 'active') ? $system : null,
+                'plan_code' => $l['plan_code'] ?? 'ml_lifetime',
+                'plan_name' => $l['plan_name'] ?? 'ML Vitalício',
+                'billing_model' => $l['billing_model'] ?? 'one_time',
+                'sales_channel' => $l['sales_channel'] ?? 'mercado_livre',
+                'status' => $status,
+                'license_key' => $key,
+                'total_licenses' => 1,
+                'active_licenses' => ($status === 'active') ? 1 : 0,
+                'last_created_at' => $created_at,
+                'public_link' => ''
+            ];
+        } else {
+            $c = &$customers[$groupKey];
+
+            if (!in_array($system, $c['systems'])) {
+                $c['systems'][] = $system;
+            }
+
+            if ($status === 'active') {
+                $c['active_licenses']++;
+                if (empty($c['active_system'])) {
+                    $c['active_system'] = $system;
+                }
+            }
+            $c['total_licenses']++;
+
+            if (!empty($l['slug'])) {
+                $c['slug'] = $l['slug'];
+            }
+
+            if ($status === 'active') {
+                $c['status'] = 'active';
+            } elseif ($c['status'] !== 'active' && $status === 'pending') {
+                $c['status'] = 'pending';
+            }
+
+            $currentCreated = strtotime($created_at);
+            $lastCreated = strtotime($c['last_created_at']);
+            if ($currentCreated > $lastCreated) {
+                $c['last_created_at'] = $created_at;
+                $c['plan_code'] = $l['plan_code'] ?? $c['plan_code'];
+                $c['plan_name'] = $l['plan_name'] ?? $c['plan_name'];
+                $c['billing_model'] = $l['billing_model'] ?? $c['billing_model'];
+                $c['sales_channel'] = $l['sales_channel'] ?? $c['sales_channel'];
+                $c['license_key'] = $key;
+                if (!empty($l['slug'])) {
+                    $c['slug'] = $l['slug'];
+                }
+            }
+        }
+    }
+
+    $response = [];
+    foreach ($customers as $groupKey => $c) {
+        if (empty($c['active_system']) && !empty($c['systems'])) {
+            $c['active_system'] = $c['systems'][0];
+        }
+
+        $sysSlug = strtolower(trim($c['active_system'] ?? ''));
+        $sysPath = '';
+        if (str_contains($sysSlug, 'gastro')) {
+            $sysPath = 'gestao-gastro';
+        } elseif (str_contains($sysSlug, 'barbearia')) {
+            $sysPath = 'gestao-barbearia';
+        } elseif (str_contains($sysSlug, 'beleza')) {
+            $sysPath = 'gestao-beleza';
+        } else {
+            $sysPath = $sysSlug;
+        }
+
+        if (!empty($c['slug']) && !empty($sysPath)) {
+            $c['public_link'] = 'https://sistemasdegestao.tech/' . $sysPath . '/' . $c['slug'];
+        } else {
+            $c['public_link'] = '';
+        }
+
+        $response[] = $c;
+    }
+
+    echo json_encode($response);
     exit;
 }
 
@@ -289,6 +470,10 @@ if ($action === 'generate') {
     $isTrial = !empty($jsonData['trial']);
     $trialDays = (int) ($jsonData['trial_days'] ?? 3);
 
+    $allowedSystems = ['gestao-gastro', 'gestao-barbearia', 'gestao-beleza'];
+    $allowedSegments = ['restaurante', 'bar', 'lanchonete', 'pizzaria', 'hamburgueria', 'barbearia', 'salao', 'estetica', 'geral'];
+    $allowedPlanSlugs = ['basic', 'premium', 'trial'];
+
     $canonicalPlans = [
         'ml_lifetime' => ['name' => 'ML Vitalício', 'billing' => 'one_time', 'channel' => 'mercado_livre', 'version' => 'standalone_ml'],
         'direct_lifetime' => ['name' => 'Direto Vitalício', 'billing' => 'one_time', 'channel' => 'venda_direta', 'version' => 'standalone_direct'],
@@ -300,6 +485,39 @@ if ($action === 'generate') {
         $reqPlanCode = 'ml_lifetime';
     }
     $planMeta = $canonicalPlans[$reqPlanCode];
+
+    $systemId = $jsonData['system_id'] ?? 'gestao-gastro';
+    if (!in_array($systemId, $allowedSystems, true)) {
+        echo json_encode(['status' => 'error', 'message' => 'Sistema nao permitido para licenca.']);
+        exit;
+    }
+
+    $segment = $jsonData['segment'] ?? 'geral';
+    if (!in_array($segment, $allowedSegments, true)) {
+        echo json_encode(['status' => 'error', 'message' => 'Segmento nao permitido para licenca.']);
+        exit;
+    }
+
+    $planSlug = $jsonData['plan_slug'] ?? 'basic';
+    if (!in_array($planSlug, $allowedPlanSlugs, true)) {
+        echo json_encode(['status' => 'error', 'message' => 'Plano do sistema nao permitido.']);
+        exit;
+    }
+
+    $modules = [];
+    if (isset($jsonData['modules']) && is_array($jsonData['modules'])) {
+        $modules = array_values(array_filter(array_map(function ($module) {
+            return preg_replace('/[^a-z0-9_:-]/', '', strtolower(trim((string)$module)));
+        }, $jsonData['modules'])));
+    }
+
+    $maxUsers = array_key_exists('max_users', $jsonData) && $jsonData['max_users'] !== null ? (int)$jsonData['max_users'] : null;
+    $maxDevices = array_key_exists('max_devices', $jsonData) && $jsonData['max_devices'] !== null ? (int)$jsonData['max_devices'] : null;
+    $tenantSlug = preg_replace('/[^a-z0-9-]/', '', strtolower(trim((string)($jsonData['tenant_slug'] ?? ''))));
+    $operationMode = $jsonData['operation_mode'] ?? ($reqPlanCode === 'premium_monthly' ? 'saas' : 'local');
+    if (!in_array($operationMode, ['local', 'saas'], true)) {
+        $operationMode = $reqPlanCode === 'premium_monthly' ? 'saas' : 'local';
+    }
 
     $keys = [];
 
@@ -319,7 +537,16 @@ if ($action === 'generate') {
             'billing_model' => $planMeta['billing'],
             'sales_channel' => $planMeta['channel'],
             'system_version' => $planMeta['version'],
-            'package_version' => $planMeta['version']
+            'package_version' => $planMeta['version'],
+            'system_id' => $systemId,
+            'segment' => $segment,
+            'plan_slug' => $planSlug,
+            'system_plan_name' => $jsonData['system_plan_name'] ?? $planSlug,
+            'modules' => $modules,
+            'max_users' => $maxUsers,
+            'max_devices' => $maxDevices,
+            'tenant_slug' => $tenantSlug,
+            'operation_mode' => $operationMode
         ];
 
         if ($isTrial) {
@@ -406,8 +633,63 @@ if ($action === 'get_receipts') {
         http_response_code(403);
         exit;
     }
-    $db = getDB($fileReceipts);
-    echo json_encode($db);
+    $receipts = getDB($fileReceipts);
+    $licenses = getDB($fileLicenses);
+    $enrichedReceipts = [];
+    $summary = [
+        'total_receipts' => 0,
+        'total_value' => 0.0,
+        'recurring_value' => 0.0,
+        'by_sales_channel' => [],
+        'by_plan_code' => [],
+        'by_status' => []
+    ];
+
+    foreach ($receipts as $receipt) {
+        $licenseKey = $receipt['license_key'] ?? '';
+        $license = $licenses[$licenseKey] ?? [];
+        $price = isset($license['price']) ? (float) $license['price'] : 0.0;
+        $billingModel = $license['billing_model'] ?? '';
+        $salesChannel = $license['sales_channel'] ?? 'mercado_livre';
+        $planCode = $license['plan_code'] ?? 'ml_lifetime';
+        $licenseStatus = $license['status'] ?? 'receipt_only';
+
+        $enrichedReceipts[] = [
+            'timestamp' => $receipt['timestamp'] ?? '',
+            'ip' => $receipt['ip'] ?? '',
+            'license_key' => $licenseKey,
+            'client_email' => $receipt['client_email'] ?? ($license['email_activation'] ?? ($license['client'] ?? 'N/A')),
+            'product' => $receipt['product'] ?? ($license['product'] ?? 'N/A'),
+            'confirmation_text' => $receipt['confirmation_text'] ?? '',
+            'price' => $price,
+            'plan_code' => $planCode,
+            'plan_name' => $license['plan_name'] ?? 'ML Vitalício',
+            'billing_model' => $billingModel,
+            'sales_channel' => $salesChannel,
+            'license_status' => $licenseStatus,
+            'activated_at' => $license['activated_at'] ?? '',
+            'created_at' => $license['created_at'] ?? ''
+        ];
+
+        $summary['total_receipts']++;
+        $summary['total_value'] += $price;
+        if ($billingModel === 'recurring' || $planCode === 'premium_monthly') {
+            $summary['recurring_value'] += $price;
+        }
+        $summary['by_sales_channel'][$salesChannel] = ($summary['by_sales_channel'][$salesChannel] ?? 0) + 1;
+        $summary['by_plan_code'][$planCode] = ($summary['by_plan_code'][$planCode] ?? 0) + 1;
+        $summary['by_status'][$licenseStatus] = ($summary['by_status'][$licenseStatus] ?? 0) + 1;
+    }
+
+    usort($enrichedReceipts, function ($a, $b) {
+        return strcmp($b['timestamp'] ?? '', $a['timestamp'] ?? '');
+    });
+
+    echo json_encode([
+        'status' => 'success',
+        'receipts' => $enrichedReceipts,
+        'summary' => $summary
+    ], JSON_UNESCAPED_UNICODE);
     exit;
 }
 
@@ -416,7 +698,51 @@ if ($action === 'read_logs') {
         http_response_code(403);
         exit;
     }
-    echo file_get_contents($fileLogs) ?: '{"logs":[]}';
+    $db = getDB($fileLogs);
+    $rawLogs = $db['logs'] ?? [];
+    $safeLogs = [];
+    $summary = [
+        'total' => 0,
+        'info' => 0,
+        'warning' => 0,
+        'error' => 0,
+        'last_event_at' => ''
+    ];
+
+    foreach ($rawLogs as $log) {
+        if (!is_array($log)) {
+            continue;
+        }
+
+        $type = strtolower((string) ($log['type'] ?? 'info'));
+        if (!in_array($type, ['info', 'warning', 'error'], true)) {
+            $type = 'info';
+        }
+
+        $timestamp = (string) ($log['timestamp'] ?? '');
+        $safeLogs[] = [
+            'timestamp' => $timestamp,
+            'type' => $type,
+            'message' => (string) ($log['message'] ?? ($log['msg'] ?? '')),
+            'ip' => (string) ($log['ip'] ?? '-')
+        ];
+
+        $summary['total']++;
+        $summary[$type]++;
+        if ($timestamp !== '' && strcmp($timestamp, $summary['last_event_at']) > 0) {
+            $summary['last_event_at'] = $timestamp;
+        }
+    }
+
+    usort($safeLogs, function ($a, $b) {
+        return strcmp($b['timestamp'] ?? '', $a['timestamp'] ?? '');
+    });
+
+    echo json_encode([
+        'status' => 'success',
+        'logs' => $safeLogs,
+        'summary' => $summary
+    ], JSON_UNESCAPED_UNICODE);
     exit;
 }
 

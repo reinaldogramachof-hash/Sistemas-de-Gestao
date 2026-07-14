@@ -3,18 +3,21 @@ import { useApp } from '../store/AppContext';
 import {
   Settings as SettingsIcon, Store, Printer, Database, Save,
   Download, Upload, RefreshCw, Check, AlertTriangle, ShieldCheck,
-  Globe, Phone, MapPin, FileText, Layout
+  Globe, Phone, MapPin, FileText, Layout, QrCode, Copy,
+  ExternalLink, Users, KeyRound, Smartphone, UserCheck
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { AppSettings } from '../types';
+import { getComandaAccessUrl, getComandaQrImageUrl } from '../utils/comandaAccess';
 
 export const Settings: React.FC = () => {
-  const { settings, updateSettings, exportData, importData, resetToMocks, theme } = useApp();
+  const { settings, updateSettings, exportData, importData, resetToMocks, theme, collaborators, tables, currentEmpresa, supabaseOnline } = useApp();
   const isDark = theme === 'dark';
 
   const [formData, setFormData] = useState<AppSettings>(settings);
-  const [activeTab, setActiveTab] = useState<'store' | 'kitchen' | 'printer' | 'data'>('store');
+  const [activeTab, setActiveTab] = useState<'store' | 'access' | 'kitchen' | 'printer' | 'data'>('store');
   const [isSaving, setIsSaving] = useState(false);
+  const [copiedAccess, setCopiedAccess] = useState(false);
 
   const handleSave = () => {
     setIsSaving(true);
@@ -44,8 +47,25 @@ export const Settings: React.FC = () => {
     reader.readAsText(file);
   };
 
+  const comandaAccessUrl = getComandaAccessUrl(window.location.origin, window.location.pathname);
+  const comandaQrUrl = getComandaQrImageUrl(comandaAccessUrl);
+  const waiterMembers = collaborators.filter(member => member.permissions === 'waiter');
+  const activeWaiterMembers = waiterMembers.filter(member => member.status === 'active');
+  const freeTables = tables.filter(table => table.status === 'livre').length;
+
+  const handleCopyAccessLink = async () => {
+    await navigator.clipboard.writeText(comandaAccessUrl);
+    setCopiedAccess(true);
+    setTimeout(() => setCopiedAccess(false), 1200);
+  };
+
+  const handleOpenComanda = () => {
+    window.open(comandaAccessUrl, '_blank', 'noopener,noreferrer');
+  };
+
   const tabs = [
     { id: 'store', label: 'Estabelecimento', icon: Store },
+    { id: 'access', label: 'Acessos e QR Code', icon: QrCode },
     { id: 'kitchen', label: 'Cozinha (KDS)', icon: Layout },
     { id: 'printer', label: 'Impressão', icon: Printer },
     { id: 'data', label: 'Dados & Backup', icon: Database },
@@ -186,6 +206,144 @@ export const Settings: React.FC = () => {
                       className={`w-full p-5 pl-12 rounded-lg border outline-none font-bold text-sm resize-none transition-all ${isDark ? 'bg-transparent border-[#2C2C2E] focus:border-[#475569]' : 'bg-gray-50 border-gray-100 focus:border-[#475569]'}`}
                     />
                   </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'access' && (
+            <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-200">
+              <div className="flex items-center gap-4 border-b border-dashed border-current/10 pb-6 mb-8">
+                <div className="w-12 h-12 rounded-lg bg-emerald-500/10 flex items-center justify-center">
+                  <QrCode className="w-6 h-6 text-emerald-500" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold uppercase tracking-tighter">Acessos e QR Code</h3>
+                  <p className="text-[10px] font-bold uppercase tracking-wide opacity-40">Garçons, mesas e acesso mobile</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 xl:grid-cols-[1fr_280px] gap-6">
+                <div className="space-y-6">
+                  <div className={`p-6 rounded-xl border ${isDark ? 'bg-white/5 border-white/5' : 'bg-gray-50 border-gray-100'}`}>
+                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
+                      <div className="flex items-start gap-4 min-w-0">
+                        <div className="w-11 h-11 rounded-xl bg-blue-500/10 text-blue-500 flex items-center justify-center shrink-0">
+                          <Smartphone className="w-5 h-5" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-xs font-bold uppercase tracking-wide">Link da comanda mobile</p>
+                          <p className="text-[11px] font-semibold opacity-50 break-all mt-1">{comandaAccessUrl}</p>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={handleCopyAccessLink}
+                          className="h-10 px-4 rounded-lg bg-[#475569] text-white text-[9px] font-bold uppercase tracking-wide flex items-center gap-2"
+                        >
+                          {copiedAccess ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                          {copiedAccess ? 'Copiado' : 'Copiar'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleOpenComanda}
+                          className={`h-10 px-4 rounded-lg text-[9px] font-bold uppercase tracking-wide flex items-center gap-2 ${isDark ? 'bg-white/5 hover:bg-white/10' : 'bg-white border border-gray-200 hover:bg-gray-50'}`}
+                        >
+                          <ExternalLink className="w-4 h-4" />
+                          Abrir
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className={`p-5 rounded-xl border ${isDark ? 'bg-white/5 border-white/5' : 'bg-gray-50 border-gray-100'}`}>
+                      <Users className="w-5 h-5 text-emerald-500 mb-4" />
+                      <p className="text-2xl font-black tracking-tighter">{activeWaiterMembers.length}</p>
+                      <p className="text-[9px] font-bold uppercase tracking-wide opacity-40">Garçons ativos</p>
+                    </div>
+                    <div className={`p-5 rounded-xl border ${isDark ? 'bg-white/5 border-white/5' : 'bg-gray-50 border-gray-100'}`}>
+                      <Layout className="w-5 h-5 text-blue-500 mb-4" />
+                      <p className="text-2xl font-black tracking-tighter">{freeTables}/{tables.length}</p>
+                      <p className="text-[9px] font-bold uppercase tracking-wide opacity-40">Mesas livres</p>
+                    </div>
+                    <div className={`p-5 rounded-xl border ${isDark ? 'bg-white/5 border-white/5' : 'bg-gray-50 border-gray-100'}`}>
+                      <ShieldCheck className="w-5 h-5 text-amber-500 mb-4" />
+                      <p className="text-2xl font-black tracking-tighter">{supabaseOnline ? 'Online' : 'Local'}</p>
+                      <p className="text-[9px] font-bold uppercase tracking-wide opacity-40">Modo de acesso</p>
+                    </div>
+                  </div>
+
+                  <div className={`rounded-xl border overflow-hidden ${isDark ? 'bg-white/5 border-white/5' : 'bg-gray-50 border-gray-100'}`}>
+                    <div className="p-5 border-b border-current/10 flex items-center justify-between gap-4">
+                      <div>
+                        <p className="text-xs font-bold uppercase tracking-wide">Garçons liberados</p>
+                        <p className="text-[9px] font-bold uppercase tracking-wide opacity-40">Base local de equipe com permissão waiter</p>
+                      </div>
+                      <UserCheck className="w-5 h-5 text-emerald-500" />
+                    </div>
+                    <div className="divide-y divide-current/10">
+                      {waiterMembers.length === 0 ? (
+                        <div className="p-6 text-xs font-semibold opacity-40">Nenhum garçom cadastrado em equipe.</div>
+                      ) : waiterMembers.map(member => (
+                        <div key={member.id} className="p-5 flex flex-col md:flex-row md:items-center justify-between gap-3">
+                          <div>
+                            <p className="text-sm font-bold">{member.name}</p>
+                            <p className="text-[10px] font-semibold opacity-40">{member.email}</p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className={`px-3 py-1 rounded-lg text-[9px] font-bold uppercase tracking-wide ${member.status === 'active' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-gray-500/10 text-gray-500'}`}>
+                              {member.status === 'active' ? 'Ativo' : 'Inativo'}
+                            </span>
+                            <span className="px-3 py-1 rounded-lg bg-amber-500/10 text-amber-500 text-[9px] font-bold uppercase tracking-wide">
+                              {member.permissions}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className={`p-6 rounded-xl border ${isDark ? 'bg-white/5 border-white/5' : 'bg-gray-50 border-gray-100'}`}>
+                    <div className="flex items-start gap-4">
+                      <KeyRound className="w-5 h-5 text-amber-500 mt-0.5" />
+                      <div className="space-y-3">
+                        <p className="text-xs font-bold uppercase tracking-wide">Liberação segura de usuários</p>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                          {[
+                            'Criar o usuário no Supabase Auth com e-mail e senha individual.',
+                            `Vincular o user_id em tenant_members no tenant ${currentEmpresa.tenantId}.`,
+                            'Definir role waiter e active true para liberar somente mesas, cardápio e pré-fechamento.',
+                          ].map((step, index) => (
+                            <div key={step} className={`p-4 rounded-lg ${isDark ? 'bg-black/20' : 'bg-white'}`}>
+                              <p className="text-[9px] font-black uppercase tracking-wide text-amber-500 mb-2">Passo {index + 1}</p>
+                              <p className="text-[10px] font-bold opacity-60 leading-relaxed">{step}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className={`p-6 rounded-xl border flex flex-col items-center text-center gap-5 ${isDark ? 'bg-white/5 border-white/5' : 'bg-gray-50 border-gray-100'}`}>
+                  <div className="w-full max-w-[240px] rounded-xl bg-white p-4 shadow-sm">
+                    <img src={comandaQrUrl} alt="QR Code da comanda mobile" className="w-full aspect-square object-contain" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-wide">QR Code da comanda</p>
+                    <p className="text-[10px] font-bold opacity-40 uppercase tracking-wide mt-1">Imprima ou fixe perto da operação interna.</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => window.open(comandaQrUrl, '_blank', 'noopener,noreferrer')}
+                    className="w-full h-11 rounded-lg bg-emerald-500 text-white text-[9px] font-bold uppercase tracking-wide flex items-center justify-center gap-2"
+                  >
+                    <QrCode className="w-4 h-4" />
+                    Abrir QR
+                  </button>
                 </div>
               </div>
             </div>

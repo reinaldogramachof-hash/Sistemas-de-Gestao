@@ -8,6 +8,7 @@ import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { resolveTenant } from '../config/clientRoutes';
 
 const SESSION_KEY = 'garcom_session';
+const USER_ROLE_KEY = 'gestao_gastro_user_role';
 
 interface WaiterSession {
   waiterId: string;
@@ -30,6 +31,7 @@ const saveSession = (session: WaiterSession) => {
 
 const clearSession = () => {
   sessionStorage.removeItem(SESSION_KEY);
+  localStorage.removeItem(USER_ROLE_KEY);
 };
 
 /**
@@ -134,6 +136,10 @@ export const ComandaMobileApp: React.FC = () => {
         await supabase.auth.signOut();
         return;
       }
+
+      localStorage.setItem(USER_ROLE_KEY, member.role);
+    } else {
+      localStorage.setItem(USER_ROLE_KEY, 'waiter');
     }
 
     const name = email.split('@')[0];

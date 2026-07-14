@@ -21,7 +21,7 @@ O objetivo não é substituir o vitalício pelo premium, mas criar uma escada na
 ```text
 Mercado Livre R$97
   -> Venda direta R$299,90
-    -> Pro Vitalício R$497-R$697
+    -> Pro Vitalício R$599,90
       -> Premium Online mensal
         -> Módulos avulsos e planos avançados
 ```
@@ -80,7 +80,7 @@ Papel na estratégia:
 
 ## 3. Canais e Preços
 
-> **NOTA IMPORTANTE:** A estratégia de planos foi formalizada e a matriz oficial atualizada encontra-se em: [docs/ESTRATEGIA_PLANOS_VITALICIO_PREMIUM.md](docs/ESTRATEGIA_PLANOS_VITALICIO_PREMIUM.md).
+> **NOTA IMPORTANTE:** A estratégia de planos foi formalizada e a matriz oficial atualizada encontra-se em: [docs/POLITICA_COMERCIAL_PLANOS_E_LICENCAS.md](docs/POLITICA_COMERCIAL_PLANOS_E_LICENCAS.md) e [docs/ESTRATEGIA_PLANOS_VITALICIO_PREMIUM.md](docs/ESTRATEGIA_PLANOS_VITALICIO_PREMIUM.md).
 >
 > A diretriz principal estabelece que:
 > - O plano **ML Vitalício** permanece como produto local/offline pronto para venda.
@@ -122,7 +122,7 @@ Posicionamento:
 
 ### Pro Vitalício
 
-Faixa sugerida: **R$497,00 a R$697,00**.
+Preço oficial atual: **R$599,90**.
 
 Objetivo:
 

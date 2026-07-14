@@ -52,13 +52,22 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ order, onClose, on
   const stagedAmountPaid = payments.reduce((acc, payment) => acc + payment.amount, 0);
   const amountPaid = partialAmountPaid + stagedAmountPaid;
   const amountRemaining = Math.max(0, totalAmount - amountPaid);
-  const troco = checkoutMode === 'parcial' ? 0 : Math.max(0, amountPaid - totalAmount);
+  const amountReceived = partialAmountPaid + payments.reduce((acc, payment) => acc + (payment.receivedAmount ?? payment.amount), 0);
+  const troco = checkoutMode === 'parcial' ? 0 : payments.reduce((acc, payment) => acc + (payment.changeAmount ?? 0), 0);
+  const draftAmount = parseFloat(amountInput.replace(',', '.')) || 0;
+  const draftTroco = checkoutMode === 'fechar' && currentMethod === 'dinheiro'
+    ? Math.max(0, draftAmount - amountRemaining)
+    : 0;
 
   useEffect(() => {
     if (amountInput === '' && amountRemaining > 0) {
-      setAmountInput(amountRemaining.toFixed(2));
+      if (splitMode === 'pessoas' && splitCount > 1 && amountRemaining >= (totalAmount / splitCount) - 0.01) {
+        setAmountInput((totalAmount / splitCount).toFixed(2));
+      } else {
+        setAmountInput(amountRemaining.toFixed(2));
+      }
     }
-  }, [amountRemaining, amountInput]);
+  }, [amountRemaining, amountInput, splitMode, splitCount, totalAmount]);
 
   const loyaltyPointsRedeemed = redeemLoyalty && canRedeem ? loyaltyConfig.redeemThreshold : 0;
 
@@ -107,7 +116,26 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ order, onClose, on
   const handleAddPayment = () => {
     const value = parseFloat(amountInput.replace(',', '.'));
     if (isNaN(value) || value <= 0) return;
-    setPayments(prev => [...prev, { method: currentMethod, amount: value }]);
+
+    if (currentMethod !== 'dinheiro' && value > amountRemaining + 0.01) {
+      alert(`Valor para ${PAYMENT_METHODS.find(m => m.id === currentMethod)?.label} não pode ser maior que o saldo devedor.`);
+      return;
+    }
+
+    if (amountRemaining <= 0.01) return;
+
+    const settledAmount = currentMethod === 'dinheiro'
+      ? Math.min(value, amountRemaining)
+      : value;
+    const changeAmount = currentMethod === 'dinheiro'
+      ? Math.max(0, value - settledAmount)
+      : 0;
+
+    setPayments(prev => [...prev, {
+      method: currentMethod,
+      amount: settledAmount,
+      ...(currentMethod === 'dinheiro' ? { receivedAmount: value, changeAmount } : {}),
+    }]);
     setAmountInput('');
   };
 
@@ -118,7 +146,12 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ order, onClose, on
 
   const handleRegisterPartialPayment = () => {
     const value = parseFloat(amountInput.replace(',', '.'));
-    if (isNaN(value) || value <= 0 || value > amountRemaining + 0.01) return;
+    if (isNaN(value) || value <= 0) return;
+
+    if (value > amountRemaining + 0.01) {
+      alert('Valor não pode ser maior que o saldo da mesa. O troco não é suportado em pagamento parcial.');
+      return;
+    }
 
     const nextPartialPayments: PartialPaymentItem[] = [
       ...partialPayments,
@@ -351,6 +384,13 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ order, onClose, on
                   </button>
                 ))}
               </div>
+              <label className={`block mb-2 text-xs font-medium ${isDark ? 'text-[var(--color-muted)]' : 'text-muted-light'}`}>
+                {checkoutMode === 'parcial'
+                  ? 'Valor do pagamento parcial'
+                  : currentMethod === 'dinheiro'
+                    ? 'Valor recebido'
+                    : 'Valor do pagamento'}
+              </label>
               <div className="flex gap-2">
                 <div className="relative flex-1">
                   <span className={`absolute left-3 top-1/2 -translate-y-1/2 text-sm ${isDark ? 'text-[var(--color-muted)]' : 'text-muted-light'}`}>R$</span>
@@ -369,6 +409,12 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ order, onClose, on
                   {checkoutMode === 'parcial' ? 'Registrar' : 'Adicionar'}
                 </button>
               </div>
+              {checkoutMode === 'fechar' && currentMethod === 'dinheiro' && (
+                <div className={`mt-2 flex items-center justify-between rounded-control border px-3 py-2 text-xs ${isDark ? 'bg-[var(--color-app-base)] border-[var(--color-border)]' : 'bg-elevated-light border-border-light'}`}>
+                  <span className={isDark ? 'text-[var(--color-muted)]' : 'text-muted-light'}>Troco a devolver</span>
+                  <span className="font-bold text-warning">R$ {draftTroco.toFixed(2)}</span>
+                </div>
+              )}
             </div>
 
             {payments.length > 0 && (
@@ -377,7 +423,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ order, onClose, on
                   <div key={idx} className="flex justify-between items-center">
                     <span className="capitalize">{payment.method}</span>
                     <div className="flex items-center gap-3">
-                      <span className="font-medium">R$ {payment.amount.toFixed(2)}</span>
+                      <span className="font-medium">R$ {(payment.receivedAmount ?? payment.amount).toFixed(2)}</span>
                       <button
                         onClick={() => handleRemovePayment(idx)}
                         className={`text-xs px-2 py-0.5 rounded border transition-colors ${isDark ? 'border-[var(--color-border)] text-[var(--color-muted)] hover:border-red-800 hover:text-danger' : 'border-border-light text-muted-light hover:border-red-300 hover:text-danger'}`}
@@ -392,8 +438,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ order, onClose, on
 
             <div className={`p-4 rounded-control border space-y-1.5 text-sm ${isDark ? 'bg-[var(--color-app-base)] border-[var(--color-border)]' : 'bg-elevated-light border-border-light'}`}>
               <div className="flex justify-between">
-                <span className={isDark ? 'text-[var(--color-muted)]' : 'text-muted-light'}>Total pago</span>
-                <span className="font-bold text-success">R$ {amountPaid.toFixed(2)}</span>
+                <span className={isDark ? 'text-[var(--color-muted)]' : 'text-muted-light'}>Valor recebido</span>
+                <span className="font-bold text-success">R$ {amountReceived.toFixed(2)}</span>
               </div>
               {amountRemaining > 0.01 && (
                 <div className="flex justify-between">

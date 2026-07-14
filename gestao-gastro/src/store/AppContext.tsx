@@ -1,11 +1,14 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Product, Table, Order, Waiter, Expense, CashierSession, PaymentItem, Customer, Collaborator, StockMovement, StockItem, Supplier, AppSettings, KitchenItemStatus, Promotion, Combo, Campaign, LoyaltyConfig, LoyaltyEntry } from '../types';
 import { mockProducts, mockTables, mockWaiters, mockCustomers, mockCollaborators, mockStockItems, mockSuppliers, mockSettings } from './mock';
+import { cantinhoDaResenhaProducts } from './cantinhoDaResenhaSeed';
+import { CANTINHO_DA_RESENHA_SLUG, getClientSlugFromPath } from '../config/clientRoutes';
 import { useTables } from '../hooks/useTables';
 import { useOrders } from '../hooks/useOrders';
-import { isSupabaseConfigured } from '../lib/supabase';
+import { isSupabaseConfigured, supabase } from '../lib/supabase';
 import { setTableOccupied, clearTable as clearTableSupabase } from '../services/tablesSupabaseService';
 import { createOrder as createOrderSupabase, closeOrder as closeOrderSupabase } from '../services/ordersSupabaseService';
+import { syncProduct } from '../services/menuSupabaseService';
 
 const TENANT_ID = import.meta.env.VITE_GASTRO_TENANT_ID as string;
 const LOCAL_TENANT_ID = 'default-empresa';
@@ -35,6 +38,7 @@ interface AppState {
   supabaseOnline: boolean;
   loyaltyConfig: LoyaltyConfig;
   loyaltyEntries: LoyaltyEntry[];
+  productSyncErrors: Record<string, string>;
 }
 
 interface AppContextType extends AppState {
@@ -42,6 +46,9 @@ interface AppContextType extends AppState {
   updateProduct: (product: Product) => void;
   addProduct: (product: Product) => void;
   deleteProduct: (id: string) => void;
+  retrySyncProduct: (product: Product) => Promise<void>;
+  clearSyncError: (id: string) => void;
+  reloadCollaborators: () => Promise<void>;
   updateStockItem: (item: StockItem) => void;
   addStockItem: (item: StockItem) => void;
   deleteStockItem: (id: string) => void;
@@ -77,11 +84,25 @@ interface AppContextType extends AppState {
   clearDraftOrder: () => void;
   updateOrderItemKitchenStatus: (orderId: string, itemIndex: number, status: KitchenItemStatus) => void;
   addLoyaltyEntry: (entry: Omit<LoyaltyEntry, 'id' | 'empresaId' | 'createdAt'>) => void;
+  initializeTables: (count: number) => Promise<void>;
 }
+
+const getTenantKey = (key: string): string => {
+  const TENANT_ID = import.meta.env.VITE_GASTRO_TENANT_ID as string;
+  const LOCAL_TENANT_ID = 'default-empresa';
+
+  if (import.meta.env.PROD && !TENANT_ID) {
+    throw new Error('Tenant ID ausente. Operação remota bloqueada.');
+  }
+
+  const currentTenantId = TENANT_ID ? TENANT_ID : LOCAL_TENANT_ID;
+  return `gestao_gastro:${currentTenantId}:${key}`;
+};
 
 const parseJSON = <T,>(key: string, fallback: T): T => {
   try {
-    const item = localStorage.getItem(key);
+    const tenantKey = getTenantKey(key);
+    const item = localStorage.getItem(tenantKey);
     if (!item) return fallback;
     const parsed = JSON.parse(item);
     if (Array.isArray(parsed) && parsed.length === 0 && Array.isArray(fallback) && fallback.length > 0) {
@@ -96,23 +117,45 @@ const parseJSON = <T,>(key: string, fallback: T): T => {
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [products, setProducts] = useState<Product[]>(() => parseJSON('products', mockProducts));
-  const [stockItems, setStockItems] = useState<StockItem[]>(() => parseJSON('stockItems', mockStockItems));
-  const [suppliers, setSuppliers] = useState<Supplier[]>(() => parseJSON('suppliers', mockSuppliers));
+  const isSaaS = Boolean(import.meta.env.VITE_GASTRO_TENANT_ID && import.meta.env.VITE_GASTRO_TENANT_ID !== 'default-empresa');
+
+  const isCantinhoRoute = getClientSlugFromPath(window.location.pathname) === CANTINHO_DA_RESENHA_SLUG;
+  const defaultProducts = isCantinhoRoute
+    ? cantinhoDaResenhaProducts
+    : mockProducts;
+
+  // The Cantinho menu remains visible while its authenticated remote catalog loads.
+  const initialProductsFallback = isSaaS && !isCantinhoRoute ? [] : defaultProducts;
+  const initialStockFallback = isSaaS ? [] : mockStockItems;
+  const initialSuppliersFallback = isSaaS ? [] : mockSuppliers;
+  const initialTablesFallback = isSaaS ? [] : mockTables;
+  const initialWaitersFallback = isSaaS ? [] : mockWaiters;
+  const initialCustomersFallback = isSaaS ? [] : mockCustomers;
+  const initialCollaboratorsFallback = isSaaS ? [] : mockCollaborators;
+  const initialSettingsFallback = mockSettings;
+
+  const [products, setProducts] = useState<Product[]>(() => parseJSON('products', initialProductsFallback));
+  const [stockItems, setStockItems] = useState<StockItem[]>(() => parseJSON('stockItems', initialStockFallback));
+  const [suppliers, setSuppliers] = useState<Supplier[]>(() => parseJSON('suppliers', initialSuppliersFallback));
+
   // Mesas e pedidos: controlados pelos hooks Supabase quando online, ou pelo estado local
   const [localTables, setLocalTables] = useState<Table[]>(() => {
-    const saved = parseJSON<Table[]>('tables', mockTables);
-    return saved.length !== mockTables.length ? mockTables : saved;
+    const saved = parseJSON<Table[]>('tables', initialTablesFallback);
+    if (!isSaaS && saved.length !== initialTablesFallback.length) {
+      return initialTablesFallback;
+    }
+    return saved;
   });
+
   const [localOrders, setLocalOrders] = useState<Order[]>(() => parseJSON('orders', []));
-  const [waiters] = useState<Waiter[]>(() => parseJSON('waiters', mockWaiters));
+  const [waiters] = useState<Waiter[]>(() => parseJSON('waiters', initialWaitersFallback));
   const [expenses, setExpenses] = useState<Expense[]>(() => parseJSON('expenses', []));
   const [cashierSession, setCashierSession] = useState<CashierSession | null>(() => parseJSON('cashierSession', null));
   const [cashierHistory, setCashierHistory] = useState<CashierSession[]>(() => parseJSON('cashierHistory', []));
-  const [customers, setCustomers] = useState<Customer[]>(() => parseJSON('customers', mockCustomers));
-  const [collaborators, setCollaborators] = useState<Collaborator[]>(() => parseJSON('collaborators', mockCollaborators));
+  const [customers, setCustomers] = useState<Customer[]>(() => parseJSON('customers', initialCustomersFallback));
+  const [collaborators, setCollaborators] = useState<Collaborator[]>(() => parseJSON('collaborators', initialCollaboratorsFallback));
   const [stockMovements, setStockMovements] = useState<StockMovement[]>(() => parseJSON('stockMovements', []));
-  const [settings, setSettings] = useState<AppSettings>(() => parseJSON('settings', mockSettings));
+  const [settings, setSettings] = useState<AppSettings>(() => parseJSON('settings', initialSettingsFallback));
   const [readGuides, setReadGuides] = useState<string[]>(() => parseJSON('readGuides', []));
   const [theme, setTheme] = useState<'dark' | 'light'>(() => {
     const th = localStorage.getItem('theme');
@@ -125,6 +168,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [campaigns, setCampaigns] = useState<Campaign[]>(() => parseJSON('campaigns', []));
   const [loyaltyConfig, setLoyaltyConfig] = useState<LoyaltyConfig>(() => parseJSON('loyaltyConfig', { empresaId: 'default-empresa', active: false, pointsPerReal: 1, redeemThreshold: 100, redeemValue: 10 }));
   const [loyaltyEntries, setLoyaltyEntries] = useState<LoyaltyEntry[]>(() => parseJSON('loyaltyEntries', []));
+  const [productSyncErrors, setProductSyncErrors] = useState<Record<string, string>>(() => parseJSON('productSyncErrors', {}));
+  const [productSyncIds, setProductSyncIds] = useState<Record<string, string>>(() => parseJSON('productSyncIds', {}));
+  const [supabaseOnline, setSupabaseOnline] = useState(false);
 
   // ─── Supabase hooks (mesas e pedidos em tempo real) ───────────────────────
   const tablesHook = useTables(TENANT_ID);
@@ -168,33 +214,226 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     : localOrders;
 
   const currentTenantId = TENANT_ID || LOCAL_TENANT_ID;
-  const currentEmpresa = { id: currentTenantId, name: 'Cantinho da Resenha', tenantId: currentTenantId };
-  const currentUser = { id: 'admin', name: 'Administrador', role: 'admin' };
-  const supabaseOnline = isSupabaseConfigured;
+  const currentEmpresa = {
+    id: currentTenantId,
+    name: settings.establishment.name || 'Cantinho da Resenha',
+    tenantId: currentTenantId
+  };
+
+  const [currentUser, setCurrentUser] = useState({ id: 'admin', name: 'Administrador', role: 'admin' });
+
+  // Monitora sessão Supabase para atualizar o currentUser
+  useEffect(() => {
+    if (isSupabaseConfigured && supabase) {
+      const updateCurrentUser = async () => {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session && session.user) {
+          const userName = localStorage.getItem('gestao_gastro_user_name') || session.user.user_metadata?.display_name || session.user.email || 'Administradora';
+          const userRole = localStorage.getItem('gestao_gastro_user_role') || 'admin';
+          setCurrentUser({
+            id: session.user.id,
+            name: userName,
+            role: userRole
+          });
+        }
+      };
+
+      updateCurrentUser();
+
+      const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+        if (session && session.user) {
+          const userName = localStorage.getItem('gestao_gastro_user_name') || session.user.user_metadata?.display_name || session.user.email || 'Administradora';
+          const userRole = localStorage.getItem('gestao_gastro_user_role') || 'admin';
+          setCurrentUser({
+            id: session.user.id,
+            name: userName,
+            role: userRole
+          });
+        } else {
+          setCurrentUser({ id: 'admin', name: 'Administrador', role: 'admin' });
+        }
+      });
+
+      return () => {
+        subscription.unsubscribe();
+      };
+    }
+  }, [isSupabaseConfigured]);
+
+  // Função para recarregar colaboradores da tabela tenant_members no Supabase
+  const reloadCollaborators = async () => {
+    if (!isSupabaseConfigured || !supabase || !TENANT_ID) return;
+    try {
+      const { data, error } = await supabase
+        .from('tenant_members')
+        .select('user_id, role, display_name, active')
+        .eq('tenant_id', TENANT_ID);
+
+      if (error) throw error;
+
+      if (data) {
+        const mapped: Collaborator[] = data.map((member: any) => ({
+          id: member.user_id,
+          name: member.display_name || 'Colaborador sem nome',
+          role: member.role === 'owner' ? 'Proprietário' : member.role === 'admin' ? 'Administrador' : 'Garçom',
+          email: '',
+          status: member.active ? 'active' : 'inactive',
+          joinedAt: new Date().toISOString().split('T')[0],
+          permissions: member.role === 'owner' ? 'admin' : member.role === 'admin' ? 'admin' : 'waiter'
+        }));
+        setCollaborators(mapped);
+        localStorage.setItem(getTenantKey('collaborators'), JSON.stringify(mapped));
+      }
+    } catch (err) {
+      console.error('Erro ao carregar colaboradores do Supabase:', err);
+    }
+  };
+
+  // Carrega colaboradores da tabela tenant_members no Supabase na montagem/alteração do tenant
+  useEffect(() => {
+    reloadCollaborators();
+  }, [isSupabaseConfigured, TENANT_ID]);
+
+  // Migração e limpeza de chaves legadas para armazenamento com prefixo de tenant
+  useEffect(() => {
+    const runMigration = async () => {
+      const migratedKey = getTenantKey('migrated');
+      const alreadyMigrated = localStorage.getItem(migratedKey);
+      if (alreadyMigrated === 'true') return;
+
+      const isCantinho = getClientSlugFromPath(window.location.pathname) === CANTINHO_DA_RESENHA_SLUG;
+
+      // Limpa as chaves legadas globais (não prefixadas) para liberar espaço e evitar vazamento
+      const legacyKeys = [
+        'stockItems', 'suppliers', 'collaborators', 'customers',
+        'tables', 'orders', 'expenses', 'cashierSession',
+        'cashierHistory', 'promotions', 'combos', 'campaigns'
+      ];
+      legacyKeys.forEach(k => localStorage.removeItem(k));
+
+      // Se for SaaS/Cantinho da Resenha, inicializamos com as listas vazias/neutras nas novas chaves prefixadas
+      if (isSaaS) {
+        localStorage.setItem(getTenantKey('stockItems'), JSON.stringify([]));
+        localStorage.setItem(getTenantKey('suppliers'), JSON.stringify([]));
+        localStorage.setItem(getTenantKey('customers'), JSON.stringify([]));
+        localStorage.setItem(getTenantKey('collaborators'), JSON.stringify([]));
+        localStorage.setItem(getTenantKey('orders'), JSON.stringify([]));
+        localStorage.setItem(getTenantKey('expenses'), JSON.stringify([]));
+        localStorage.setItem(getTenantKey('stockMovements'), JSON.stringify([]));
+        localStorage.setItem(getTenantKey('cashierSession'), JSON.stringify(null));
+        localStorage.setItem(getTenantKey('cashierHistory'), JSON.stringify([]));
+        localStorage.setItem(getTenantKey('promotions'), JSON.stringify([]));
+        localStorage.setItem(getTenantKey('combos'), JSON.stringify([]));
+        localStorage.setItem(getTenantKey('campaigns'), JSON.stringify([]));
+        localStorage.setItem(getTenantKey('tables'), JSON.stringify([])); // Inicia sem mesas locais
+
+        // Define configurações neutras para o Cantinho ou outro SaaS
+        const neutralSettings = {
+          establishment: {
+            name: isCantinho ? 'Cantinho da Resenha' : '',
+            address: '',
+            phone: '',
+            document: '',
+            website: ''
+          },
+          thermalPrinter: {
+            enabled: false,
+            autoPrint: false,
+            showLogo: false,
+            paperWidth: '80mm' as const
+          },
+          serviceChargeRate: 0.10
+        };
+        localStorage.setItem(getTenantKey('settings'), JSON.stringify(neutralSettings));
+
+        // Atualiza os estados React locais de forma imediata
+        setStockItems([]);
+        setSuppliers([]);
+        setCustomers([]);
+        setCollaborators([]);
+        setLocalOrders([]);
+        setExpenses([]);
+        setStockMovements([]);
+        setCashierSession(null);
+        setCashierHistory([]);
+        setLocalTables([]);
+        setSettings(neutralSettings);
+      }
+
+      // Baixa o cardápio real do Supabase se online
+      localStorage.setItem(migratedKey, 'true');
+      localStorage.setItem('gastro_cantinho_initialized', 'true');
+    };
+
+    runMigration();
+  }, [isSupabaseConfigured, TENANT_ID, isSaaS]);
 
   useEffect(() => {
-    localStorage.setItem('products', JSON.stringify(products));
-    localStorage.setItem('stockItems', JSON.stringify(stockItems));
-    localStorage.setItem('suppliers', JSON.stringify(suppliers));
-    localStorage.setItem('tables', JSON.stringify(localTables));
-    localStorage.setItem('waiters', JSON.stringify(waiters));
-    localStorage.setItem('orders', JSON.stringify(localOrders));
-    localStorage.setItem('expenses', JSON.stringify(expenses));
-    localStorage.setItem('cashierSession', JSON.stringify(cashierSession));
-    localStorage.setItem('cashierHistory', JSON.stringify(cashierHistory));
-    localStorage.setItem('customers', JSON.stringify(customers));
-    localStorage.setItem('collaborators', JSON.stringify(collaborators));
-    localStorage.setItem('stockMovements', JSON.stringify(stockMovements));
-    localStorage.setItem('settings', JSON.stringify(settings));
-    localStorage.setItem('readGuides', JSON.stringify(readGuides));
+    if (!isSupabaseConfigured || !supabase) {
+      setSupabaseOnline(false);
+      return;
+    }
+
+    let mounted = true;
+    void supabase.auth.getSession().then(({ data }) => {
+      if (mounted) setSupabaseOnline(Boolean(data.session));
+    });
+
+    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (mounted) setSupabaseOnline(Boolean(session));
+    });
+
+    return () => {
+      mounted = false;
+      authListener.subscription.unsubscribe();
+    };
+  }, []);
+
+  // Never request tenant data before Supabase Auth restores a valid session.
+  // Keep the visible catalog intact if the remote request is empty or fails.
+  useEffect(() => {
+    if (!isSupabaseConfigured || !TENANT_ID || !supabaseOnline) return;
+
+    let mounted = true;
+    void import('../services/menuSupabaseService')
+      .then(({ listActiveProducts }) => listActiveProducts(TENANT_ID))
+      .then(activeProducts => {
+        if (!mounted || activeProducts.length === 0) return;
+        setProducts(activeProducts);
+        localStorage.setItem(getTenantKey('products'), JSON.stringify(activeProducts));
+      })
+      .catch(error => console.error('Erro ao sincronizar cardapio remoto:', error));
+
+    return () => {
+      mounted = false;
+    };
+  }, [supabaseOnline]);
+
+  useEffect(() => {
+    localStorage.setItem(getTenantKey('products'), JSON.stringify(products));
+    localStorage.setItem(getTenantKey('stockItems'), JSON.stringify(stockItems));
+    localStorage.setItem(getTenantKey('suppliers'), JSON.stringify(suppliers));
+    localStorage.setItem(getTenantKey('tables'), JSON.stringify(localTables));
+    localStorage.setItem(getTenantKey('waiters'), JSON.stringify(waiters));
+    localStorage.setItem(getTenantKey('orders'), JSON.stringify(localOrders));
+    localStorage.setItem(getTenantKey('expenses'), JSON.stringify(expenses));
+    localStorage.setItem(getTenantKey('cashierSession'), JSON.stringify(cashierSession));
+    localStorage.setItem(getTenantKey('cashierHistory'), JSON.stringify(cashierHistory));
+    localStorage.setItem(getTenantKey('customers'), JSON.stringify(customers));
+    localStorage.setItem(getTenantKey('collaborators'), JSON.stringify(collaborators));
+    localStorage.setItem(getTenantKey('stockMovements'), JSON.stringify(stockMovements));
+    localStorage.setItem(getTenantKey('settings'), JSON.stringify(settings));
+    localStorage.setItem(getTenantKey('readGuides'), JSON.stringify(readGuides));
     localStorage.setItem('theme', theme);
-    localStorage.setItem('draftOrder', JSON.stringify(draftOrder));
-    localStorage.setItem('promotions', JSON.stringify(promotions));
-    localStorage.setItem('combos', JSON.stringify(combos));
-    localStorage.setItem('campaigns', JSON.stringify(campaigns));
-    localStorage.setItem('loyaltyConfig', JSON.stringify(loyaltyConfig));
-    localStorage.setItem('loyaltyEntries', JSON.stringify(loyaltyEntries));
-  }, [products, stockItems, suppliers, localTables, waiters, localOrders, expenses, cashierSession, cashierHistory, customers, collaborators, stockMovements, settings, readGuides, theme, draftOrder, promotions, combos, campaigns, loyaltyConfig, loyaltyEntries]);
+    localStorage.setItem(getTenantKey('draftOrder'), JSON.stringify(draftOrder));
+    localStorage.setItem(getTenantKey('promotions'), JSON.stringify(promotions));
+    localStorage.setItem(getTenantKey('combos'), JSON.stringify(combos));
+    localStorage.setItem(getTenantKey('campaigns'), JSON.stringify(campaigns));
+    localStorage.setItem(getTenantKey('loyaltyConfig'), JSON.stringify(loyaltyConfig));
+    localStorage.setItem(getTenantKey('loyaltyEntries'), JSON.stringify(loyaltyEntries));
+    localStorage.setItem(getTenantKey('productSyncErrors'), JSON.stringify(productSyncErrors));
+    localStorage.setItem(getTenantKey('productSyncIds'), JSON.stringify(productSyncIds));
+  }, [products, stockItems, suppliers, localTables, waiters, localOrders, expenses, cashierSession, cashierHistory, customers, collaborators, stockMovements, settings, readGuides, theme, draftOrder, promotions, combos, campaigns, loyaltyConfig, loyaltyEntries, productSyncErrors, productSyncIds]);
 
   const setDraftOrder = (order: Order | null) => setDraftOrderState(order);
   const clearDraftOrder = () => setDraftOrderState(null);
@@ -209,9 +448,39 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }));
   };
 
+  const initializeTenantTables = async (count: number) => {
+    if (isSupabaseConfigured) {
+      await tablesHook.initialize(count);
+    } else {
+      const newTables: Table[] = Array.from({ length: count }, (_, i) => ({
+        number: i + 1,
+        status: 'livre'
+      }));
+      setLocalTables(newTables);
+    }
+  };
+
   const resetToMocks = () => {
-    localStorage.clear();
-    window.location.reload();
+    if (isSaaS) {
+      const confirmReset = window.confirm(
+        "Atenção: Esta ação irá limpar todos os dados operacionais locais deste restaurante (estoque, fornecedores, clientes locais, histórico de caixa, despesas e pedidos locais).\n\n" +
+        "Esta ação NÃO afeta o cardápio ou dados salvos na nuvem.\n\n" +
+        "Deseja prosseguir com a limpeza?"
+      );
+      if (!confirmReset) return;
+
+      const keysToClear = [
+        'stockItems', 'suppliers', 'customers', 'collaborators',
+        'orders', 'expenses', 'stockMovements', 'cashierSession',
+        'cashierHistory', 'promotions', 'combos', 'campaigns', 'tables'
+      ];
+      keysToClear.forEach(k => localStorage.removeItem(getTenantKey(k)));
+
+      window.location.reload();
+    } else {
+      localStorage.clear();
+      window.location.reload();
+    }
   };
 
   const exportData = () => {
@@ -250,16 +519,72 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     );
   };
 
+  const syncProductSafely = async (product: Product) => {
+    if (!supabaseOnline || !TENANT_ID) return;
+
+    try {
+      const remoteId = await syncProduct(TENANT_ID, product, productSyncIds[product.id]);
+      setProductSyncIds(prev => ({ ...prev, [product.id]: remoteId }));
+      setProductSyncErrors(prev => {
+        const copy = { ...prev };
+        delete copy[product.id];
+        return copy;
+      });
+    } catch (err) {
+      setProductSyncErrors(prev => ({
+        ...prev,
+        [product.id]: err instanceof Error ? err.message : 'Falha na sincronização online'
+      }));
+    }
+  };
+
   const updateProduct = (updatedProduct: Product) => {
     setProducts(prev => prev.map(p => p.id === updatedProduct.id ? updatedProduct : p));
+    void syncProductSafely(updatedProduct);
   };
 
   const addProduct = (product: Product) => {
     setProducts(prev => [...prev, product]);
+    void syncProductSafely(product);
   };
 
   const deleteProduct = (id: string) => {
-    setProducts(prev => prev.filter(p => p.id !== id));
+    const product = products.find(p => p.id === id);
+    if (!product) return;
+
+    const inactiveProduct = { ...product, active: false };
+    setProducts(prev => prev.map(p => p.id === id ? inactiveProduct : p));
+    void syncProductSafely(inactiveProduct);
+  };
+
+  const retrySyncProduct = async (product: Product) => {
+    if (!supabaseOnline || !TENANT_ID) {
+      throw new Error('Sincronização indisponível. Entre com uma conta autorizada do restaurante.');
+    }
+    try {
+      const remoteId = await syncProduct(TENANT_ID, product, productSyncIds[product.id]);
+      setProductSyncIds(prev => ({ ...prev, [product.id]: remoteId }));
+      setProductSyncErrors(prev => {
+        const copy = { ...prev };
+        delete copy[product.id];
+        return copy;
+      });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Falha na sincronização online';
+      setProductSyncErrors(prev => ({
+        ...prev,
+        [product.id]: msg
+      }));
+      throw err;
+    }
+  };
+
+  const clearSyncError = (id: string) => {
+    setProductSyncErrors(prev => {
+      const copy = { ...prev };
+      delete copy[id];
+      return copy;
+    });
   };
 
   const updateStockItem = (updatedItem: StockItem) => {
@@ -625,6 +950,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       addCollaborator, updateCollaborator, deleteCollaborator,
       addStockMovement, updateSettings, toggleGuideRead, importData, exportData, resetToMocks,
       setDraftOrder, clearDraftOrder, updateOrderItemKitchenStatus, addLoyaltyEntry,
+      productSyncErrors, retrySyncProduct, clearSyncError, reloadCollaborators,
+      initializeTables: initializeTenantTables
     }}>
       {children}
     </AppContext.Provider>

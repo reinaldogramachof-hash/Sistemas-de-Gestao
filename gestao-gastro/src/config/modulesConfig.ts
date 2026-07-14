@@ -37,7 +37,9 @@ export const planMatrix: Record<PlanType, PlanConfig> = {
       'estoque',
       'manual',
       'configuracoes',
-      'suporte'
+      'suporte',
+      'seguranca',
+      'evolucao',
     ]
   },
   premium: {

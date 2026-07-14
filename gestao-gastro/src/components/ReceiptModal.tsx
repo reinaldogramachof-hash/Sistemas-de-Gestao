@@ -20,8 +20,8 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ order, onClose }) =>
     window.print();
   };
 
-  const amountPaid = order.payments.reduce((acc, p) => acc + p.amount, 0);
-  const troco = Math.max(0, amountPaid - order.total);
+  const amountReceived = order.payments.reduce((acc, p) => acc + (p.receivedAmount ?? p.amount), 0);
+  const troco = order.payments.reduce((acc, p) => acc + (p.changeAmount ?? 0), 0);
 
   return (
     <div className={`fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm print:bg-white print:p-0 print:block overflow-y-auto`}>
@@ -109,12 +109,12 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ order, onClose }) =>
                 {order.payments.map((p, i) => (
                   <div key={i} className="flex justify-between text-[11px]">
                     <span className="uppercase">{p.method}</span>
-                    <span>R$ {p.amount.toFixed(2)}</span>
+                    <span>R$ {(p.receivedAmount ?? p.amount).toFixed(2)}</span>
                   </div>
                 ))}
                 <div className="flex justify-between mt-1 pt-1 border-t border-dotted border-current/30 font-bold text-[11px]">
                    <span>RECEBIDO:</span>
-                   <span>R$ {amountPaid.toFixed(2)}</span>
+                   <span>R$ {amountReceived.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between font-bold text-[11px]">
                    <span>TROCO:</span>

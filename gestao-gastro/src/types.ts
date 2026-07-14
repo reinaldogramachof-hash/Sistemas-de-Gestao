@@ -11,6 +11,7 @@ export interface StockItem {
   minStock: number;
   costPrice: number;
   supplierId?: string;
+  expiryDate?: string; // Formato YYYY-MM-DD
 }
 
 export interface RecipeItem {
@@ -51,7 +52,10 @@ export interface SplitItem {
 
 export interface PaymentItem {
   method: PaymentMethod;
+  // Amount effectively allocated to the order after any cash change.
   amount: number;
+  receivedAmount?: number;
+  changeAmount?: number;
 }
 
 export interface PartialPaymentItem {
@@ -201,6 +205,7 @@ export interface AppSettings {
   };
   kitchenMode?: 'display' | 'interactive';
   serviceChargeRate?: number;
+  localTestOrigin?: string;
 }
 
 export interface Promotion {

@@ -36,16 +36,18 @@ test('Inspect modulesConfig.ts for correct planMatrix', () => {
       'manual',
       'configuracoes',
       'suporte',
+      'seguranca',
+      'evolucao'
     ],
     'Base plan should match the client module package'
   );
   
   assert.ok(!baseModules.includes("'cozinha'"), 'Base plan should NOT have cozinha');
   assert.ok(!baseModules.includes("'clientes'"), 'Base plan should NOT have clientes');
-  assert.ok(!baseModules.includes("'colaboradores'"), 'Base plan should NOT have colaboradores');
   assert.ok(!baseModules.includes("'fornecedores'"), 'Base plan should NOT have fornecedores');
-  assert.ok(!baseModules.includes("'seguranca'"), 'Base plan should NOT have seguranca');
-  assert.ok(!baseModules.includes("'evolucao'"), 'Base plan should NOT have evolucao');
+  assert.ok(!baseModules.includes("'colaboradores'"), 'Base plan should NOT have colaboradores');
+  assert.ok(baseModules.includes("'seguranca'"), 'Base plan should have seguranca');
+  assert.ok(baseModules.includes("'evolucao'"), 'Base plan should have evolucao');
 
   // Verifica premium e master plan tem os módulos que faltam
   const premiumMatch = configContent.match(/premium:\s*\{[\s\S]*?allowedModules:\s*\[([\s\S]*?)\]/);

@@ -14,7 +14,19 @@ header('Pragma: no-cache');
 header('Expires: 0');
 
 // Sanitiza os parâmetros target e license
-$target   = isset($_GET['target']) ? preg_replace('/[^a-z0-9_-]/', '', strtolower(trim($_GET['target']))) : 'all';
+function normalizeNotificationTarget($target)
+{
+    $target = preg_replace('/[^a-z0-9_-]/', '', strtolower(trim((string)$target)));
+    $aliases = [
+        'gestao-barbearia' => 'barbearia',
+        'gestao-beleza' => 'beleza',
+        'gestao-gastro' => 'gastro',
+    ];
+
+    return $aliases[$target] ?? ($target ?: 'all');
+}
+
+$target   = normalizeNotificationTarget($_GET['target'] ?? 'all');
 $license  = isset($_GET['license']) ? preg_replace('/[^a-zA-Z0-9_-]/', '', trim($_GET['license'])) : '';
 $dataFile = __DIR__ . '/notifications_data.json';
 
@@ -45,6 +57,10 @@ foreach ($data as $n) {
 
     // Filtro por target de sistema
     $targets = $n['targets'] ?? ['all'];
+    if (!is_array($targets)) {
+        $targets = [$targets];
+    }
+    $targets = array_map('normalizeNotificationTarget', $targets);
     if (!in_array('all', $targets) && !in_array($target, $targets)) continue;
 
     // Filtro por expiração

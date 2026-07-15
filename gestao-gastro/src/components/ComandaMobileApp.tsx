@@ -45,6 +45,7 @@ const clearSession = () => {
 export const ComandaMobileApp: React.FC = () => {
   const [session, setSession] = useState<WaiterSession | null>(null);
   const [authChecking, setAuthChecking] = useState(true);
+  const [resolvedTenantId, setResolvedTenantId] = useState<string | null>(null);
 
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -53,10 +54,19 @@ export const ComandaMobileApp: React.FC = () => {
   React.useEffect(() => {
     const initAuth = async () => {
       setAuthChecking(true);
+      const tenant = resolveTenant(window.location.pathname);
+      setResolvedTenantId(tenant);
+
       if (isSupabaseConfigured) {
+        if (!tenant) {
+          setError('Tenant não configurado ou rota inválida.');
+          setAuthChecking(false);
+          return;
+        }
+
         const { data } = await supabase.auth.getSession();
         if (data.session?.user) {
-          await verifyAccessAndSetSession(data.session.user.id, data.session.user.email || '');
+          await verifyAccessAndSetSession(data.session.user.id, data.session.user.email || '', tenant);
         } else {
           clearSession();
           setSession(null);
@@ -72,7 +82,7 @@ export const ComandaMobileApp: React.FC = () => {
   const loadProducts = async () => {
     setLoading(true);
     if (isSupabaseConfigured) {
-      const tenant = resolveTenant(window.location.pathname);
+      const tenant = resolvedTenantId || resolveTenant(window.location.pathname);
       if (!tenant) {
         setError('Tenant não configurado ou rota inválida.');
         setLoading(false);
@@ -108,11 +118,11 @@ export const ComandaMobileApp: React.FC = () => {
     if (session) {
       void loadProducts();
     }
-  }, [session]);
+  }, [session, resolvedTenantId]);
 
-  const verifyAccessAndSetSession = async (userId: string, email: string) => {
+  const verifyAccessAndSetSession = async (userId: string, email: string, overrideTenant?: string) => {
     if (isSupabaseConfigured) {
-      const tenant = resolveTenant(window.location.pathname);
+      const tenant = overrideTenant || resolvedTenantId || resolveTenant(window.location.pathname);
       if (!tenant) {
         setError('Tenant não configurado ou rota inválida.');
         return;
@@ -203,6 +213,7 @@ export const ComandaMobileApp: React.FC = () => {
     <ComandaMobile
       waiterSession={session}
       products={products}
+      tenantId={resolvedTenantId || ''}
       onLogout={handleLogout}
     />
   );

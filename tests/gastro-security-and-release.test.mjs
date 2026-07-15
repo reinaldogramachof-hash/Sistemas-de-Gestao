@@ -41,3 +41,36 @@ test('No files in src should contain ancient master keys', () => {
 
   walkDir(srcPath);
 });
+
+test('license API uses a same-origin endpoint with a local Vite proxy', () => {
+  const servicePath = path.join(gastroDir, 'src', 'services', 'licenseApi.ts');
+  const gatePath = path.join(gastroDir, 'src', 'components', 'ActivationGate.tsx');
+  const receiptPath = path.join(gastroDir, 'src', 'components', 'ReceiptConfirmation.tsx');
+  const viteConfigPath = path.join(gastroDir, 'vite.config.ts');
+
+  const service = fs.readFileSync(servicePath, 'utf-8');
+  const gate = fs.readFileSync(gatePath, 'utf-8');
+  const receipt = fs.readFileSync(receiptPath, 'utf-8');
+  const viteConfig = fs.readFileSync(viteConfigPath, 'utf-8');
+
+  assert.match(service, /VITE_LICENSE_API_URL/);
+  assert.match(service, /\/api_licenca_ml\.php/);
+  assert.match(gate, /getLicenseApiUrl/);
+  assert.match(receipt, /getLicenseApiUrl/);
+  assert.equal(gate.includes("'../api_licenca_ml.php"), false);
+  assert.equal(receipt.includes("'../api_licenca_ml.php"), false);
+  assert.match(viteConfig, /proxy:/);
+  assert.match(viteConfig, /'\/api_licenca_ml\.php'/);
+  assert.match(viteConfig, /127\.0\.0\.1:8000/);
+});
+
+test('client routes require a tenant-bound license before activation', () => {
+  const gate = fs.readFileSync(path.join(gastroDir, 'src', 'components', 'ActivationGate.tsx'), 'utf-8');
+  const licenseApi = fs.readFileSync(path.join(rootDir, 'api_licenca_ml.php'), 'utf-8');
+
+  assert.match(gate, /!data\.tenant_id/);
+  assert.match(gate, /data\.is_master/);
+  assert.match(licenseApi, /requestedTenantId/);
+  assert.match(licenseApi, /Esta licença não está vinculada a este cliente/);
+  assert.match(licenseApi, /'tenant_id' => \$db\[\$key\]\['tenant_id'\] \?\? null/);
+});

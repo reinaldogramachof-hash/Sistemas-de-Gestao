@@ -8,15 +8,16 @@ import {
   ArrowUpRight,
   ArrowDownRight,
   Clock,
-  CheckCircle2,
-  Smartphone
+  CheckCircle2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ui } from '../ui/styles';
 import { getComandaAccessUrl } from '../utils/comandaAccess';
+import { HelpTooltip } from './HelpTooltip';
+import { formatCurrency } from '../utils/format';
 
 export const Dashboard: React.FC = () => {
-  const { orders, tables, products, stockItems, theme } = useApp();
+  const { orders, tables, products, stockItems, theme, currentEmpresa } = useApp();
   const isDark = theme === 'dark';
 
   const closedOrders = orders.filter(o => o.status === 'closed');
@@ -48,6 +49,15 @@ export const Dashboard: React.FC = () => {
   // Stock Alerts logic
   const lowStockItems = stockItems.filter(i => i.currentStock <= i.minStock);
 
+  const expiringItems = stockItems.filter(i => {
+    if (!i.expiryDate) return false;
+    const expiry = new Date(i.expiryDate);
+    const now = new Date();
+    const diffTime = expiry.getTime() - now.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays <= 7;
+  }).sort((a, b) => new Date(a.expiryDate!).getTime() - new Date(b.expiryDate!).getTime());
+
   const getCategoryCode = (cat: string) => {
     switch (cat) {
       case 'Drinks': return 'DR';
@@ -58,46 +68,29 @@ export const Dashboard: React.FC = () => {
     }
   };
 
+  const comparisonLabel = totalOrders > 1 ? 'Em comparação ao período anterior' : 'Sem comparação';
   const kpis = [
-    { label: 'Vendas Hoje', value: `R$ ${salesToday.toFixed(2)}`, icon: TrendingUp, color: 'text-emerald-500', bg: 'bg-emerald-500/10', trend: '+12.5%' },
-    { label: 'Ticket Médio', value: `R$ ${avgTicket.toFixed(2)}`, icon: ShoppingBag, color: 'text-blue-500', bg: 'bg-blue-500/10', trend: '+3.2%' },
-    { label: 'No. Pedidos', value: totalOrders.toString(), icon: Clock, color: 'text-accent', bg: 'bg-accent/10', trend: '+5.4%' },
+    { label: 'Vendas Hoje', value: formatCurrency(salesToday), icon: TrendingUp, color: 'text-emerald-500', bg: 'bg-emerald-500/10', trend: comparisonLabel },
+    { label: 'Ticket Médio', value: formatCurrency(avgTicket), icon: ShoppingBag, color: 'text-blue-500', bg: 'bg-blue-500/10', trend: comparisonLabel },
+    { label: 'Pedidos', value: totalOrders.toString(), icon: Clock, color: 'text-accent', bg: 'bg-accent/10', trend: comparisonLabel },
     { label: 'Mesas Ocupadas', value: occupiedTables.toString(), icon: TableIcon, color: 'text-amber-500', bg: 'bg-amber-500/10', trend: `${occupiedTables}/${tables.length}` },
   ];
-
-  const comandaLink = getComandaAccessUrl(window.location.origin, window.location.pathname);
 
   return (
     <div className="space-y-8 animate-in fade-in duration-200 pb-12">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="space-y-1">
-          <h1 className={ui.pageTitle}>Visão Geral</h1>
-          <p className={ui.pageSubtitle}>Resumo operacional e métricas de desempenho</p>
+          <div className="flex items-center gap-1.5">
+            <h1 className={ui.pageTitle}>Visão Geral</h1>
+            <HelpTooltip moduleKey="dashboard" />
+          </div>
+          <p className={ui.pageSubtitle}>{currentEmpresa.name}</p>
         </div>
         <div className="flex items-center gap-3">
            <span className={`px-4 py-2 ${ui.panelMuted(isDark)} ${ui.eyebrow}`}>
              {new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}
            </span>
         </div>
-      </div>
-
-      {/* Comanda Link Banner */}
-      <div className={`p-4 rounded-xl flex items-center justify-between ${ui.panel(isDark)} border-accent/20 border`}>
-        <div className="flex items-center gap-4">
-          <div className="w-10 h-10 rounded-xl bg-accent/10 text-accent flex items-center justify-center">
-            <Smartphone className="w-5 h-5" />
-          </div>
-          <div>
-            <p className="text-xs font-bold uppercase tracking-wide">Acesso Garçom (Comanda Mobile)</p>
-            <p className="text-[10px] font-bold opacity-50">{comandaLink}</p>
-          </div>
-        </div>
-        <button
-          onClick={() => navigator.clipboard.writeText(comandaLink)}
-          className="px-4 py-2 bg-accent text-white rounded-lg text-[9px] font-bold uppercase tracking-wide transition-opacity hover:opacity-80"
-        >
-          Copiar Link
-        </button>
       </div>
 
       {/* KPIs */}
@@ -110,11 +103,11 @@ export const Dashboard: React.FC = () => {
              transition={{ delay: i * 0.1 }}
              className={`p-6 transition-all hover:border-accent/20 ${ui.panel(isDark)}`}
            >
-             <div className="flex justify-between items-start mb-4">
+             <div className="flex justify-between items-start gap-3 mb-4">
                <div className={`p-2.5 rounded-xl ${kpi.bg}`}>
                  <kpi.icon className={`w-5 h-5 ${kpi.color}`} />
                </div>
-               <span className={`text-[9px] font-bold px-2 py-1 rounded-lg ${
+               <span className={`max-w-[10rem] text-right text-[9px] font-bold px-2 py-1 rounded-lg ${
                  kpi.trend.includes('+') ? 'bg-emerald-500/10 text-emerald-500' : 'bg-gray-500/10 text-gray-500'
                }`}>
                  {kpi.trend}
@@ -142,7 +135,7 @@ export const Dashboard: React.FC = () => {
                    <div key={i} className="group">
                      <div className="flex justify-between text-xs mb-2">
                        <span className={`font-bold uppercase tracking-tight transition-colors ${isDark ? 'text-muted group-hover:text-white' : 'text-muted-light group-hover:text-black'}`}>{cat}</span>
-                       <span className="font-bold">R$ {val.toFixed(2)}</span>
+                       <span className="font-bold">{formatCurrency(val)}</span>
                      </div>
                      <div className={`h-2 w-full rounded-full overflow-hidden ${isDark ? 'bg-[#252527]' : 'bg-gray-50'}`}>
                        <motion.div
@@ -206,7 +199,7 @@ export const Dashboard: React.FC = () => {
                          </span>
                        </td>
                        <td className="px-4 py-4 last:rounded-r-2xl border-y border-transparent text-right font-bold text-sm">
-                         R$ {o.total.toFixed(2)}
+                         {formatCurrency(o.total)}
                        </td>
                      </tr>
                    ))}
@@ -216,7 +209,7 @@ export const Dashboard: React.FC = () => {
          </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Most Sold Products */}
         <div className={`p-8 ${ui.panel(isDark)}`}>
           <div className="flex items-center justify-between mb-8">
@@ -275,6 +268,47 @@ export const Dashboard: React.FC = () => {
               <div className="py-12 flex flex-col items-center justify-center gap-3 opacity-30">
                 <CheckCircle2 className="w-10 h-10 text-emerald-500" />
                 <p className="text-xs font-bold uppercase tracking-wide">Tudo em dia!</p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Expiry Alerts */}
+        <div className={`p-8 ${ui.panel(isDark)}`}>
+          <div className="flex items-center justify-between mb-8">
+            <h3 className="font-bold text-sm uppercase tracking-wide">Validades Próximas</h3>
+            <div className="w-8 h-8 rounded-xl bg-rose-500/10 text-rose-500 flex items-center justify-center"><Clock className="w-4 h-4" /></div>
+          </div>
+          <div className="space-y-4">
+            {expiringItems.slice(0, 5).map((item, i) => {
+              const expiry = new Date(item.expiryDate!);
+              const now = new Date();
+              const diffTime = expiry.getTime() - now.getTime();
+              const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+              const isExpired = diffDays < 0;
+
+              return (
+                <div key={i} className={`flex items-center justify-between p-4 rounded-lg ${isDark ? 'bg-white/5' : 'bg-gray-50'} border-l-4 ${isExpired ? 'border-rose-500' : 'border-amber-500'}`}>
+                  <div className="flex items-center gap-4">
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg ${isDark ? 'bg-white/5' : 'bg-white shadow-sm'}`}>
+                      {getCategoryCode(item.category)}
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold uppercase tracking-tight">{item.name}</p>
+                      <p className="text-[9px] font-bold opacity-30 uppercase tracking-wide">{isExpired ? 'Vencido' : 'Próximo do Venc.'}</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className={`text-sm font-bold ${isExpired ? 'text-rose-500' : 'text-amber-500'}`}>{expiry.toLocaleDateString('pt-BR')}</p>
+                    <p className="text-[9px] font-bold opacity-30 uppercase tracking-wide">{isExpired ? 'Descartar' : (diffDays === 0 ? 'Hoje' : `em ${diffDays} dias`)}</p>
+                  </div>
+                </div>
+              );
+            })}
+            {expiringItems.length === 0 && (
+              <div className="py-12 flex flex-col items-center justify-center gap-3 opacity-30">
+                <CheckCircle2 className="w-10 h-10 text-emerald-500" />
+                <p className="text-xs font-bold uppercase tracking-wide">Tudo na validade!</p>
               </div>
             )}
           </div>

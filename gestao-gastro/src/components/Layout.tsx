@@ -20,10 +20,12 @@ import {
   ChefHat,
   Shield,
   Truck,
-  LifeBuoy,
+  Headphones,
   Monitor,
-  Rocket
+  Rocket,
+  LogOut
 } from 'lucide-react';
+import { isSupabaseConfigured, supabase } from '../lib/supabase';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface LayoutProps {
@@ -53,13 +55,27 @@ const DateTimeDisplay = () => {
 };
 
 export const Layout: React.FC<LayoutProps> = ({ currentView, setCurrentView, children }) => {
-  const { theme, setTheme, cashierSession } = useApp();
+  const { theme, setTheme, cashierSession, currentUser } = useApp();
   const { checkAccess } = useModules();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [showInstallBtn, setShowInstallBtn] = useState(false);
+  const [showProfileMenu, setShowProfileMenu] = useState(false);
 
   const isDark = theme === 'dark';
+
+  const handleLogout = async () => {
+    try {
+      if (isSupabaseConfigured && supabase) {
+        await supabase.auth.signOut();
+      }
+      localStorage.removeItem('gestao_gastro_user_name');
+      localStorage.removeItem('gestao_gastro_user_role');
+      window.location.reload();
+    } catch (err) {
+      console.error('Erro ao efetuar logout:', err);
+    }
+  };
 
   useEffect(() => {
     const handleBeforeInstallPrompt = (e: any) => {
@@ -117,7 +133,7 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setCurrentView, chi
         { id: 'manual',        icon: BookOpen,        label: 'Manual de Uso' },
         { id: 'seguranca',     icon: Shield,          label: 'Segurança'    },
         { id: 'configuracoes', icon: Settings,        label: 'Configurações'},
-        { id: 'suporte',       icon: LifeBuoy,        label: 'Suporte'      },
+        { id: 'suporte',       icon: Headphones,      label: 'Suporte'      },
         { id: 'evolucao',      icon: Rocket,          label: 'Evolução'     }
       ]
     }
@@ -170,7 +186,7 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setCurrentView, chi
                         key={item.id}
                         onClick={() => setCurrentView(item.id as View)}
                         title={isCollapsed ? item.label : ''}
-                        className={`w-full flex items-center gap-3 px-3 py-2 transition-all rounded-control group relative
+                        className={`w-full flex items-center gap-3 px-3 py-2.5 transition-all rounded-control group relative
                           ${active
                             ? 'bg-accent text-white'
                             : `${isDark ? 'text-muted hover:bg-white/5 hover:text-white' : 'text-gray-500 hover:bg-gray-100 hover:text-gray-900'}`
@@ -183,7 +199,7 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setCurrentView, chi
                         </div>
                         {!isCollapsed && (
                           <div className="flex-1 flex items-center justify-between overflow-hidden">
-                            <span className="font-medium text-xs transition-opacity duration-150 truncate">{item.label}</span>
+                            <span className="font-medium text-[13px] transition-opacity duration-150 truncate">{item.label}</span>
                           </div>
                         )}
                       </button>
@@ -270,12 +286,62 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setCurrentView, chi
                     </motion.div>
                   </AnimatePresence>
                 </button>
-                <div className={`flex items-center gap-2 px-3 py-1.5 rounded-panel ${isDark ? 'bg-elevated border border-border' : 'bg-elevated-light border border-border-light'}`}>
-                  <div className="w-7 h-7 rounded-control bg-accent flex items-center justify-center text-white font-bold text-xs">R</div>
-                  <div className="hidden md:block leading-none">
-                    <p className="text-[10px] font-bold uppercase tracking-wide">Reinaldo</p>
-                    <p className="text-[8px] opacity-30 uppercase tracking-wide mt-0.5">Admin</p>
-                  </div>
+                <div className="relative">
+                  <button
+                    onClick={() => setShowProfileMenu(!showProfileMenu)}
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-panel outline-none transition-all active:scale-95
+                      ${isDark ? 'bg-elevated border border-border hover:bg-white/5' : 'bg-elevated-light border border-border-light hover:bg-gray-50'}`}
+                  >
+                    <div className="w-7 h-7 rounded-control bg-accent flex items-center justify-center text-white font-bold text-xs">
+                      {currentUser.name ? currentUser.name.charAt(0).toUpperCase() : 'A'}
+                    </div>
+                    <div className="hidden md:block leading-none text-left">
+                      <p className="text-[10px] font-bold uppercase tracking-wide">
+                        {currentUser.name || 'Usuário'}
+                      </p>
+                      <p className="text-[8px] opacity-30 uppercase tracking-wide mt-0.5">
+                        {currentUser.role === 'owner' ? 'Proprietário' : currentUser.role === 'admin' ? 'Administrador' : 'Colaborador'}
+                      </p>
+                    </div>
+                  </button>
+
+                  <AnimatePresence>
+                    {showProfileMenu && (
+                      <>
+                        {/* Overlay para fechar ao clicar fora */}
+                        <div className="fixed inset-0 z-30" onClick={() => setShowProfileMenu(false)} />
+
+                        <motion.div
+                          initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                          animate={{ opacity: 1, y: 0, scale: 1 }}
+                          exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                          transition={{ duration: 0.15 }}
+                          className={`absolute right-0 mt-2 w-48 rounded-xl border shadow-xl z-40 p-2 space-y-1
+                            ${isDark ? 'bg-[#1C1C1E] border-[#2C2C2E] text-white' : 'bg-white border-gray-150 text-gray-800'}`}
+                        >
+                          <div className="px-3 py-2 border-b border-dashed border-current/10">
+                            <p className="text-[10px] font-bold uppercase tracking-wider truncate">
+                              {currentUser.name || 'Usuário'}
+                            </p>
+                            <p className="text-[8px] opacity-40 uppercase tracking-widest truncate mt-0.5">
+                              {currentUser.role}
+                            </p>
+                          </div>
+
+                          <button
+                            onClick={() => {
+                              setShowProfileMenu(false);
+                              handleLogout();
+                            }}
+                            className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-bold text-red-500 hover:bg-red-500/10 transition-all text-left"
+                          >
+                            <LogOut className="w-4 h-4" />
+                            Sair
+                          </button>
+                        </motion.div>
+                      </>
+                    )}
+                  </AnimatePresence>
                 </div>
               </div>
             </div>

@@ -25,6 +25,11 @@ describe('CheckoutModal Troco & Divisão', () => {
     assert.ok(content.includes('Troco a devolver'), 'CheckoutModal deve apresentar o troco antes da confirmacao');
 
     assert.ok(
+      content.includes("useState<PaymentMethod>('dinheiro')"),
+      'CheckoutModal deve inicializar a forma de pagamento padrão como dinheiro'
+    );
+
+    assert.ok(
       content.includes('setPayments(prev => [...prev'),
       'CheckoutModal deve suportar pagamentos múltiplos (divididos)'
     );

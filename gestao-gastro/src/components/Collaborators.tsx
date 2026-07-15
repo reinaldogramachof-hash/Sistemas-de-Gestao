@@ -1,7 +1,8 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { useApp } from '../store/AppContext';
 import { Search, UserPlus, Shield, Briefcase, Calendar, Edit3, Trash2, CheckCircle2, XCircle, User, Clock, Zap, X, LayoutGrid, List, LogIn, LogOut, FileText, Banknote, CreditCard, MapPin, UserCheck } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { HelpTooltip } from './HelpTooltip';
 
 
 export const Collaborators: React.FC = () => {
@@ -108,7 +109,10 @@ export const Collaborators: React.FC = () => {
     <div className="flex flex-col min-h-full gap-8 animate-in fade-in duration-700 pb-12">
       <div className="flex flex-col lg:flex-row justify-between lg:items-end gap-6">
         <div className="space-y-1">
-          <h2 className="text-3xl font-extrabold tracking-tighter uppercase leading-none">Gestão de Equipe</h2>
+          <div className="flex items-center gap-1.5">
+            <h2 className="text-3xl font-extrabold tracking-tighter uppercase leading-none">Gestão de Equipe</h2>
+            <HelpTooltip moduleKey="waiters" />
+          </div>
           <p className="text-[10px] font-bold uppercase tracking-widest opacity-40">RH e Controle de Operações</p>
         </div>
 

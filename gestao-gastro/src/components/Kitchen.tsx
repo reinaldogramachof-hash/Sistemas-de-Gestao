@@ -4,6 +4,7 @@ import { ChefHat, Timer, Check, Play, Clock, ArrowRight, XCircle } from 'lucide-
 import { motion, AnimatePresence } from 'motion/react';
 import { Order, OrderItem } from '../types';
 import { ui } from '../ui/styles';
+import { HelpTooltip } from './HelpTooltip';
 
 export const Kitchen: React.FC = () => {
   const { orders, settings, theme, updateOrderItemKitchenStatus } = useApp();
@@ -45,7 +46,10 @@ export const Kitchen: React.FC = () => {
     <div className="h-full flex flex-col p-8 animate-in fade-in zoom-in duration-500">
       <div className="flex justify-between items-center mb-8">
         <div>
-          <h2 className={ui.pageTitle}>Kitchen Display System</h2>
+          <div className="flex items-center gap-1.5">
+            <h2 className={ui.pageTitle}>Kitchen Display System</h2>
+            <HelpTooltip moduleKey="kitchen" />
+          </div>
           <p className={ui.pageSubtitle}>
             {isInteractive ? 'Modo Interativo (Gestao de Fila)' : 'Modo Visualizacao (Apenas Leitura)'}
           </p>

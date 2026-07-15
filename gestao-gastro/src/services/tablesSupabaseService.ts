@@ -124,25 +124,52 @@ export async function initializeTables(tenantId: string, count: number): Promise
   if (!supabase) return [];
 
   const current = await listTables(tenantId);
-  if (current.length > 0) return current;
 
-  const rows: TableInsertRow[] = Array.from({ length: count }, (_, i) => ({
-    tenant_id: tenantId,
-    number: i + 1,
-    status: 'livre',
-    active_order_id: null,
-    reservation_reason: null,
-  }));
+  // 1. Identificar lacunas e mesas que precisam ser criadas (de 1 a count)
+  const existingNumbers = new Set(current.map(t => t.number));
+  const toCreate: TableInsertRow[] = [];
+  for (let i = 1; i <= count; i++) {
+    if (!existingNumbers.has(i)) {
+      toCreate.push({
+        tenant_id: tenantId,
+        number: i,
+        status: 'livre',
+        active_order_id: null,
+        reservation_reason: null,
+      });
+    }
+  }
 
-  const { data, error } = await supabase
-    .from('restaurant_tables')
-    .insert(rows)
-    .select('*')
-    .order('number', { ascending: true })
-    .returns<TableRow[]>();
+  // 2. Identificar se existem mesas a serem removidas (número > count)
+  const toDelete = current.filter(t => t.number > count);
 
-  throwIfError('Erro ao inicializar mesas', error);
-  return (data ?? []).map(toTable);
+  // 3. Se houver mesas para remover, validar e executar a remoção
+  if (toDelete.length > 0) {
+    const activeOrReserved = toDelete.filter(t => t.status !== 'livre' || t.activeOrderId);
+    if (activeOrReserved.length > 0) {
+      const busyNumbers = activeOrReserved.map(t => t.number).join(', ');
+      throw new Error(`Não é possível reduzir para ${count} mesas pois as seguintes mesas possuem pedidos ativos ou estão ocupadas/reservadas: ${busyNumbers}`);
+    }
+
+    const numbersToDelete = toDelete.map(t => t.number);
+    const { error } = await supabase
+      .from('restaurant_tables')
+      .delete()
+      .eq('tenant_id', tenantId)
+      .in('number', numbersToDelete);
+    throwIfError('Erro ao reduzir quantidade de mesas', error);
+  }
+
+  // 4. Se houver mesas a serem criadas, executamos a inserção
+  if (toCreate.length > 0) {
+    const { error } = await supabase
+      .from('restaurant_tables')
+      .insert(toCreate);
+    throwIfError('Erro ao adicionar novas mesas', error);
+  }
+
+  // Retorna a lista fresca do banco
+  return listTables(tenantId);
 }
 
 // ─── Realtime ─────────────────────────────────────────────────────────────────

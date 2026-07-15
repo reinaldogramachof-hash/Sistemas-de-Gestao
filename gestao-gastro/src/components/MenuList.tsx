@@ -2,8 +2,9 @@ import React from 'react';
 import { useApp } from '../store/AppContext';
 import { Product } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
-import { GlassWater, IceCreamBowl, Package, Pizza, ShoppingCart, UtensilsCrossed } from 'lucide-react';
 import { ui } from '../ui/styles';
+import { getProductIcon } from '../utils/productIcons';
+import { ShoppingCart } from 'lucide-react';
 
 import { getProductStock } from '../services/stockGuard';
 
@@ -24,14 +25,8 @@ export const MenuList: React.FC<MenuListProps> = ({ category, searchTerm, onSele
     return matchesCategory && matchesSearch && isActive;
   });
 
-  const getCategoryIcon = (cat: string) => {
-    switch (cat) {
-      case 'Drinks': return GlassWater;
-      case 'Petiscos': return Pizza;
-      case 'Pratos': return UtensilsCrossed;
-      case 'Sobremesas': return IceCreamBowl;
-      default: return Package;
-    }
+  const getCategoryIcon = (cat: string, name: string) => {
+    return getProductIcon(cat, name);
   };
 
   return (
@@ -40,7 +35,7 @@ export const MenuList: React.FC<MenuListProps> = ({ category, searchTerm, onSele
         {filteredProducts.map((product) => {
           const stockQty = getProductStock(product, stockItems);
           const isOutOfStock = stockQty === 0;
-          const CategoryIcon = getCategoryIcon(product.category);
+          const CategoryIcon = getCategoryIcon(product.category, product.name);
 
           return (
             <motion.button

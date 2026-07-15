@@ -1,16 +1,19 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '../store/AppContext';
+import { HelpTooltip } from './HelpTooltip';
 import {
   Search, Plus, Edit2, Trash2, X, Filter, LayoutGrid, List,
   ChevronRight, ArrowRight, BookOpen, Package, PlusCircle, MinusCircle,
-  Coffee, Utensils, Pizza, IceCream, GlassWater
+  Coffee, Utensils, Pizza, IceCream, GlassWater,
+  Cloud, CloudOff, RefreshCw, AlertCircle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Product, RecipeItem } from '../types';
 import { ui } from '../ui/styles';
+import { getProductIcon } from '../utils/productIcons';
 
 export const Products: React.FC = () => {
-  const { products, stockItems, updateProduct, addProduct, deleteProduct, theme } = useApp();
+  const { products, stockItems, updateProduct, addProduct, deleteProduct, theme, productSyncErrors, retrySyncProduct, clearSyncError, supabaseOnline } = useApp();
   const isDark = theme === 'dark';
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -89,22 +92,19 @@ export const Products: React.FC = () => {
     }, 0);
   };
 
-  const getIcon = (cat: string) => {
-    switch (cat.toLowerCase()) {
-      case 'drinks': return <GlassWater className="w-5 h-5" />;
-      case 'pratos': return <Utensils className="w-5 h-5" />;
-      case 'hambúrgueres': return <Pizza className="w-5 h-5" />;
-      case 'petiscos': return <Pizza className="w-5 h-5" />;
-      case 'sobremesas': return <IceCream className="w-5 h-5" />;
-      default: return <Coffee className="w-5 h-5" />;
-    }
+  const getIcon = (cat: string, name: string) => {
+    const Icon = getProductIcon(cat, name);
+    return <Icon className="w-5 h-5" />;
   };
 
   return (
     <div className="space-y-8 animate-in fade-in duration-200 pb-24">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div className="space-y-1">
-          <h2 className={ui.pageTitle}>Cardápio e Vendas</h2>
+          <div className="flex items-center gap-1.5">
+            <h2 className={ui.pageTitle}>Cardápio e Vendas</h2>
+            <HelpTooltip moduleKey="menu" />
+          </div>
           <p className={ui.pageSubtitle}>Gestão de catálogo e fichas técnicas</p>
         </div>
 
@@ -164,13 +164,42 @@ export const Products: React.FC = () => {
                 `}
               >
                 <div className="flex justify-between items-start mb-6">
-                  <div className="flex items-center gap-3">
+                  <div className="flex min-w-0 items-center gap-3">
                     <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${isDark ? 'bg-white/5' : 'bg-gray-50'}`}>
-                      {getIcon(p.category)}
+                      {getIcon(p.category, p.name)}
                     </div>
-                    {p.active === false && (
-                      <span className="px-2 py-0.5 bg-red-500/10 text-red-500 rounded text-[8px] font-bold uppercase tracking-wider">Inativo</span>
-                    )}
+                    <div className="flex min-w-0 flex-col gap-1">
+                      {p.active === false && (
+                        <span className="px-2 py-0.5 bg-red-500/10 text-red-500 rounded text-[8px] font-bold uppercase tracking-wider w-fit">Inativo</span>
+                      )}
+                      {supabaseOnline && (
+                        productSyncErrors[p.id] ? (
+                          <div className="flex items-center gap-1 text-red-500 cursor-pointer" title={`Erro ao sincronizar: ${productSyncErrors[p.id]}. Clique para re-sincronizar.`} onClick={async (e) => {
+                            e.stopPropagation();
+                            try {
+                              await retrySyncProduct(p);
+                              alert('Produto sincronizado com sucesso!');
+                            } catch (err: any) {
+                              alert(`Erro de sincronização: ${err.message}`);
+                            }
+                          }}>
+                            <CloudOff className="w-3.5 h-3.5 animate-pulse" />
+                            <span className="text-[8px] font-bold uppercase tracking-wider underline">Erro Sync</span>
+                          </div>
+                        ) : (
+                          <div className="flex w-fit max-w-full items-center gap-1 rounded bg-emerald-500/10 px-1.5 py-0.5 text-emerald-600" title="Sincronizado com o Supabase.">
+                            <Cloud className="w-3.5 h-3.5" />
+                            <span className="whitespace-nowrap text-[7px] font-bold uppercase tracking-tight">Sincronizado</span>
+                          </div>
+                        )
+                      )}
+                      {!supabaseOnline && (
+                        <div className="flex items-center gap-1 text-gray-500" title="Modo local (sem Supabase).">
+                          <Cloud className="w-3.5 h-3.5 opacity-40" />
+                          <span className="text-[8px] font-bold uppercase tracking-wider opacity-40">Local-only</span>
+                        </div>
+                      )}
+                    </div>
                   </div>
                   <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0">
                     <button onClick={() => openModal(p)} className="p-2.5 rounded-xl hover:bg-[#475569]/10 hover:text-[#475569] transition-all"><Edit2 className="w-4 h-4" /></button>
@@ -230,12 +259,43 @@ export const Products: React.FC = () => {
                   <tr key={p.id} className="group hover:bg-current/[0.01] transition-all">
                     <td className="px-8 py-5">
                       <div className="flex items-center gap-4">
-                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${isDark ? 'bg-white/5' : 'bg-gray-50'}`}>{getIcon(p.category)}</div>
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${isDark ? 'bg-white/5' : 'bg-gray-50'}`}>{getIcon(p.category, p.name)}</div>
                         <div>
-                          <span className="font-bold uppercase tracking-tight">{p.name}</span>
-                          {p.active === false && (
-                            <span className="ml-2 px-1.5 py-0.5 bg-red-500/10 text-red-500 rounded text-[7px] font-bold uppercase tracking-wider">Inativo</span>
-                          )}
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold uppercase tracking-tight">{p.name}</span>
+                            {p.active === false && (
+                              <span className="px-1.5 py-0.5 bg-red-500/10 text-red-500 rounded text-[7px] font-bold uppercase tracking-wider">Inativo</span>
+                            )}
+                          </div>
+                          <div className="mt-1 flex items-center gap-2">
+                            {supabaseOnline && (
+                              productSyncErrors[p.id] ? (
+                                <button className="flex items-center gap-1 text-red-500 hover:underline" title={`Erro ao sincronizar: ${productSyncErrors[p.id]}. Clique para re-sincronizar.`} onClick={async (e) => {
+                                  e.stopPropagation();
+                                  try {
+                                    await retrySyncProduct(p);
+                                    alert('Produto sincronizado com sucesso!');
+                                  } catch (err: any) {
+                                    alert(`Erro de sincronização: ${err.message}`);
+                                  }
+                                }}>
+                                  <CloudOff className="w-3.5 h-3.5 animate-pulse" />
+                                  <span className="text-[8px] font-bold uppercase tracking-wider">Erro Sync</span>
+                                </button>
+                              ) : (
+                                <div className="flex w-fit max-w-full items-center gap-1 rounded bg-emerald-500/10 px-1.5 py-0.5 text-emerald-600" title="Sincronizado com o Supabase.">
+                                  <Cloud className="w-3.5 h-3.5" />
+                                  <span className="whitespace-nowrap text-[7px] font-bold uppercase tracking-tight">Sincronizado</span>
+                                </div>
+                              )
+                            )}
+                            {!supabaseOnline && (
+                              <div className="flex items-center gap-1 text-gray-500" title="Modo local (sem Supabase).">
+                                <Cloud className="w-3.5 h-3.5 opacity-40" />
+                                <span className="text-[8px] font-bold uppercase tracking-wider opacity-40">Local-only</span>
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </td>
@@ -327,7 +387,10 @@ export const Products: React.FC = () => {
                 {/* Technical Sheet */}
                 <div className="space-y-6 pt-4">
                   <div className="flex justify-between items-center">
-                    <h4 className="text-[11px] font-bold uppercase tracking-wide text-[#475569]">Ficha Técnica (Ingredientes)</h4>
+                    <h4 className="text-[11px] font-bold uppercase tracking-wide text-[#475569]">
+                      Ficha Técnica (Ingredientes)
+                      <HelpTooltip id="help-ficha-tecnica" content="A ficha técnica associa ingredientes de estoque ao produto para debito automático de insumos nas vendas." anchorId="estoque-receitas" />
+                    </h4>
                     <button type="button" onClick={addRecipeItem} className="flex items-center gap-2 text-[9px] font-bold uppercase tracking-wide opacity-40 hover:opacity-100 transition-all">
                       <PlusCircle className="w-4 h-4" /> Adicionar Insumo
                     </button>

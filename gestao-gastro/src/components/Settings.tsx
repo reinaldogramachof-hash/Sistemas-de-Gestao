@@ -4,20 +4,163 @@ import {
   Settings as SettingsIcon, Store, Printer, Database, Save,
   Download, Upload, RefreshCw, Check, AlertTriangle, ShieldCheck,
   Globe, Phone, MapPin, FileText, Layout, QrCode, Copy,
-  ExternalLink, Users, KeyRound, Smartphone, UserCheck
+  ExternalLink, Users, KeyRound, Smartphone, UserCheck, UserPlus, X as XIcon, Lock, Loader2, Table2
 } from 'lucide-react';
-import { motion } from 'motion/react';
-import { AppSettings } from '../types';
-import { getComandaAccessUrl, getComandaQrImageUrl } from '../utils/comandaAccess';
+import { motion, AnimatePresence } from 'motion/react';
+import { AppSettings, Collaborator } from '../types';
+import { getComandaAccessUrl, getComandaQrImageUrl, validateLanOrigin } from '../utils/comandaAccess';
+import { supabase } from '../lib/supabase';
+import { HelpTooltip } from './HelpTooltip';
+import { useModules } from '../hooks/useModules';
 
 export const Settings: React.FC = () => {
-  const { settings, updateSettings, exportData, importData, resetToMocks, theme, collaborators, tables, currentEmpresa, supabaseOnline } = useApp();
+  const { settings, updateSettings, exportData, importData, resetToMocks, theme, collaborators, tables, currentEmpresa, supabaseOnline, reloadCollaborators, initializeTables, currentUser } = useApp();
+  const { checkAccess } = useModules();
   const isDark = theme === 'dark';
 
   const [formData, setFormData] = useState<AppSettings>(settings);
-  const [activeTab, setActiveTab] = useState<'store' | 'access' | 'kitchen' | 'printer' | 'data'>('store');
+  const [activeTab, setActiveTab] = useState<'store' | 'tables' | 'access' | 'kitchen' | 'printer' | 'data'>('store');
   const [isSaving, setIsSaving] = useState(false);
   const [copiedAccess, setCopiedAccess] = useState(false);
+
+  const [modalOpen, setModalOpen] = useState(false);
+  const [newUserName, setNewUserName] = useState('');
+  const [newUserEmail, setNewUserEmail] = useState('');
+  const [newUserPassword, setNewUserPassword] = useState('');
+  const [newUserRole, setNewUserRole] = useState<'waiter' | 'cashier' | 'admin'>('waiter');
+  const [newMemberError, setNewMemberError] = useState('');
+  const [newMemberLoading, setNewMemberLoading] = useState(false);
+
+  const [initTablesCount, setInitTablesCount] = useState<number>(12);
+  const [isInitializingTables, setIsInitializingTables] = useState<boolean>(false);
+  const [lanValidationMsg, setLanValidationMsg] = useState<{ type: 'error' | 'warn' | 'ok'; text: string } | null>(null);
+
+  React.useEffect(() => {
+    if (tables.length > 0) {
+      setInitTablesCount(tables.length);
+    }
+  }, [tables.length]);
+
+  const handleToggleStatus = async (collabId: string, currentStatus: string) => {
+    if (!supabaseOnline || !currentEmpresa.tenantId) {
+      alert('Operação remota indisponível no momento.');
+      return;
+    }
+
+    const { data: { session } } = await supabase!.auth.getSession();
+    if (!session) {
+      alert('Sessão expirada. Faça login novamente.');
+      return;
+    }
+
+    const newActive = currentStatus !== 'active';
+
+    try {
+      const response = await fetch('/api_admin_users.php', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({
+          action: 'toggle_member_status',
+          tenant_id: currentEmpresa.tenantId,
+          user_id: collabId,
+          active: newActive
+        })
+      });
+
+      const data = await response.json();
+      if (response.ok && data.status === 'success') {
+        await reloadCollaborators();
+      } else {
+        alert(data.message || 'Erro ao alterar status do colaborador.');
+      }
+    } catch (err) {
+      alert('Erro de conexão ao servidor.');
+    }
+  };
+
+  const handleAddMember = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setNewMemberError('');
+
+    if (newUserPassword.length < 6) {
+      setNewMemberError('A senha deve ter pelo menos 6 caracteres.');
+      return;
+    }
+
+    if (!supabaseOnline || !currentEmpresa.tenantId) {
+      setNewMemberError('Operação indisponível. Supabase offline.');
+      return;
+    }
+
+    const { data: { session } } = await supabase!.auth.getSession();
+    if (!session) {
+      setNewMemberError('Sessão expirada. Faça login novamente.');
+      return;
+    }
+
+    setNewMemberLoading(true);
+
+    try {
+      const response = await fetch('/api_admin_users.php', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({
+          action: 'create_member',
+          tenant_id: currentEmpresa.tenantId,
+          name: newUserName,
+          email: newUserEmail,
+          password: newUserPassword,
+          role: newUserRole
+        })
+      });
+
+      const data = await response.json();
+      if (response.ok && data.status === 'success') {
+        alert('Colaborador cadastrado com sucesso!');
+        setModalOpen(false);
+        setNewUserName('');
+        setNewUserEmail('');
+        setNewUserPassword('');
+        setNewUserRole('waiter');
+        await reloadCollaborators();
+      } else {
+        setNewMemberError(data.message || 'Erro ao criar colaborador.');
+      }
+    } catch (err) {
+      setNewMemberError('Erro ao comunicar com o servidor.');
+    } finally {
+      setNewMemberLoading(false);
+    }
+  };
+
+  const handleInitializeTables = async () => {
+    const userRole = currentUser.role ? currentUser.role.toLowerCase() : '';
+    if (userRole !== 'owner' && userRole !== 'admin' && userRole !== 'proprietário' && userRole !== 'administrador') {
+      alert('Apenas o proprietário ou administrador podem gerenciar as mesas do salão.');
+      return;
+    }
+
+    if (initTablesCount <= 0 || initTablesCount > 100) {
+      alert('Quantidade inválida. Escolha entre 1 e 100 mesas.');
+      return;
+    }
+
+    setIsInitializingTables(true);
+    try {
+      await initializeTables(initTablesCount);
+      alert('Mesas inicializadas com sucesso no restaurante!');
+    } catch (err: any) {
+      alert(err.message || 'Erro ao inicializar mesas. Verifique sua conexão com o banco.');
+    } finally {
+      setIsInitializingTables(false);
+    }
+  };
 
   const handleSave = () => {
     setIsSaving(true);
@@ -47,7 +190,7 @@ export const Settings: React.FC = () => {
     reader.readAsText(file);
   };
 
-  const comandaAccessUrl = getComandaAccessUrl(window.location.origin, window.location.pathname);
+  const comandaAccessUrl = getComandaAccessUrl(window.location.origin, window.location.pathname, settings.localTestOrigin);
   const comandaQrUrl = getComandaQrImageUrl(comandaAccessUrl);
   const waiterMembers = collaborators.filter(member => member.permissions === 'waiter');
   const activeWaiterMembers = waiterMembers.filter(member => member.status === 'active');
@@ -65,8 +208,9 @@ export const Settings: React.FC = () => {
 
   const tabs = [
     { id: 'store', label: 'Estabelecimento', icon: Store },
+    { id: 'tables', label: 'Mesas do salão', icon: Table2 },
     { id: 'access', label: 'Acessos e QR Code', icon: QrCode },
-    { id: 'kitchen', label: 'Cozinha (KDS)', icon: Layout },
+    ...(checkAccess('cozinha') ? [{ id: 'kitchen', label: 'Cozinha (KDS)', icon: Layout }] : []),
     { id: 'printer', label: 'Impressão', icon: Printer },
     { id: 'data', label: 'Dados & Backup', icon: Database },
   ];
@@ -76,7 +220,10 @@ export const Settings: React.FC = () => {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div>
-          <h2 className="text-3xl font-bold tracking-tighter uppercase ">Configurações</h2>
+          <div className="flex items-center gap-1.5">
+            <h2 className="text-3xl font-bold tracking-tighter uppercase ">Configurações</h2>
+            <HelpTooltip moduleKey="settings" />
+          </div>
           <p className="text-[10px] font-bold uppercase tracking-wide opacity-40">Personalização e Gestão do Sistema</p>
         </div>
 
@@ -211,6 +358,91 @@ export const Settings: React.FC = () => {
             </div>
           )}
 
+          {activeTab === 'tables' && (
+            <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-200">
+              <div className="flex items-center gap-4 border-b border-dashed border-current/10 pb-6 mb-8">
+                <div className="w-12 h-12 rounded-lg bg-amber-500/10 flex items-center justify-center">
+                  <Table2 className="w-6 h-6 text-amber-500" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold uppercase tracking-tighter">Mesas do salão</h3>
+                  <p className="text-[10px] font-bold uppercase tracking-wide opacity-40">Gerenciamento e inicialização das mesas para atendimento</p>
+                </div>
+              </div>
+
+              <div className={`p-6 rounded-xl border ${isDark ? 'bg-white/5 border-white/5' : 'bg-gray-50 border-gray-100'}`}>
+                <p className="text-xs font-bold uppercase tracking-wide mb-1 text-muted">Mesas Cadastradas</p>
+                <p className="text-3xl font-extrabold tracking-tight">{tables.length} mesas</p>
+              </div>
+
+              {tables.length === 0 ? (
+                <div className="text-center py-10 space-y-4">
+                  <p className="text-sm text-muted">Nenhuma mesa operacional cadastrada para este restaurante.</p>
+
+                  <div className="max-w-xs mx-auto space-y-3">
+                    <label className="block text-[10px] font-bold uppercase tracking-wide opacity-40 text-left">Quantidade Inicial de Mesas</label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="100"
+                      value={initTablesCount}
+                      onChange={e => setInitTablesCount(parseInt(e.target.value) || 12)}
+                      className={`w-full h-12 px-4 rounded-lg border outline-none font-bold text-sm ${isDark ? 'bg-transparent border-[#2C2C2E]' : 'bg-white border-gray-200'}`}
+                    />
+                    <button
+                      type="button"
+                      disabled={isInitializingTables}
+                      onClick={handleInitializeTables}
+                      className="w-full h-12 rounded-lg bg-accent text-white text-xs font-bold uppercase tracking-wide hover:opacity-90 active:scale-95 transition-all flex items-center justify-center gap-2"
+                    >
+                      {isInitializingTables ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          Inicializando...
+                        </>
+                      ) : (
+                        'Criar mesas iniciais'
+                      )}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="p-4 rounded-lg bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 text-xs font-semibold">
+                    As mesas estão prontas e sincronizadas em tempo real com a comanda dos garçons e o PDV.
+                  </div>
+
+                  <div className="max-w-xs space-y-3">
+                    <label className="block text-[10px] font-bold uppercase tracking-wide opacity-40">Redefinir quantidade de mesas (Quantidade Total)</label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="100"
+                      value={initTablesCount}
+                      onChange={e => setInitTablesCount(parseInt(e.target.value) || tables.length)}
+                      className={`w-full h-12 px-4 rounded-lg border outline-none font-bold text-sm ${isDark ? 'bg-transparent border-[#2C2C2E]' : 'bg-white border-gray-200'}`}
+                    />
+                    <button
+                      type="button"
+                      disabled={isInitializingTables}
+                      onClick={handleInitializeTables}
+                      className="w-full h-12 rounded-lg bg-[#475569] text-white text-xs font-bold uppercase tracking-wide hover:opacity-90 active:scale-95 transition-all flex items-center justify-center gap-2"
+                    >
+                      {isInitializingTables ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          Atualizando...
+                        </>
+                      ) : (
+                        'Redefinir Quantidade de Mesas'
+                      )}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           {activeTab === 'access' && (
             <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-200">
               <div className="flex items-center gap-4 border-b border-dashed border-current/10 pb-6 mb-8">
@@ -223,6 +455,66 @@ export const Settings: React.FC = () => {
                 </div>
               </div>
 
+              {/* IP local para testes em dev */}
+              {(window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') && (
+                <div className={`p-6 rounded-xl border ${isDark ? 'bg-white/5 border-white/5' : 'bg-gray-50 border-gray-100'}`}>
+                  <p className="text-xs font-bold uppercase tracking-wide mb-2 text-amber-500">Endereço da rede local para testes (Apenas Localhost)</p>
+                  <div className="flex flex-col md:flex-row gap-3">
+                    <input
+                      type="text"
+                      value={formData.localTestOrigin || ''}
+                      onChange={e => {
+                        setFormData({ ...formData, localTestOrigin: e.target.value });
+                        setLanValidationMsg(null);
+                      }}
+                      placeholder="http://192.168.0.10:3000"
+                      className={`flex-1 h-10 px-3 rounded-lg border outline-none text-sm font-mono ${
+                        isDark ? 'bg-transparent border-[#2C2C2E]' : 'bg-white border-gray-200'
+                      } ${
+                        lanValidationMsg?.type === 'error' ? 'border-red-400' :
+                        lanValidationMsg?.type === 'ok' ? 'border-emerald-400' : ''
+                      }`}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const result = validateLanOrigin(formData.localTestOrigin || '');
+                        if (!result.valid) {
+                          setLanValidationMsg({ type: 'error', text: result.message || 'Endereço inválido.' });
+                          return;
+                        }
+                        // Normaliza: salva somente protocolo://IP:porta
+                        const normalized = result.origin!;
+                        const updated = { ...formData, localTestOrigin: normalized };
+                        setFormData(updated);
+                        updateSettings(updated);
+                        setLanValidationMsg({
+                          type: result.message ? 'warn' : 'ok',
+                          text: result.message || `Origem salva: ${normalized}`
+                        });
+                      }}
+                      className="h-10 px-6 rounded-lg bg-[#475569] text-white text-xs font-bold uppercase tracking-wide hover:opacity-90 active:scale-95 transition-all"
+                    >
+                      Aplicar IP
+                    </button>
+                  </div>
+                  {lanValidationMsg && (
+                    <p className={`text-[10px] font-semibold mt-2 ${
+                      lanValidationMsg.type === 'error' ? 'text-red-500' :
+                      lanValidationMsg.type === 'warn' ? 'text-amber-500' :
+                      'text-emerald-500'
+                    }`}>
+                      {lanValidationMsg.text}
+                    </p>
+                  )}
+                  {!lanValidationMsg && (
+                    <p className="text-[10px] opacity-40 font-semibold mt-2">
+                      Informe apenas o IP e a porta da sua máquina na rede Wi-Fi (ex: http://192.168.0.10:3000). Caminhos serão removidos automaticamente.
+                    </p>
+                  )}
+                </div>
+              )}
+
               <div className="grid grid-cols-1 xl:grid-cols-[1fr_280px] gap-6">
                 <div className="space-y-6">
                   <div className={`p-6 rounded-xl border ${isDark ? 'bg-white/5 border-white/5' : 'bg-gray-50 border-gray-100'}`}>
@@ -232,7 +524,10 @@ export const Settings: React.FC = () => {
                           <Smartphone className="w-5 h-5" />
                         </div>
                         <div className="min-w-0">
-                          <p className="text-xs font-bold uppercase tracking-wide">Link da comanda mobile</p>
+                          <p className="text-xs font-bold uppercase tracking-wide">
+                            Link da comanda mobile
+                            <HelpTooltip id="help-comanda-link" content="Este link permite que os garçons façam login e acessem o fluxo de comanda mobile pelo celular." anchorId="comanda-mobile" />
+                          </p>
                           <p className="text-[11px] font-semibold opacity-50 break-all mt-1">{comandaAccessUrl}</p>
                         </div>
                       </div>
@@ -276,30 +571,51 @@ export const Settings: React.FC = () => {
                     </div>
                   </div>
 
+                  {/* Tabela de Colaboradores e Cadastro */}
                   <div className={`rounded-xl border overflow-hidden ${isDark ? 'bg-white/5 border-white/5' : 'bg-gray-50 border-gray-100'}`}>
                     <div className="p-5 border-b border-current/10 flex items-center justify-between gap-4">
                       <div>
-                        <p className="text-xs font-bold uppercase tracking-wide">Garçons liberados</p>
-                        <p className="text-[9px] font-bold uppercase tracking-wide opacity-40">Base local de equipe com permissão waiter</p>
+                        <p className="text-xs font-bold uppercase tracking-wide">Membros da Equipe</p>
+                        <p className="text-[9px] font-bold uppercase tracking-wide opacity-40">Equipe gerenciada na nuvem para este restaurante</p>
                       </div>
-                      <UserCheck className="w-5 h-5 text-emerald-500" />
+                      {supabaseOnline && (
+                        <button
+                          type="button"
+                          onClick={() => setModalOpen(true)}
+                          className="px-4 h-9 rounded-lg bg-emerald-500 text-white text-[9px] font-bold uppercase tracking-wide flex items-center gap-1.5 active:scale-95 transition-all"
+                        >
+                          <UserPlus className="w-3.5 h-3.5" />
+                          Adicionar Usuário
+                        </button>
+                      )}
                     </div>
                     <div className="divide-y divide-current/10">
-                      {waiterMembers.length === 0 ? (
-                        <div className="p-6 text-xs font-semibold opacity-40">Nenhum garçom cadastrado em equipe.</div>
-                      ) : waiterMembers.map(member => (
+                      {collaborators.length === 0 ? (
+                        <div className="p-6 text-xs font-semibold opacity-40 text-center">Nenhum colaborador cadastrado.</div>
+                      ) : collaborators.map(member => (
                         <div key={member.id} className="p-5 flex flex-col md:flex-row md:items-center justify-between gap-3">
                           <div>
                             <p className="text-sm font-bold">{member.name}</p>
-                            <p className="text-[10px] font-semibold opacity-40">{member.email}</p>
+                            <p className="text-[10px] font-semibold opacity-40">{member.role}</p>
                           </div>
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-3">
                             <span className={`px-3 py-1 rounded-lg text-[9px] font-bold uppercase tracking-wide ${member.status === 'active' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-gray-500/10 text-gray-500'}`}>
                               {member.status === 'active' ? 'Ativo' : 'Inativo'}
                             </span>
-                            <span className="px-3 py-1 rounded-lg bg-amber-500/10 text-amber-500 text-[9px] font-bold uppercase tracking-wide">
-                              {member.permissions}
-                            </span>
+                            {supabaseOnline && member.id !== currentUser.id && (
+                              <button
+                                type="button"
+                                onClick={() => handleToggleStatus(member.id, member.status)}
+                                className={`px-3 py-1 rounded-lg border text-[9px] font-bold uppercase tracking-wide transition-all active:scale-95
+                                  ${member.status === 'active'
+                                    ? 'bg-red-500/10 border-red-500/20 text-red-500 hover:bg-red-500/20'
+                                    : 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500 hover:bg-emerald-500/20'
+                                  }
+                                `}
+                              >
+                                {member.status === 'active' ? 'Desativar' : 'Ativar'}
+                              </button>
+                            )}
                           </div>
                         </div>
                       ))}
@@ -310,18 +626,19 @@ export const Settings: React.FC = () => {
                     <div className="flex items-start gap-4">
                       <KeyRound className="w-5 h-5 text-amber-500 mt-0.5" />
                       <div className="space-y-3">
-                        <p className="text-xs font-bold uppercase tracking-wide">Liberação segura de usuários</p>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                          {[
-                            'Criar o usuário no Supabase Auth com e-mail e senha individual.',
-                            `Vincular o user_id em tenant_members no tenant ${currentEmpresa.tenantId}.`,
-                            'Definir role waiter e active true para liberar somente mesas, cardápio e pré-fechamento.',
-                          ].map((step, index) => (
-                            <div key={step} className={`p-4 rounded-lg ${isDark ? 'bg-black/20' : 'bg-white'}`}>
-                              <p className="text-[9px] font-black uppercase tracking-wide text-amber-500 mb-2">Passo {index + 1}</p>
-                              <p className="text-[10px] font-bold opacity-60 leading-relaxed">{step}</p>
-                            </div>
-                          ))}
+                        <p className="text-xs font-bold uppercase tracking-wide">Instruções de Acesso Local</p>
+                        <p className="text-[10px] font-bold opacity-60 leading-relaxed">
+                          Para testar e utilizar a comanda mobile nos celulares dos garçons durante o desenvolvimento:
+                        </p>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          <div className={`p-4 rounded-lg ${isDark ? 'bg-black/20' : 'bg-white'}`}>
+                            <p className="text-[9px] font-black uppercase tracking-wide text-accent mb-2">Passo 1: Mesma Rede</p>
+                            <p className="text-[10px] font-bold opacity-60 leading-relaxed">Certifique-se de que o computador servidor e os dispositivos celulares estejam conectados exatamente na mesma rede Wi-Fi local.</p>
+                          </div>
+                          <div className={`p-4 rounded-lg ${isDark ? 'bg-black/20' : 'bg-white'}`}>
+                            <p className="text-[9px] font-black uppercase tracking-wide text-accent mb-2">Passo 2: QR Code / Link</p>
+                            <p className="text-[10px] font-bold opacity-60 leading-relaxed">Aponte a câmera do celular para o QR Code ao lado ou compartilhe o link de acesso mobile para abrir a interface de login da comanda.</p>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -346,6 +663,99 @@ export const Settings: React.FC = () => {
                   </button>
                 </div>
               </div>
+
+              {/* Modal de Criação de Colaboradores */}
+              <AnimatePresence>
+                {modalOpen && (
+                  <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-200">
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.95 }}
+                      className={`w-full max-w-md rounded-2xl border p-8 space-y-6 shadow-2xl relative
+                        ${isDark ? 'bg-[#1C1C1E] border-[#2C2C2E]' : 'bg-white border-gray-100'}
+                      `}
+                    >
+                      <button
+                        onClick={() => setModalOpen(false)}
+                        className="absolute right-4 top-4 p-2 rounded-lg hover:bg-current/10 text-muted"
+                      >
+                        <XIcon className="w-5 h-5" />
+                      </button>
+
+                      <div className="space-y-1">
+                        <h4 className="text-xl font-bold uppercase tracking-tight">Adicionar Colaborador</h4>
+                        <p className="text-[9px] opacity-40 font-bold uppercase tracking-wide">Cria login remoto de garçom, atendente ou admin</p>
+                      </div>
+
+                      <form onSubmit={handleAddMember} className="space-y-4">
+                        <div className="space-y-1">
+                          <label className="text-[9px] font-bold text-gray-400 uppercase tracking-wide">Nome do Colaborador</label>
+                          <input
+                            type="text"
+                            value={newUserName}
+                            onChange={e => setNewUserName(e.target.value)}
+                            placeholder="Nome de exibição"
+                            required
+                            className={`w-full h-12 px-4 rounded-xl border outline-none text-sm ${isDark ? 'bg-transparent border-[#2C2C2E] focus:border-[#475569]' : 'bg-gray-50 border-gray-100 focus:border-[#475569]'}`}
+                          />
+                        </div>
+
+                        <div className="space-y-1">
+                          <label className="text-[9px] font-bold text-gray-400 uppercase tracking-wide">E-mail do Colaborador</label>
+                          <input
+                            type="email"
+                            value={newUserEmail}
+                            onChange={e => setNewUserEmail(e.target.value)}
+                            placeholder="exemplo@email.com"
+                            required
+                            className={`w-full h-12 px-4 rounded-xl border outline-none text-sm ${isDark ? 'bg-transparent border-[#2C2C2E] focus:border-[#475569]' : 'bg-gray-50 border-gray-100 focus:border-[#475569]'}`}
+                          />
+                        </div>
+
+                        <div className="space-y-1">
+                          <label className="text-[9px] font-bold text-gray-400 uppercase tracking-wide">Senha Inicial</label>
+                          <input
+                            type="password"
+                            value={newUserPassword}
+                            onChange={e => setNewUserPassword(e.target.value)}
+                            placeholder="Mínimo 6 caracteres"
+                            required
+                            className={`w-full h-12 px-4 rounded-xl border outline-none text-sm ${isDark ? 'bg-transparent border-[#2C2C2E] focus:border-[#475569]' : 'bg-gray-50 border-gray-100 focus:border-[#475569]'}`}
+                          />
+                        </div>
+
+                        <div className="space-y-1">
+                          <label className="text-[9px] font-bold text-gray-400 uppercase tracking-wide">Função / Nível de Acesso</label>
+                          <select
+                            value={newUserRole}
+                            onChange={e => setNewUserRole(e.target.value as any)}
+                            className={`w-full h-12 px-4 rounded-xl border outline-none text-sm ${isDark ? 'bg-[#1C1C1E] border-[#2C2C2E]' : 'bg-gray-50 border-gray-100'}`}
+                          >
+                            <option value="waiter">Garçom (Apenas Comanda Mobile)</option>
+                            <option value="cashier">Atendente/Caixa (Acesso ao PDV/Caixa)</option>
+                            <option value="admin">Administrador (Acesso Geral)</option>
+                          </select>
+                        </div>
+
+                        {newMemberError && (
+                          <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl">
+                            <p className="text-red-400 text-xs text-center font-semibold">{newMemberError}</p>
+                          </div>
+                        )}
+
+                        <button
+                          type="submit"
+                          disabled={newMemberLoading}
+                          className="w-full h-12 bg-emerald-500 text-white font-bold rounded-xl text-xs uppercase tracking-wide hover:opacity-90 active:scale-95 transition-all flex justify-center items-center gap-2"
+                        >
+                          {newMemberLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Criar Colaborador'}
+                        </button>
+                      </form>
+                    </motion.div>
+                  </div>
+                )}
+              </AnimatePresence>
             </div>
           )}
 

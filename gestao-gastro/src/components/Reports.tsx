@@ -4,6 +4,8 @@ import { Download, TrendingUp, TrendingDown, Calendar, PieChart, Users, Shopping
 import { motion, AnimatePresence } from 'motion/react';
 import { Expense } from '../types';
 import { ui } from '../ui/styles';
+import { formatCurrency } from '../utils/format';
+import { HelpTooltip } from './HelpTooltip';
 
 type Tab = 'dashboard' | 'fluxo' | 'vendas' | 'produtos' | 'atendentes';
 type Period = 'hoje' | 'semana' | 'mes' | 'total';
@@ -23,7 +25,7 @@ const downloadCSV = (filename: string, rows: string[][]) => {
 };
 
 export const Reports: React.FC = () => {
-  const { orders, waiters, theme, expenses, addExpense, deleteExpense, stockItems } = useApp();
+  const { orders, waiters, theme, expenses, addExpense, deleteExpense, stockItems, cashierHistory } = useApp();
   const isDark = theme === 'dark';
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
   const [period, setPeriod] = useState<Period>('mes');
@@ -53,10 +55,12 @@ export const Reports: React.FC = () => {
     });
   }, [orders, period]);
 
-  // Filter expenses by period
+  // Filter expenses by period (only despesa sem entryType ou com entryType === 'saida')
   const filteredExpenses = useMemo(() => {
     const now = new Date();
     return expenses.filter(e => {
+      if (e.entryType && e.entryType !== 'saida') return false;
+
       const expenseDate = new Date(e.timestamp);
       if (period === 'hoje') return expenseDate.toDateString() === now.toDateString();
       if (period === 'semana') {
@@ -70,6 +74,24 @@ export const Reports: React.FC = () => {
       return true;
     });
   }, [expenses, period]);
+
+  // Filter cashierHistory by period
+  const filteredCashierHistory = useMemo(() => {
+    const now = new Date();
+    return cashierHistory.filter(s => {
+      const sessionDate = new Date(s.openedAt);
+      if (period === 'hoje') return sessionDate.toDateString() === now.toDateString();
+      if (period === 'semana') {
+        const weekAgo = new Date();
+        weekAgo.setDate(now.getDate() - 7);
+        return sessionDate >= weekAgo;
+      }
+      if (period === 'mes') {
+        return sessionDate.getMonth() === now.getMonth() && sessionDate.getFullYear() === now.getFullYear();
+      }
+      return true;
+    });
+  }, [cashierHistory, period]);
 
   const salesData = [...filteredOrders].reverse();
   const totalRevenue = filteredOrders.reduce((acc, o) => acc + o.subtotal, 0);
@@ -127,6 +149,128 @@ export const Reports: React.FC = () => {
     };
   }).sort((a, b) => b.revenue - a.revenue);
 
+  const chartData = useMemo(() => {
+    const now = new Date();
+
+    if (period === 'hoje') {
+      const labels: string[] = [];
+      const sales: number[] = [];
+      const expensesArr: number[] = [];
+
+      for (let h = 8; h <= 23; h++) {
+        labels.push(`${h}h`);
+
+        const vSum = filteredOrders.reduce((acc, o) => {
+          const od = new Date(o.timestamp);
+          return od.getHours() === h ? acc + o.subtotal + o.serviceCharge : acc;
+        }, 0);
+        sales.push(vSum);
+
+        const dSum = filteredExpenses.reduce((acc, e) => {
+          const ed = new Date(e.timestamp);
+          return ed.getHours() === h ? acc + e.amount : acc;
+        }, 0);
+        expensesArr.push(dSum);
+      }
+      return { labels, sales, expenses: expensesArr };
+    }
+
+    if (period === 'semana') {
+      const labels: string[] = [];
+      const sales: number[] = [];
+      const expensesArr: number[] = [];
+      const weekdays = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+
+      for (let i = 6; i >= 0; i--) {
+        const d = new Date();
+        d.setDate(now.getDate() - i);
+        const dayLabel = weekdays[d.getDay()];
+        labels.push(`${dayLabel} (${d.getDate()}/${d.getMonth() + 1})`);
+
+        const vSum = filteredOrders.reduce((acc, o) => {
+          const od = new Date(o.timestamp);
+          return od.toDateString() === d.toDateString() ? acc + o.subtotal + o.serviceCharge : acc;
+        }, 0);
+        sales.push(vSum);
+
+        const dSum = filteredExpenses.reduce((acc, e) => {
+          const ed = new Date(e.timestamp);
+          return ed.toDateString() === d.toDateString() ? acc + e.amount : acc;
+        }, 0);
+        expensesArr.push(dSum);
+      }
+      return { labels, sales, expenses: expensesArr };
+    }
+
+    if (period === 'mes') {
+      const labels: string[] = [];
+      const sales: number[] = [];
+      const expensesArr: number[] = [];
+
+      const year = now.getFullYear();
+      const month = now.getMonth();
+      const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+      const step = 3;
+      for (let start = 1; start <= daysInMonth; start += step) {
+        const end = Math.min(start + step - 1, daysInMonth);
+        const label = start === end ? `${start}` : `${start}-${end}`;
+        labels.push(label);
+
+        const vSum = filteredOrders.reduce((acc, o) => {
+          const od = new Date(o.timestamp);
+          if (od.getMonth() === month && od.getFullYear() === year) {
+            const dateNum = od.getDate();
+            if (dateNum >= start && dateNum <= end) {
+              return acc + o.subtotal + o.serviceCharge;
+            }
+          }
+          return acc;
+        }, 0);
+        sales.push(vSum);
+
+        const dSum = filteredExpenses.reduce((acc, e) => {
+          const ed = new Date(e.timestamp);
+          if (ed.getMonth() === month && ed.getFullYear() === year) {
+            const dateNum = ed.getDate();
+            if (dateNum >= start && dateNum <= end) {
+              return acc + e.amount;
+            }
+          }
+          return acc;
+        }, 0);
+        expensesArr.push(dSum);
+      }
+      return { labels, sales, expenses: expensesArr };
+    }
+
+    const labels: string[] = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+    const sales: number[] = Array(12).fill(0);
+    const expensesArr: number[] = Array(12).fill(0);
+
+    filteredOrders.forEach(o => {
+      const od = new Date(o.timestamp);
+      if (od.getFullYear() === now.getFullYear()) {
+        const m = od.getMonth();
+        sales[m] += o.subtotal + o.serviceCharge;
+      }
+    });
+
+    filteredExpenses.forEach(e => {
+      const ed = new Date(e.timestamp);
+      if (ed.getFullYear() === now.getFullYear()) {
+        const m = ed.getMonth();
+        expensesArr[m] += e.amount;
+      }
+    });
+
+    return { labels, sales, expenses: expensesArr };
+  }, [filteredOrders, filteredExpenses, period]);
+
+  const hasChartData = useMemo(() => {
+    return chartData.sales.some(s => s > 0) || chartData.expenses.some(e => e > 0);
+  }, [chartData]);
+
   const handleAddExpense = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newExpense.description || !newExpense.amount) return;
@@ -178,7 +322,7 @@ export const Reports: React.FC = () => {
                 onClick={() => setPeriod(p)}
                 className={`px-4 py-2 ${ui.tab(period === p, isDark)}`}
               >
-                {p}
+                {{ hoje: 'Hoje', semana: 'Semana', mes: 'Mês', total: 'Total' }[p]}
               </button>
             ))}
           </div>
@@ -209,14 +353,17 @@ export const Reports: React.FC = () => {
               {/* Main KPIs */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 {[
-                  { label: 'Entradas (Vendas)', value: `R$ ${totalSalesAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, icon: DollarSign, color: 'text-emerald-500', bg: 'bg-emerald-500/10' },
-                  { label: 'Saídas (Despesas)', value: `R$ ${totalExpensesAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, icon: TrendingDown, color: 'text-red-500', bg: 'bg-red-500/10' },
-                  { label: 'Lucro Líquido Real', value: `R$ ${netProfit.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, icon: TrendingUp, color: netProfit >= 0 ? 'text-blue-500' : 'text-[#475569]', bg: netProfit >= 0 ? 'bg-blue-500/10' : 'bg-[#475569]/10' },
-                  { label: 'Margem Líquida', value: `${totalSalesAmount ? ((netProfit / totalSalesAmount) * 100).toFixed(1) : 0}%`, icon: Target, color: 'text-slate-500', bg: 'bg-slate-500/10' },
+                  { label: 'Entradas (Vendas)', value: formatCurrency(totalSalesAmount), icon: DollarSign, color: 'text-emerald-500', bg: 'bg-emerald-500/10', help: <HelpTooltip title="Entradas" content="Soma das vendas fechadas (subtotal + taxa de serviço) do período selecionado." anchorId="guide_financeiro" /> },
+                  { label: 'Saídas (Despesas)', value: formatCurrency(totalExpensesAmount), icon: TrendingDown, color: 'text-red-500', bg: 'bg-red-500/10', help: <HelpTooltip title="Saídas" content="Soma das despesas e sangrias operacionais registradas no período selecionado." anchorId="guide_financeiro" /> },
+                  { label: 'Lucro Líquido Real', value: formatCurrency(netProfit), icon: TrendingUp, color: netProfit >= 0 ? 'text-blue-500' : 'text-[#475569]', bg: netProfit >= 0 ? 'bg-blue-500/10' : 'bg-[#475569]/10', help: <HelpTooltip title="Lucro Líquido Real" content="Fórmula: Entradas (Vendas) − Saídas (Despesas) − CMV." anchorId="guide_financeiro" /> },
+                  { label: 'Margem Líquida', value: `${totalSalesAmount ? ((netProfit / totalSalesAmount) * 100).toFixed(1) : 0}%`, icon: Target, color: 'text-slate-500', bg: 'bg-slate-500/10', help: <HelpTooltip title="Margem Líquida" content="Fórmula: (Lucro Líquido / Entradas) * 100." anchorId="guide_financeiro" /> },
                 ].map((kpi, i) => (
                   <div key={i} className={`p-8 rounded-lg border ${isDark ? 'bg-[#1C1C1E] border-[#2C2C2E]' : 'bg-white border-gray-100 shadow-sm'}`}>
-                    <div className={`w-12 h-12 rounded-lg ${kpi.bg} ${kpi.color} flex items-center justify-center mb-4`}>
-                      <kpi.icon className="w-6 h-6" />
+                    <div className="flex justify-between items-start mb-4">
+                      <div className={`w-12 h-12 rounded-lg ${kpi.bg} ${kpi.color} flex items-center justify-center`}>
+                        <kpi.icon className="w-6 h-6" />
+                      </div>
+                      {kpi.help}
                     </div>
                     <p className="text-[10px] font-bold uppercase tracking-wide opacity-30 mb-1">{kpi.label}</p>
                     <p className="text-2xl font-bold tracking-tighter">{kpi.value}</p>
@@ -224,11 +371,103 @@ export const Reports: React.FC = () => {
                 ))}
               </div>
 
+              {/* Evolução Financeira */}
+              <div className={`p-10 rounded-xl border ${isDark ? 'bg-[#1C1C1E] border-[#2C2C2E]' : 'bg-white border-gray-100 shadow-sm shadow-gray-250/5'}`}>
+                <div className="flex justify-between items-center mb-8">
+                  <div className="flex items-center gap-2">
+                    <BarChart3 className="w-5 h-5 text-accent" />
+                    <h3 className="text-xl font-bold tracking-tighter uppercase ">Evolução Financeira</h3>
+                    <HelpTooltip title="Evolução Financeira" content="Demonstra as entradas (vendas recebidas) e saídas (despesas e sangrias) distribuídas cronologicamente no período selecionado." anchorId="guide_financeiro" />
+                  </div>
+                  {/* Legenda */}
+                  <div className="flex items-center gap-4 text-[10px] font-bold uppercase tracking-wider">
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-2.5 h-2.5 bg-emerald-500 rounded" />
+                      <span className="opacity-60">Entradas</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-2.5 h-2.5 bg-red-500 rounded" />
+                      <span className="opacity-60">Saídas</span>
+                    </div>
+                  </div>
+                </div>
+
+                {!hasChartData ? (
+                  <div className="h-64 flex flex-col items-center justify-center border border-dashed border-current/10 rounded-lg opacity-30 text-xs font-bold uppercase tracking-wide">
+                    Nenhum movimento registrado no período selecionado
+                  </div>
+                ) : (
+                  <div className="h-64 flex items-end gap-3 pt-6 border-b border-current/10 pb-2 relative">
+                    {chartData.labels.map((label, index) => {
+                      const saleVal = chartData.sales[index];
+                      const expVal = chartData.expenses[index];
+                      const maxVal = Math.max(...chartData.sales, ...chartData.expenses, 1);
+
+                      const saleHeight = `${(saleVal / maxVal) * 90}%`;
+                      const expHeight = `${(expVal / maxVal) * 90}%`;
+
+                      return (
+                        <div key={label} className="flex-1 flex flex-col items-center h-full group relative">
+                          {/* Barras Lado a Lado */}
+                          <div className="w-full flex items-end justify-center gap-1 h-full pb-1">
+                            {/* Barra Entrada */}
+                            <div className="flex-1 flex flex-col justify-end h-full">
+                              {saleVal > 0 && (
+                                <div className="relative group/bar flex flex-col items-center">
+                                  {/* Tooltip */}
+                                  <div className="absolute z-50 bottom-full mb-1 opacity-0 pointer-events-none group-hover/bar:opacity-100 transition-opacity bg-slate-900 text-white text-[9px] font-bold px-2 py-1 rounded shadow-lg whitespace-nowrap">
+                                    {formatCurrency(saleVal)}
+                                  </div>
+                                  <motion.div
+                                    initial={{ scaleY: 0 }}
+                                    animate={{ scaleY: 1 }}
+                                    transition={{ duration: 0.5, delay: index * 0.02 }}
+                                    style={{ height: saleHeight, transformOrigin: 'bottom' }}
+                                    className="w-full bg-emerald-500/80 hover:bg-emerald-500 rounded-t-sm transition-colors cursor-pointer"
+                                  />
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Barra Saída */}
+                            <div className="flex-1 flex flex-col justify-end h-full">
+                              {expVal > 0 && (
+                                <div className="relative group/bar flex flex-col items-center">
+                                  {/* Tooltip */}
+                                  <div className="absolute z-50 bottom-full mb-1 opacity-0 pointer-events-none group-hover/bar:opacity-100 transition-opacity bg-slate-900 text-white text-[9px] font-bold px-2 py-1 rounded shadow-lg whitespace-nowrap">
+                                    {formatCurrency(expVal)}
+                                  </div>
+                                  <motion.div
+                                    initial={{ scaleY: 0 }}
+                                    animate={{ scaleY: 1 }}
+                                    transition={{ duration: 0.5, delay: index * 0.02 }}
+                                    style={{ height: expHeight, transformOrigin: 'bottom' }}
+                                    className="w-full bg-red-500/80 hover:bg-red-500 rounded-t-sm transition-colors cursor-pointer"
+                                  />
+                                </div>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Label do Eixo X */}
+                          <span className="text-[8px] font-bold opacity-40 uppercase tracking-wide truncate max-w-[4rem] mt-1 text-center select-none">
+                            {label}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
               {/* Advanced Views */}
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 <div className={`lg:col-span-2 p-10 rounded-xl border ${isDark ? 'bg-[#1C1C1E] border-[#2C2C2E]' : 'bg-white border-gray-100 shadow-sm'}`}>
                   <div className="flex justify-between items-center mb-8">
-                    <h3 className="text-xl font-bold tracking-tighter uppercase ">Estrutura de Gastos</h3>
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-xl font-bold tracking-tighter uppercase ">Estrutura de Gastos</h3>
+                      <HelpTooltip title="Estrutura de Gastos" content="Exibe a distribuição percentual e em valor das suas despesas operacionais por categoria no período." anchorId="guide_financeiro" />
+                    </div>
                     <PieChart className="w-5 h-5 opacity-20" />
                   </div>
                   <div className="space-y-6">
@@ -238,11 +477,11 @@ export const Reports: React.FC = () => {
                       Object.entries(expenseCategoryStats).map(([cat, rev]) => (
                         <div key={cat} className="space-y-2">
                           <div className="flex justify-between text-[11px] font-bold uppercase tracking-wide">
-                            <span>{cat}</span>
-                            <span className="opacity-40">R$ {Number(rev).toLocaleString('pt-BR')}</span>
+                            <span>{cat} ({totalExpensesAmount > 0 ? ((Number(rev) / totalExpensesAmount) * 100).toFixed(1) : 0}%)</span>
+                            <span className="opacity-40">{formatCurrency(Number(rev))}</span>
                           </div>
                           <div className="h-3 bg-black/5 dark:bg-white/5 rounded-full overflow-hidden">
-                            <motion.div initial={{ width: 0 }} animate={{ width: `${(Number(rev) / totalExpensesAmount) * 100}%` }} className="h-full bg-red-500/50 rounded-full" />
+                            <motion.div initial={{ width: 0 }} animate={{ width: `${(Number(rev) / (totalExpensesAmount || 1)) * 100}%` }} className="h-full bg-red-500/50 rounded-full" />
                           </div>
                         </div>
                       ))
@@ -254,23 +493,24 @@ export const Reports: React.FC = () => {
                    <div className="flex items-center gap-4 mb-8">
                       <Clock className="w-6 h-6 text-[#475569]" />
                       <h3 className="text-xl font-bold tracking-tighter uppercase ">DRE Resumido</h3>
+                      <HelpTooltip title="DRE Resumido" content="Demonstrativo de Resultado do Exercício compilado: Faturamento (Entradas) menos custos de mercadoria vendida (CMV) e despesas operacionais, exibindo o resultado líquido." anchorId="guide_financeiro" />
                    </div>
                    <div className="space-y-4">
                       <div className="flex justify-between items-center p-3 border-b border-current/5">
                          <span className="text-[10px] font-bold uppercase opacity-40">Faturamento</span>
-                         <span className="text-sm font-bold">R$ {totalSalesAmount.toLocaleString('pt-BR')}</span>
+                         <span className="text-sm font-bold">{formatCurrency(totalSalesAmount)}</span>
                       </div>
                       <div className="flex justify-between items-center p-3 border-b border-current/5">
                          <span className="text-[10px] font-bold uppercase opacity-40">CMV (Custo Produtos)</span>
-                         <span className="text-sm font-bold text-red-400">-(R$ {cmvTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })})</span>
+                         <span className="text-sm font-bold text-red-400">-({formatCurrency(cmvTotal)})</span>
                       </div>
                       <div className="flex justify-between items-center p-3 border-b border-current/5">
                          <span className="text-[10px] font-bold uppercase opacity-40">Despesas (Insumos/Gerais)</span>
-                         <span className="text-sm font-bold text-red-400">-(R$ {totalExpensesAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })})</span>
+                         <span className="text-sm font-bold text-red-400">-({formatCurrency(totalExpensesAmount)})</span>
                       </div>
                       <div className={`flex justify-between items-center p-4 rounded-lg mt-4 ${netProfit >= 0 ? 'bg-emerald-500/10 text-emerald-500' : 'bg-red-500/10 text-red-500'}`}>
                          <span className="text-[11px] font-bold uppercase">Resultado Final</span>
-                         <span className="text-lg font-bold">R$ {netProfit.toLocaleString('pt-BR')}</span>
+                         <span className="text-lg font-bold">{formatCurrency(netProfit)}</span>
                       </div>
                    </div>
                 </div>
@@ -280,6 +520,46 @@ export const Reports: React.FC = () => {
 
           {activeTab === 'fluxo' && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
+              <h3 className="text-xl font-bold uppercase tracking-tight">Histórico de Fechamento de Caixa</h3>
+              <div className={`rounded-xl border overflow-hidden shadow-sm mb-12 ${isDark ? 'bg-[#1C1C1E] border-[#2C2C2E]' : 'bg-white border-gray-100'}`}>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm text-left border-collapse">
+                    <thead>
+                      <tr className={`text-[10px] uppercase font-bold tracking-wide border-b ${isDark ? 'bg-[#252527] border-[#2C2C2E] text-[#636366]' : 'bg-gray-50 border-gray-100 text-gray-400'}`}>
+                        <th className="px-8 py-5">Turno</th>
+                        <th className="px-8 py-5 text-right">Pedidos</th>
+                        <th className="px-8 py-5 text-right">Faturamento</th>
+                        <th className="px-8 py-5 text-right">Despesas</th>
+                        <th className="px-8 py-5 text-right">Diferença Caixa</th>
+                        <th className="px-8 py-5 text-right">Saldo Final</th>
+                      </tr>
+                    </thead>
+                    <tbody className={`divide-y ${isDark ? 'divide-[#2C2C2E]' : 'divide-gray-100'}`}>
+                      {filteredCashierHistory.length === 0 && (
+                        <tr><td colSpan={6} className="py-20 text-center opacity-30 text-xs font-bold uppercase tracking-wide">Nenhum turno registrado no período</td></tr>
+                      )}
+                      {[...filteredCashierHistory].reverse().map((s, idx) => {
+                        const hasDiff = s.cashBreakdown !== undefined;
+                        const diffColor = !hasDiff ? 'text-gray-500' : s.cashBreakdown! >= 0 ? 'text-emerald-500' : 'text-red-500';
+                        const diffSign = s.cashBreakdown! > 0 ? '+' : '';
+                        return (
+                        <tr key={idx} className={`transition-colors ${isDark ? 'hover:bg-[#252527]' : 'hover:bg-gray-50/50'}`}>
+                          <td className="px-8 py-6"><div className="flex items-center gap-3"><div className={`p-2 rounded-xl ${isDark ? 'bg-white/5' : 'bg-gray-100'}`}><Calendar className="w-4 h-4 opacity-40" /></div><div><p className="font-bold text-xs">{new Date(s.openedAt).toLocaleDateString('pt-BR')} {new Date(s.openedAt).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'})}</p><p className="text-[10px] font-bold opacity-30">{s.closedAt ? `Fechado às ${new Date(s.closedAt).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'})}` : 'Em aberto'}</p></div></div></td>
+                          <td className="px-8 py-6 text-right font-bold opacity-60">{s.ordersCount}</td>
+                          <td className="px-8 py-6 text-right font-bold text-emerald-500">{formatCurrency(s.salesTotal + s.serviceTaxTotal)}</td>
+                          <td className="px-8 py-6 text-right font-bold text-red-500">{formatCurrency(s.expensesTotal)}</td>
+                          <td className={`px-8 py-6 text-right font-bold text-xs ${diffColor}`}>
+                            {hasDiff ? `${diffSign}${formatCurrency(s.cashBreakdown)}` : 'N/C'}
+                          </td>
+                          <td className="px-8 py-6 text-right"><span className="px-4 py-2 bg-emerald-500/10 text-emerald-500 rounded-full font-bold text-xs">{formatCurrency(s.finalBalance ?? 0)}</span></td>
+                        </tr>
+                      )})}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <h3 className="text-xl font-bold uppercase tracking-tight mt-12 pt-8 border-t border-dashed border-current/10">Despesas / Lançamentos Avulsos</h3>
               <div className={`rounded-xl border overflow-hidden ${isDark ? 'bg-[#1C1C1E] border-[#2C2C2E]' : 'bg-white border-gray-100 shadow-sm'}`}>
                 <div className="overflow-x-auto">
                   <table className="w-full text-left">
@@ -311,7 +591,7 @@ export const Reports: React.FC = () => {
                                {e.status}
                              </span>
                           </td>
-                          <td className="px-10 py-6 text-right font-bold text-red-400">R$ {e.amount.toFixed(2)}</td>
+                          <td className="px-10 py-6 text-right font-bold text-red-400">{formatCurrency(e.amount)}</td>
                           <td className="px-10 py-6 text-right">
                              <button onClick={() => deleteExpense(e.id)} className="p-2 rounded-xl text-red-500 hover:bg-red-500/10 opacity-0 group-hover:opacity-100 transition-all">
                                 <Trash2 className="w-4 h-4" />
@@ -350,7 +630,7 @@ export const Reports: React.FC = () => {
                            </span>
                         </td>
                         <td className="px-10 py-6 text-[10px] font-bold opacity-60 uppercase tracking-wide">{o.payments.map(p => p.method).join(' + ')}</td>
-                        <td className="px-10 py-6 text-right font-bold text-[#475569]">R$ {o.total.toFixed(2)}</td>
+                        <td className="px-10 py-6 text-right font-bold text-[#475569]">{formatCurrency(o.total)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -377,7 +657,7 @@ export const Reports: React.FC = () => {
                        </div>
                        <div className="p-4 rounded-lg bg-[#475569]/5 border border-[#475569]/10">
                           <p className="text-[8px] font-bold uppercase text-[#475569]/60 mb-1">Receita</p>
-                          <p className="text-xl font-bold text-[#475569]">R$ {p.revenue.toFixed(0)}</p>
+                          <p className="text-xl font-bold text-[#475569]">{formatCurrency(p.revenue)}</p>
                        </div>
                     </div>
                   </div>
@@ -402,12 +682,12 @@ export const Reports: React.FC = () => {
                      <div className="flex gap-8 items-center">
                         <div className="text-center">
                            <p className="text-[8px] font-bold uppercase opacity-30 mb-1">Vendas Totais</p>
-                           <p className="text-xl font-bold ">R$ {w.revenue.toFixed(2)}</p>
+                           <p className="text-xl font-bold ">{formatCurrency(w.revenue)}</p>
                         </div>
                         <div className="h-10 w-px bg-current/10" />
                         <div className="text-center">
                            <p className="text-[8px] font-bold uppercase text-emerald-500 mb-1">Comissão Acumulada</p>
-                           <p className="text-xl font-bold text-emerald-500 ">R$ {w.commission.toFixed(2)}</p>
+                           <p className="text-xl font-bold text-emerald-500 ">{formatCurrency(w.commission)}</p>
                         </div>
                         <button className="w-12 h-12 rounded-lg bg-[#475569]/10 text-[#475569] flex items-center justify-center hover:bg-[#475569] hover:text-white transition-all"><ChevronRight className="w-6 h-6" /></button>
                      </div>

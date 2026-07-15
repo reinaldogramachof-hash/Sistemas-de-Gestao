@@ -22,10 +22,14 @@ import { Security } from './components/Security';
 import { ActivationGate } from './components/ActivationGate';
 import { EvolutionCenter } from './components/EvolutionCenter';
 import { getClientRouteFromPath } from './config/clientRoutes';
-
+import { AdminAuthGate } from './components/AdminAuthGate';
 const AppContent = () => {
   const { currentView, setCurrentView } = useNavigation();
   const { checkAccess } = useModules();
+
+  React.useEffect(() => {
+    (window as any).setCurrentGastroView = setCurrentView;
+  }, [setCurrentView]);
 
   React.useEffect(() => {
     const storedRole = localStorage.getItem('gestao_gastro_user_role');
@@ -78,9 +82,11 @@ const AppContent = () => {
 
   return (
     <ActivationGate>
-      <Layout currentView={currentView} setCurrentView={setCurrentView}>
-         {renderContent()}
-      </Layout>
+      <AdminAuthGate>
+        <Layout currentView={currentView} setCurrentView={setCurrentView}>
+           {renderContent()}
+        </Layout>
+      </AdminAuthGate>
     </ActivationGate>
   );
 }

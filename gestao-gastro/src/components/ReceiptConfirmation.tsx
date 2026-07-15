@@ -1,5 +1,6 @@
 ﻿import React, { useState } from 'react';
 import { CheckCircle, AlertCircle, Loader } from 'lucide-react';
+import { getLicenseApiUrl } from '../services/licenseApi';
 
 interface ReceiptConfirmationProps {
   onConfirmed: () => void;
@@ -17,7 +18,7 @@ export const ReceiptConfirmation: React.FC<ReceiptConfirmationProps> = ({ onConf
     const licenseKey = localStorage.getItem('plena_license');
 
     try {
-      const response = await fetch('../api_licenca_ml.php?action=confirm_receipt', {
+      const response = await fetch(getLicenseApiUrl('confirm_receipt'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ license_key: licenseKey, email })

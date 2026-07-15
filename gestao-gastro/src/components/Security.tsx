@@ -1,9 +1,9 @@
-﻿import React from 'react';
+import React from 'react';
 import { useApp } from '../store/AppContext';
 import {
   Shield, Lock, FileText, Database,
   AlertCircle, ShieldCheck, UserCheck,
-  ArrowRight, HardDrive, Info
+  ArrowRight, HardDrive, Info, Cloud
 } from 'lucide-react';
 import { motion } from 'motion/react';
 
@@ -13,22 +13,22 @@ export const Security: React.FC = () => {
 
   const sections = [
     {
-      title: "Segurança do Sistema",
-      icon: Lock,
+      title: "Segurança na Nuvem (SaaS)",
+      icon: Cloud,
       color: "text-blue-500",
-      content: "O Gestão Gastro utiliza criptografia de ponta a ponta para armazenamento local. Seus dados de vendas, clientes e estoque são processados e mantidos no ambiente seguro do seu navegador, garantindo que informações sensíveis nunca saiam do seu controle sem Autorização."
+      content: "O Gestão Gastro armazena e sincroniza seus dados na nuvem de forma segura. A comunicação é encriptada e os dados são estritamente segregados por restaurante (Tenant), garantindo privacidade e acesso restrito."
     },
     {
       title: "Políticas Plena Informática",
       icon: ShieldCheck,
       color: "text-emerald-500",
-      content: "Nossa compromisso é com a integridade do seu negócio. A Plena Informática não coleta, vende ou processa seus dados operacionais para fins externos. O sistema é projetado para ser uma ferramenta privada de gestão ERP dedicada exclusivamente à sua Operação."
+      content: "Nosso compromisso é com a integridade do seu negócio. A Plena Informática não compartilha, vende ou processa seus dados operacionais para terceiros. O sistema atua como provedor seguro do seu banco de dados."
     },
     {
-      title: "Responsabilidade de Backup",
+      title: "Backup e Sincronização",
       icon: Database,
       color: "text-amber-500",
-      content: "Como o sistema opera em modo 'Local-First' para maior velocidade, a responsabilidade pela integridade dos dados a longo prazo é do usuário. Recomendamos a exportacao semanal do backup em JSON (dispoNivel no módulo Configurações) para evitar perdas em caso de formatacao ou limpeza de cache."
+      content: "Seus dados estão protegidos por backup contínuo em servidores de alta disponibilidade. O sistema conta ainda com uma camada local de resiliência, garantindo velocidade e operação mesmo com oscilações de rede."
     }
   ];
 
@@ -101,11 +101,11 @@ export const Security: React.FC = () => {
             ${isDark ? 'bg-white/5 border-white/10' : 'bg-gray-50 border-gray-200'}`}>
             <div className="space-y-4 text-center">
               <div className="inline-flex p-3 rounded-xl bg-amber-500/10 text-amber-500">
-                <AlertCircle className="w-6 h-6" />
+                <ShieldCheck className="w-6 h-6" />
               </div>
-              <h4 className="text-xs font-bold uppercase tracking-wide">Aviso Importante</h4>
+              <h4 className="text-xs font-bold uppercase tracking-wide">Privacidade Garantida</h4>
               <p className="text-[9px] font-bold opacity-40 uppercase leading-relaxed">
-                A limpeza de dados do navegador ou desinstalacao do mesmo pode resultar na perda permanente de informações não exportadas.
+                Nenhum de seus dados financeiros ou configurações do cardápio são compartilhados com outros clientes da plataforma.
               </p>
             </div>
             <button

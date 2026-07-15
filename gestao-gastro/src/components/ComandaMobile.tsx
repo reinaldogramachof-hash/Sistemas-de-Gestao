@@ -29,7 +29,6 @@ interface OfflineQueueItem {
 }
 
 const OFFLINE_QUEUE_KEY = 'garcom_offline_queue';
-const TENANT_ID = import.meta.env.VITE_GASTRO_TENANT_ID as string;
 
 // ─── Utils ────────────────────────────────────────────────────────────────────
 
@@ -89,18 +88,21 @@ const mergeOrderItems = (existingItems: OrderItem[], newItems: OrderItem[]): Ord
 interface ComandaMobileProps {
   waiterSession: WaiterSession;
   products: Product[];
+  tenantId: string;
   onLogout: () => void;
 }
 
 export const ComandaMobile: React.FC<ComandaMobileProps> = ({
   waiterSession,
   products,
+  tenantId,
   onLogout,
 }) => {
   const [step, setStep] = useState<Step>('mesa');
   const [tables, setTables] = useState<Table[]>([]);
   const [openOrders, setOpenOrders] = useState<Order[]>([]);
   const [loadingTables, setLoadingTables] = useState(true);
+  const [tableError, setTableError] = useState<'tenant_missing' | 'db_error' | null>(null);
   const [selectedTable, setSelectedTable] = useState<Table | null>(null);
   const [isBalcao, setIsBalcao] = useState(false);
   const [draftItems, setDraftItems] = useState<ComandaDraftItem[]>([]);
@@ -131,19 +133,25 @@ export const ComandaMobile: React.FC<ComandaMobileProps> = ({
 
     const load = async () => {
       setLoadingTables(true);
+      setTableError(null);
       if (isSupabaseConfigured) {
+        if (!tenantId) {
+          setTableError('tenant_missing');
+          setLoadingTables(false);
+          return;
+        }
         try {
-          if (!TENANT_ID) throw new Error('TENANT_ID ausente (obrigatório em modo online)');
           const [tablesData, ordersData] = await Promise.all([
-            listTables(TENANT_ID),
-            listOpenOrders(TENANT_ID),
+            listTables(tenantId),
+            listOpenOrders(tenantId),
           ]);
           setTables(tablesData);
           setOpenOrders(ordersData);
-          unsubscribeTables = subscribeToTables(TENANT_ID, setTables);
-          unsubscribeOrders = subscribeToOrders(TENANT_ID, setOpenOrders);
-        } catch {
-          // Sem conexão: mostra lista vazia com aviso
+          unsubscribeTables = subscribeToTables(tenantId, setTables);
+          unsubscribeOrders = subscribeToOrders(tenantId, setOpenOrders);
+        } catch (err) {
+          console.error('Erro ao carregar mesas/pedidos:', err);
+          setTableError('db_error');
           setTables([]);
           setOpenOrders([]);
         }
@@ -156,7 +164,7 @@ export const ComandaMobile: React.FC<ComandaMobileProps> = ({
       unsubscribeTables?.();
       unsubscribeOrders?.();
     };
-  }, []);
+  }, [tenantId]);
 
   // ─── Sync da fila offline ─────────────────────────────────────────────────
 
@@ -169,19 +177,19 @@ export const ComandaMobile: React.FC<ComandaMobileProps> = ({
       try {
         const orderItems = buildOrderItems(item.items);
         const subtotal = orderItems.reduce((s, i) => s + i.price * i.quantity, 0);
-        if (!TENANT_ID) {
+        if (!tenantId) {
           throw new Error('Tenant nao configurado para sincronizar fila offline.');
         }
 
         if (item.existingOrderId) {
-          const freshOrders = await listOpenOrders(TENANT_ID);
+          const freshOrders = await listOpenOrders(tenantId);
           const existingOrder = freshOrders.find(order => order.id === item.existingOrderId);
           if (!existingOrder) throw new Error('Pedido ativo nao encontrado para sincronizar fila offline.');
-          await updateOrderItems(TENANT_ID, item.existingOrderId, mergeOrderItems(existingOrder.items, orderItems));
+          await updateOrderItems(tenantId, item.existingOrderId, mergeOrderItems(existingOrder.items, orderItems));
           continue;
         }
 
-        const createdOrder = await createOrder(TENANT_ID, {
+        const createdOrder = await createOrder(tenantId, {
           mode: item.mode,
           tableNumber: item.tableNumber ?? undefined,
           items: orderItems,
@@ -193,7 +201,7 @@ export const ComandaMobile: React.FC<ComandaMobileProps> = ({
           timestamp: item.timestamp,
         });
         if (item.mode === 'mesa' && item.tableNumber) {
-          await setTableOccupied(TENANT_ID, item.tableNumber, createdOrder.id);
+          await setTableOccupied(tenantId, item.tableNumber, createdOrder.id);
         }
       } catch {
         remaining.push(item);
@@ -203,7 +211,7 @@ export const ComandaMobile: React.FC<ComandaMobileProps> = ({
     setOfflineQueue(remaining);
     saveOfflineQueue(remaining);
     setSyncing(false);
-  }, [isOnline, offlineQueue]);
+  }, [isOnline, offlineQueue, tenantId]);
 
   useEffect(() => {
     if (isOnline && offlineQueue.length > 0) {
@@ -291,21 +299,21 @@ export const ComandaMobile: React.FC<ComandaMobileProps> = ({
     }
 
     try {
-      if (!TENANT_ID) {
-        throw new Error('Tenant não configurado. VITE_GASTRO_TENANT_ID é obrigatório quando Supabase está ativo.');
+      if (!tenantId) {
+        throw new Error('Tenant não configurado ou rota inválida.');
       }
       
       if (!isBalcao && selectedTable?.activeOrderId) {
         const activeOrder =
           openOrders.find(order => order.id === selectedTable.activeOrderId) ??
-          (await listOpenOrders(TENANT_ID)).find(order => order.id === selectedTable.activeOrderId);
+          (await listOpenOrders(tenantId)).find(order => order.id === selectedTable.activeOrderId);
 
         if (!activeOrder) {
           throw new Error('Pedido ativo da mesa nao encontrado. Atualize a tela e tente novamente.');
         }
 
         await updateOrderItems(
-          TENANT_ID,
+          tenantId,
           selectedTable.activeOrderId,
           mergeOrderItems(activeOrder.items, orderItems),
         );
@@ -317,14 +325,14 @@ export const ComandaMobile: React.FC<ComandaMobileProps> = ({
           setGeneralObservation('');
           setSelectedTable(null);
           void Promise.all([
-            listTables(TENANT_ID).then(setTables),
-            listOpenOrders(TENANT_ID).then(setOpenOrders),
+            listTables(tenantId).then(setTables),
+            listOpenOrders(tenantId).then(setOpenOrders),
           ]).catch(() => {});
         }, 2500);
         return;
       }
 
-      const createdOrder = await createOrder(TENANT_ID, {
+      const createdOrder = await createOrder(tenantId, {
         mode: isBalcao ? 'balcao' : 'mesa',
         tableNumber: selectedTable?.number,
         items: orderItems,
@@ -337,7 +345,7 @@ export const ComandaMobile: React.FC<ComandaMobileProps> = ({
       });
       
       if (!isBalcao && selectedTable?.number) {
-        await setTableOccupied(TENANT_ID, selectedTable.number, createdOrder.id);
+        await setTableOccupied(tenantId, selectedTable.number, createdOrder.id);
       }
       setSuccess(true);
       // Volta para a seleção de mesas após 2.5s
@@ -349,8 +357,8 @@ export const ComandaMobile: React.FC<ComandaMobileProps> = ({
         setSelectedTable(null);
         // Recarrega mesas e pedidos para refletir status atualizado
         void Promise.all([
-          listTables(TENANT_ID).then(setTables),
-          listOpenOrders(TENANT_ID).then(setOpenOrders),
+          listTables(tenantId).then(setTables),
+          listOpenOrders(tenantId).then(setOpenOrders),
         ]).catch(() => {});
       }, 2500);
     } catch (err) {
@@ -391,7 +399,23 @@ export const ComandaMobile: React.FC<ComandaMobileProps> = ({
         {step === 'mesa' && (
           loadingTables ? (
             <div className="flex items-center justify-center py-16">
-              <p className="text-sm text-gray-500">Carregando mesas…</p>
+              <p className="text-sm text-gray-500 animate-pulse">Carregando mesas…</p>
+            </div>
+          ) : tableError === 'tenant_missing' ? (
+            <div className="text-center py-16 space-y-2">
+              <p className="text-sm text-red-500 font-semibold">Identificação do restaurante ausente.</p>
+              <p className="text-xs text-gray-400">Verifique se acessou a URL correta.</p>
+            </div>
+          ) : tableError === 'db_error' ? (
+            <div className="text-center py-16 space-y-4">
+              <p className="text-sm text-red-500 font-semibold">Erro de permissão ou falha de conexão.</p>
+              <p className="text-xs text-gray-400">Não foi possível conectar ao banco de dados do restaurante. Verifique seu login ou acesso.</p>
+              <button
+                onClick={() => onLogout()}
+                className="mt-2 h-10 px-6 rounded-xl bg-slate-700 text-white text-sm font-semibold hover:bg-slate-600"
+              >
+                Voltar e Fazer Login
+              </button>
             </div>
           ) : tables.length === 0 && isSupabaseConfigured ? (
             <div className="text-center py-16 space-y-2">

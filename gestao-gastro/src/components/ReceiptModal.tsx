@@ -1,8 +1,9 @@
-﻿import React from 'react';
+import React from 'react';
 import { useApp } from '../store/AppContext';
 import { Order } from '../types';
 import { X, Printer, CheckCircle2 } from 'lucide-react';
 import { motion } from 'motion/react';
+import { formatCurrency } from '../utils/format';
 
 interface ReceiptModalProps {
   order: Order;
@@ -81,9 +82,9 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ order, onClose }) =>
                        <span className="w-8 shrink-0">{item.quantity}</span>
                        <div className="flex-1 pr-1 overflow-hidden">
                          <p className="uppercase truncate">{item.product.name}</p>
-                         <p className="text-[9px] print:text-[10px] opacity-70">@{item.price.toFixed(2)}</p>
+                         <p className="text-[9px] print:text-[10px] opacity-70">@{item.price.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                        </div>
-                       <span className="w-16 text-right shrink-0">{(item.price * item.quantity).toFixed(2)}</span>
+                       <span className="w-16 text-right shrink-0">{(item.price * item.quantity).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                     </div>
                  ))}
                </div>
@@ -92,15 +93,15 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ order, onClose }) =>
              <div className="border-t border-dashed border-current pt-3 space-y-1">
                 <div className="flex justify-between text-[11px]">
                   <span className="uppercase">Subtotal:</span>
-                  <span>R$ {order.subtotal.toFixed(2)}</span>
+                  <span>{formatCurrency(order.subtotal)}</span>
                 </div>
                 <div className="flex justify-between text-[11px]">
                   <span className="uppercase">Serviço (10%):</span>
-                  <span>R$ {order.serviceCharge.toFixed(2)}</span>
+                  <span>{formatCurrency(order.serviceCharge)}</span>
                 </div>
                 <div className="flex justify-between text-[14px] font-bold mt-1 pt-2 border-t border-dashed border-current uppercase">
                   <span>Total:</span>
-                  <span>R$ {order.total.toFixed(2)}</span>
+                  <span>{formatCurrency(order.total)}</span>
                 </div>
              </div>
 
@@ -109,16 +110,16 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ order, onClose }) =>
                 {order.payments.map((p, i) => (
                   <div key={i} className="flex justify-between text-[11px]">
                     <span className="uppercase">{p.method}</span>
-                    <span>R$ {(p.receivedAmount ?? p.amount).toFixed(2)}</span>
+                    <span>{formatCurrency(p.receivedAmount ?? p.amount)}</span>
                   </div>
                 ))}
                 <div className="flex justify-between mt-1 pt-1 border-t border-dotted border-current/30 font-bold text-[11px]">
                    <span>RECEBIDO:</span>
-                   <span>R$ {amountReceived.toFixed(2)}</span>
+                   <span>{formatCurrency(amountReceived)}</span>
                 </div>
                 <div className="flex justify-between font-bold text-[11px]">
                    <span>TROCO:</span>
-                   <span>R$ {troco.toFixed(2)}</span>
+                   <span>{formatCurrency(troco)}</span>
                 </div>
              </div>
 

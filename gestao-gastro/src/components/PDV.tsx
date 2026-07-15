@@ -1,19 +1,29 @@
 import React, { useEffect, useState } from 'react';
 import { useApp } from '../store/AppContext';
 import { Product, Order } from '../types';
+import { formatCurrency } from '../utils/format';
 import { MenuList } from './MenuList';
+import { getProductIcon } from '../utils/productIcons';
 import { ArrowRight, Check, ChevronDown, Minus, Package, Plus, Search, ShoppingBag, Tag, Trash2, User, X } from 'lucide-react';
 import { CheckoutModal } from './CheckoutModal';
 import { AnimatePresence, motion } from 'motion/react';
 import { useAudit } from '../hooks/useAudit';
 import { allocateComboItems, calcComboOriginalPrice, getProductDiscount } from '../services/salesService';
 import { validateStock } from '../services/stockGuard';
+import { HelpTooltip } from './HelpTooltip';
 
 export const PDV: React.FC = () => {
   const { collaborators, currentEmpresa, waiters, theme, promotions, campaigns, combos, products, customers, draftOrder, setDraftOrder, clearDraftOrder, stockItems } = useApp();
   const isDark = theme === 'dark';
   const activeOperators = collaborators.filter(c => c.status === 'active');
-  const initialOperatorId = activeOperators[0]?.id ?? waiters[0]?.id ?? '';
+  const systemOperator = {
+    id: 'responsavel-padrao',
+    name: 'Responsável Padrão',
+    role: 'cashier',
+    status: 'active'
+  };
+  const hasOperators = activeOperators.length > 0;
+  const initialOperatorId = hasOperators ? activeOperators[0].id : (waiters[0]?.id ?? systemOperator.id);
   const [selectedOperatorId, setSelectedOperatorId] = useState<string>(
     () => draftOrder?.waiterId ?? initialOperatorId
   );
@@ -48,14 +58,15 @@ export const PDV: React.FC = () => {
     }
   }, [draftOrder, selectedOperatorId, setDraftOrder]);
 
-  const categories = ['Todos', 'Drinks', 'Petiscos', 'Pratos', 'Sobremesas'];
+  const categories = ['Todos', ...Array.from(new Set(products.filter(p => p.active !== false).map(p => p.category)))];
   const activeOrder = draftOrder ?? createOrder(selectedOperatorId);
   const selectedCustomerId = activeOrder.customerId ?? '';
   const totalItems = activeOrder.items.reduce((acc, item) => acc + item.quantity, 0);
   const panelClass = isDark ? 'bg-surface border-border' : 'bg-surface-light border-border-light';
   const fieldClass = isDark ? 'bg-elevated border-border' : 'bg-elevated-light border-border-light';
   const selectedOperatorName =
-    activeOperators.find(c => c.id === selectedOperatorId)?.name ?? 'Operador';
+    activeOperators.find(c => c.id === selectedOperatorId)?.name ??
+    (selectedOperatorId === systemOperator.id ? systemOperator.name : (waiters.find(w => w.id === selectedOperatorId)?.name ?? 'Nenhum atendente cadastrado'));
 
   const updateActiveOrder = (updater: (order: Order) => Order) => {
     setDraftOrder(previous => updater(previous ?? createOrder(selectedOperatorId)));
@@ -157,7 +168,7 @@ export const PDV: React.FC = () => {
     };
 
     addItemToOrder(manualProduct);
-    log('product_add', `Venda avulsa: ${manualName} - R$${price.toFixed(2)}`);
+    log('product_add', `Venda avulsa: ${manualName} - ${formatCurrency(price)}`);
     setManualModalOpen(false);
     setManualName('');
     setManualPrice('');
@@ -186,7 +197,10 @@ export const PDV: React.FC = () => {
       <section className="flex-1 flex flex-col min-w-0">
         <div className="mb-5 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div className="space-y-1">
-            <h2 className="text-xl font-semibold leading-none">Venda Rápida</h2>
+            <div className="flex items-center gap-1.5">
+              <h2 className="text-xl font-semibold leading-none">Venda Rápida</h2>
+              <HelpTooltip moduleKey="pdv" />
+            </div>
             <p className="text-sm text-muted">Atendimento direto no Balcão</p>
           </div>
 
@@ -217,20 +231,25 @@ export const PDV: React.FC = () => {
           </div>
         </div>
 
-        <div className={`flex p-1 gap-1 rounded-panel border w-fit mb-5 overflow-x-auto scrollbar-none ${fieldClass}`}>
-          {categories.map(cat => (
-            <button
-              key={cat}
-              onClick={() => setCategory(cat)}
-              className={`shrink-0 px-4 py-2 rounded-control text-sm font-medium transition-all ${
-                category === cat
-                  ? 'bg-accent text-white'
-                  : isDark ? 'text-muted hover:bg-surface hover:text-text' : 'text-muted-light hover:bg-surface-light hover:text-text-light'
-              }`}
-            >
-              {cat}
-            </button>
-          ))}
+        <div className="relative mb-5 max-w-full">
+          <div className={`flex p-1 gap-1 rounded-panel border overflow-x-auto scrollbar-none pr-10 ${fieldClass}`} aria-label="Categorias de produtos">
+            {categories.map(cat => (
+              <button
+                key={cat}
+                onClick={() => setCategory(cat)}
+                className={`shrink-0 px-4 py-2 rounded-control text-sm font-medium transition-all ${
+                  category === cat
+                    ? 'bg-accent text-white'
+                    : isDark ? 'text-muted hover:bg-surface hover:text-text' : 'text-muted-light hover:bg-surface-light hover:text-text-light'
+                }`}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
+          <div className={`pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-[9px] font-bold uppercase tracking-wide ${isDark ? 'bg-surface/90 text-muted' : 'bg-surface-light/90 text-muted-light'}`}>
+            Deslize
+          </div>
         </div>
 
         <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar">
@@ -285,7 +304,15 @@ export const PDV: React.FC = () => {
                       exit={{ opacity: 0, y: 8 }}
                       className={`absolute left-0 right-0 top-full mt-2 rounded-panel border shadow-2xl overflow-hidden z-20 ${panelClass}`}
                     >
-                      {activeOperators.map(operator => (
+                      {activeOperators.length === 0 ? (
+                        <div className="p-4 text-xs text-muted text-center font-bold uppercase leading-normal border-b border-dashed border-current/10">
+                          Nenhum atendente/garçom ativo. <br/>
+                          Usando: <strong>Responsável Padrão</strong>.<br/>
+                          Cadastre a equipe em <br/>
+                          <span className="text-accent underline">Configurações &gt; Acessos</span>.
+                        </div>
+                      ) : null}
+                      {(hasOperators ? activeOperators : [systemOperator]).map(operator => (
                         <button
                           key={operator.id}
                           onClick={() => handleSelectOperator(operator.id)}
@@ -337,19 +364,22 @@ export const PDV: React.FC = () => {
                 className={`flex items-center gap-3 p-3 rounded-panel transition-colors ${isDark ? 'bg-elevated hover:bg-white/10' : 'bg-elevated-light hover:bg-gray-100'}`}
               >
                 <div className={`w-9 h-9 rounded-panel flex items-center justify-center ${isDark ? 'bg-surface' : 'bg-surface-light'}`}>
-                  <Package className="w-4 h-4 text-muted" />
+                  {(() => {
+                    const Icon = getProductIcon(item.product.category, item.product.name);
+                    return <Icon className="w-4 h-4 text-muted" />;
+                  })()}
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium truncate">{item.product.name}</p>
                   <div className="flex flex-wrap items-center gap-2">
                     {item.originalPrice && item.originalPrice > item.price && (
-                      <span className="text-xs text-muted line-through">R$ {item.originalPrice.toFixed(2)}</span>
+                      <span className="text-xs text-muted line-through">{formatCurrency(item.originalPrice)}</span>
                     )}
-                    <span className="text-xs text-muted">R$ {item.price.toFixed(2)}</span>
+                    <span className="text-xs text-muted">{formatCurrency(item.price)}</span>
                   </div>
                   {item.promotionName && item.discount && item.discount > 0 && (
                     <p className="mt-1 w-fit px-2 py-0.5 rounded-full bg-success/15 text-success text-[10px] font-semibold">
-                      Promocao: -R$ {item.discount.toFixed(2)} ({item.promotionName})
+                      Promocao: -{formatCurrency(item.discount)} ({item.promotionName})
                     </p>
                   )}
                 </div>
@@ -383,12 +413,18 @@ export const PDV: React.FC = () => {
               <p className="text-xs text-muted">Total do pedido</p>
               <div className="flex items-baseline gap-1">
                 <span className="text-sm font-semibold text-accent">R$</span>
-                <span className="text-3xl font-semibold text-accent">{activeOrder.total.toFixed(2)}</span>
+                <span className="text-3xl font-semibold text-accent">{activeOrder.total.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
               </div>
             </div>
             <button
               disabled={activeOrder.items.length === 0}
-              onClick={() => setCheckoutOpen(true)}
+              onClick={() => {
+                if (!selectedOperatorId) {
+                  alert('Não há atendentes disponíveis. Por favor, cadastre um colaborador ativo em Configurações > Acessos ou selecione um atendente válido no topo do carrinho antes de finalizar a venda.');
+                  return;
+                }
+                setCheckoutOpen(true);
+              }}
               className="flex items-center gap-2 px-5 h-11 bg-accent text-white rounded-control font-medium text-sm hover:bg-accent-hover active:scale-95 transition-all disabled:opacity-40 disabled:scale-100"
             >
               Finalizar venda
@@ -444,8 +480,8 @@ export const PDV: React.FC = () => {
                       </div>
                       <div className="flex items-end justify-between">
                         <div>
-                          <p className="text-xs text-muted line-through">R$ {original.toFixed(2)}</p>
-                          <p className="text-base font-semibold text-accent">R$ {combo.comboPrice.toFixed(2)}</p>
+                          <p className="text-xs text-muted line-through">{formatCurrency(original)}</p>
+                          <p className="text-base font-semibold text-accent">{formatCurrency(combo.comboPrice)}</p>
                         </div>
                         <span className="text-[10px] font-semibold px-2 py-1 rounded-full bg-success/15 text-success">
                           Add combo

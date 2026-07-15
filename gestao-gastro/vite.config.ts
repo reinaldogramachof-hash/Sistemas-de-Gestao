@@ -42,6 +42,16 @@ export default defineConfig(({mode}) => {
       port: 3000,
       strictPort: true,
       host: '0.0.0.0',
+      proxy: {
+        '/api_licenca_ml.php': {
+          target: 'http://127.0.0.1:8000',
+          changeOrigin: true,
+        },
+        '/api_admin_users.php': {
+          target: 'http://127.0.0.1:8000',
+          changeOrigin: true,
+        },
+      },
       hmr: {
         protocol: 'wss',
         clientPort: 443 // Vercel/Production uses 443 for wss

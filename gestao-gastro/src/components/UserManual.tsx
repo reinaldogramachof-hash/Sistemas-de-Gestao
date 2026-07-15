@@ -1,18 +1,18 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { useApp } from '../store/AppContext';
 import {
   BookOpen, MonitorPlay, LayoutDashboard, Utensils,
   LineChart, Settings, Database, Lightbulb,
   CheckCircle2, Star, Target, TrendingUp, UserCheck,
   ChevronRight, Info, AlertTriangle, ShieldCheck,
-  Circle, CheckCircle, Award
+  Circle, CheckCircle, Award, Smartphone
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 export const UserManual: React.FC = () => {
   const { theme, readGuides, toggleGuideRead } = useApp();
   const isDark = theme === 'dark';
-  const [activeTab, setActiveTab] = useState<'guides' | 'tips'>('guides');
+  const [activeTab, setActiveTab] = useState<'guides' | 'tips' | 'roteiro'>('guides');
 
   const moduleGuides = [
     {
@@ -149,6 +149,17 @@ export const UserManual: React.FC = () => {
           >
             Dicas Profissionais
           </button>
+          <button
+            onClick={() => setActiveTab('roteiro')}
+            className={`px-10 py-3 rounded-xl font-black text-[11px] uppercase tracking-[0.1em] transition-all
+              ${activeTab === 'roteiro'
+                ? 'bg-[#475569] text-white shadow-lg shadow-[#475569]/20'
+                : 'opacity-40 hover:opacity-100'
+              }
+            `}
+          >
+            Roteiro Primeiro Dia
+          </button>
         </div>
       </div>
 
@@ -173,6 +184,7 @@ export const UserManual: React.FC = () => {
               return (
                 <div
                   key={guide.id}
+                  id={guide.id}
                   className={`p-10 rounded-xl border transition-all duration-500 group relative
                     ${isDark ? 'bg-[#1C1C1E] border-[#2C2C2E]' : 'bg-white border-gray-100 shadow-sm shadow-gray-200/10'}
                     ${isRead ? 'opacity-60 grayscale-[0.5]' : 'opacity-100'}
@@ -219,7 +231,7 @@ export const UserManual: React.FC = () => {
               );
             })}
           </motion.div>
-        ) : (
+        ) : activeTab === 'dicas' ? (
           <motion.div
             key="tips"
             initial={{ opacity: 0, y: 20 }}
@@ -266,8 +278,101 @@ export const UserManual: React.FC = () => {
               );
             })}
           </motion.div>
+        ) : (
+          <motion.div
+            key="roteiro"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="grid grid-cols-1 gap-8 max-w-4xl mx-auto"
+          >
+            <div className={`p-10 rounded-xl border flex flex-col group transition-all duration-500
+              ${isDark ? 'bg-[#1C1C1E] border-[#2C2C2E]' : 'bg-white border-gray-100 shadow-sm shadow-gray-200/10'}
+            `}>
+              <div className="flex items-center gap-4 mb-8">
+                <div className="w-16 h-16 rounded-xl bg-accent flex items-center justify-center text-white flex-shrink-0 shadow-lg shadow-accent/20">
+                  <MonitorPlay className="w-8 h-8" />
+                </div>
+                <div>
+                  <h3 className="text-2xl font-black uppercase italic tracking-tighter">O Roteiro de Primeiro Dia</h3>
+                  <p className="text-sm font-bold opacity-60 leading-relaxed uppercase tracking-tight">Siga estas 8 etapas para iniciar sua operação com sucesso no Gestão Gastro.</p>
+                </div>
+              </div>
+              <div className="space-y-6">
+                {[
+                  { n: 1, title: 'Atualizar Dados Administrativos', desc: 'Acesse Segurança e atualize seus dados de proprietário.' },
+                  { n: 2, title: 'Configurar Salão e Mesas', desc: 'Vá em Configurações > Salão e defina quantas mesas seu restaurante possui.' },
+                  { n: 3, title: 'Revisar Cardápio Base', desc: 'No módulo Cardápio, revise produtos pré-cadastrados, altere preços e desative itens que não vai vender.' },
+                  { n: 4, title: 'Adicionar Novos Produtos', desc: 'Cadastre os pratos ou bebidas específicos do seu estabelecimento.' },
+                  { n: 5, title: 'Cadastrar Equipe', desc: 'Crie logins para gerentes, caixas e garçons em Configurações > Colaboradores.' },
+                  { n: 6, title: 'Validar Comanda Mobile', desc: 'Peça para um garçom usar o QR Code de acesso local e testar o envio de um pedido.' },
+                  { n: 7, title: 'Organizar Impressoras (opcional)', desc: 'Caso possua impressoras térmicas na rede, cadastre seus IPs em Configurações > Impressoras.' },
+                  { n: 8, title: 'Iniciar o Caixa Diário', desc: 'Antes de abrir as portas, abra o seu caixa com o valor de troco inicial em Módulo Caixa.' },
+                ].map(step => (
+                  <div key={step.n} className="flex gap-5 items-center p-4 rounded-lg bg-current/[0.02]">
+                    <div className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-black flex-shrink-0 bg-accent/10 text-accent">
+                      {step.n}
+                    </div>
+                    <div>
+                      <h4 className="text-base font-black uppercase tracking-tight">{step.title}</h4>
+                      <p className="text-xs font-bold opacity-50 uppercase tracking-tighter mt-1">{step.desc}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Procedimentos Operacionais Rápidos */}
+      <div className="space-y-6">
+        <h2 className="text-3xl font-black uppercase italic tracking-tighter">Procedimentos Operacionais Rápidos</h2>
+        <div className="grid grid-cols-1 gap-6">
+
+          {/* Seção Comanda Mobile */}
+          <div id="comanda-mobile" className={`p-8 rounded-xl border ${isDark ? 'bg-[#1C1C1E] border-[#2C2C2E]' : 'bg-white border-gray-100 shadow-sm shadow-gray-200/10'} scroll-mt-20`}>
+            <div className="flex items-center gap-3 mb-4">
+              <Smartphone className="w-6 h-6 text-accent" />
+              <h3 className="text-xl font-bold uppercase tracking-tight">Como acessar a Comanda via Celular do Garçom</h3>
+            </div>
+            <p className="text-xs opacity-70 leading-relaxed font-semibold uppercase tracking-wide">
+              1. No painel administrativo, vá em <strong>Configurações &gt; Acessos e QR Code</strong>.<br/>
+              2. Caso esteja em ambiente de desenvolvimento local, configure o IP da sua rede local (ex: http://192.168.0.10:3000) para habilitar o acesso.<br/>
+              3. Faça o garçom apontar a câmera do celular para o QR Code gerado, ou envie o link gerado diretamente para o dispositivo dele.<br/>
+              4. O garçom deverá fazer login com o e-mail e senha criados por você na aba de equipe em Configurações.
+            </p>
+          </div>
+
+          {/* Seção Fechamento de Caixa */}
+          <div id="fechamento-caixa" className={`p-8 rounded-xl border ${isDark ? 'bg-[#1C1C1E] border-[#2C2C2E]' : 'bg-white border-gray-100 shadow-sm shadow-gray-200/10'} scroll-mt-20`}>
+            <div className="flex items-center gap-3 mb-4">
+              <TrendingUp className="w-6 h-6 text-emerald-500" />
+              <h3 className="text-xl font-bold uppercase tracking-tight">Fluxo de Fechamento e Caixa Diário</h3>
+            </div>
+            <p className="text-xs opacity-70 leading-relaxed font-semibold uppercase tracking-wide">
+              1. O caixa diário deve ser <strong>Aberto</strong> informando o valor de troco inicial em dinheiro.<br/>
+              2. Durante o dia, todas as vendas do PDV e comandas fechadas alimentarão o caixa automaticamente.<br/>
+              3. Sangrias (retirada de dinheiro para segurança) e suprimentos (adição de troco) devem ser registrados imediatamente.<br/>
+              4. Ao final do expediente, clique em <strong>Fechar Caixa</strong>, confira os valores em dinheiro, cartão e PIX calculados pelo sistema, informe o valor real e confirme o encerramento da sessão diária.
+            </p>
+          </div>
+
+          {/* Seção Estoque e Receitas */}
+          <div id="estoque-receitas" className={`p-8 rounded-xl border ${isDark ? 'bg-[#1C1C1E] border-[#2C2C2E]' : 'bg-white border-gray-100 shadow-sm shadow-gray-200/10'} scroll-mt-20`}>
+            <div className="flex items-center gap-3 mb-4">
+              <Utensils className="w-6 h-6 text-amber-500" />
+              <h3 className="text-xl font-bold uppercase tracking-tight">Regras de Validação de Estoque e Receitas</h3>
+            </div>
+            <p className="text-xs opacity-70 leading-relaxed font-semibold uppercase tracking-wide">
+              1. <strong>Insumos</strong>: Cadastre a matéria-prima (ex: carne, queijo, pão, refrigerante) em Estoque com unidade e estoque mínimo.<br/>
+              2. <strong>Ficha Técnica/Receitas</strong>: No cardápio, associe os insumos a cada produto informando a quantidade consumida por venda (ex: 0.150kg de carne para o hambúrguer).<br/>
+              3. <strong>Validação</strong>: O sistema debita insumos automaticamente a cada venda no PDV ou comanda faturada. Se algum insumo da receita estiver zerado, o sistema alertará sobre o estoque insuficiente.
+            </p>
+          </div>
+
+        </div>
+      </div>
 
       {/* Final Call to Action */}
       <div className={`p-10 rounded-xl border border-[#475569]/20 bg-[#475569]/5 text-center space-y-6`}>

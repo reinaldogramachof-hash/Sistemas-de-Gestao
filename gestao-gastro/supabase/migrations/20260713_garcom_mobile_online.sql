@@ -6,17 +6,43 @@ CREATE TABLE IF NOT EXISTS public.tenant_members (
     user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
     role TEXT NOT NULL DEFAULT 'owner',
     active BOOLEAN NOT NULL DEFAULT true,
+    display_name TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     PRIMARY KEY (tenant_id, user_id)
 );
+ALTER TABLE public.tenant_members ADD COLUMN IF NOT EXISTS display_name TEXT;
 ALTER TABLE public.tenant_members ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Users can read own tenant membership" ON public.tenant_members;
-CREATE POLICY "Users can read own tenant membership"
+DROP POLICY IF EXISTS "Membros do tenant podem visualizar membros" ON public.tenant_members;
+CREATE POLICY "Membros do tenant podem visualizar membros"
 ON public.tenant_members
 FOR SELECT
 TO authenticated
-USING (user_id = (select auth.uid()));
+USING (
+  tenant_id IN (
+    SELECT t.tenant_id FROM public.tenant_members t
+    WHERE t.user_id = (select auth.uid()) AND t.active = true
+  )
+);
+
+DROP POLICY IF EXISTS "Admin/owner do tenant podem gerenciar membros" ON public.tenant_members;
+CREATE POLICY "Admin/owner do tenant podem gerenciar membros"
+ON public.tenant_members
+FOR ALL
+TO authenticated
+USING (
+  tenant_id IN (
+    SELECT t.tenant_id FROM public.tenant_members t
+    WHERE t.user_id = (select auth.uid()) AND t.active = true AND t.role IN ('owner', 'admin')
+  )
+)
+WITH CHECK (
+  tenant_id IN (
+    SELECT t.tenant_id FROM public.tenant_members t
+    WHERE t.user_id = (select auth.uid()) AND t.active = true AND t.role IN ('owner', 'admin')
+  )
+);
 
 CREATE OR REPLACE FUNCTION public.set_updated_at()
 RETURNS trigger
@@ -194,6 +220,24 @@ USING (
   )
 );
 
+DROP POLICY IF EXISTS "Membros do tenant podem gerenciar categorias" ON public.menu_categories;
+CREATE POLICY "Membros do tenant podem gerenciar categorias"
+ON public.menu_categories
+FOR ALL
+TO authenticated
+USING (
+  tenant_id IN (
+    SELECT t.tenant_id FROM public.tenant_members t
+    WHERE t.user_id = (select auth.uid()) AND t.active = true AND t.role IN ('owner', 'admin')
+  )
+)
+WITH CHECK (
+  tenant_id IN (
+    SELECT t.tenant_id FROM public.tenant_members t
+    WHERE t.user_id = (select auth.uid()) AND t.active = true AND t.role IN ('owner', 'admin')
+  )
+);
+
 ALTER TABLE public.menu_products ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Membros do tenant podem visualizar produtos" ON public.menu_products;
 CREATE POLICY "Membros do tenant podem visualizar produtos"
@@ -204,6 +248,24 @@ USING (
   tenant_id IN (
     SELECT t.tenant_id FROM public.tenant_members t
     WHERE t.user_id = (select auth.uid()) AND t.active = true
+  )
+);
+
+DROP POLICY IF EXISTS "Membros do tenant podem gerenciar produtos" ON public.menu_products;
+CREATE POLICY "Membros do tenant podem gerenciar produtos"
+ON public.menu_products
+FOR ALL
+TO authenticated
+USING (
+  tenant_id IN (
+    SELECT t.tenant_id FROM public.tenant_members t
+    WHERE t.user_id = (select auth.uid()) AND t.active = true AND t.role IN ('owner', 'admin')
+  )
+)
+WITH CHECK (
+  tenant_id IN (
+    SELECT t.tenant_id FROM public.tenant_members t
+    WHERE t.user_id = (select auth.uid()) AND t.active = true AND t.role IN ('owner', 'admin')
   )
 );
 

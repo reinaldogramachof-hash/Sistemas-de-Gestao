@@ -4,6 +4,7 @@ import { Order, PartialPaymentItem, PaymentItem, PaymentMethod } from '../types'
 import { X } from 'lucide-react';
 import { ReceiptModal } from './ReceiptModal';
 import { calcEarnedPoints, getCustomerPoints } from '../services/salesService';
+import { formatCurrency } from '../utils/format';
 
 interface CheckoutModalProps {
   order: Order;
@@ -34,7 +35,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ order, onClose, on
   const [splitCount, setSplitCount] = useState(2);
   const [splitMode, setSplitMode] = useState<'nenhum' | 'pessoas'>('nenhum');
   const [payments, setPayments] = useState<PaymentItem[]>([]);
-  const [currentMethod, setCurrentMethod] = useState<PaymentMethod>('credito');
+  const [currentMethod, setCurrentMethod] = useState<PaymentMethod>('dinheiro');
   const [amountInput, setAmountInput] = useState('');
   const [receiptOrder, setReceiptOrder] = useState<Order | null>(null);
   const [redeemLoyalty, setRedeemLoyalty] = useState(() => hasPartialPayments ? (order.loyaltyDiscount ?? 0) > 0 : false);
@@ -90,7 +91,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ order, onClose, on
           customerId: customer.id,
           points: -loyaltyConfig.redeemThreshold,
           orderId: order.id,
-          description: `Resgate - R$ ${loyaltyConfig.redeemValue.toFixed(2)} desconto`,
+          description: `Resgate - ${formatCurrency(loyaltyConfig.redeemValue)} desconto`,
         });
       }
       if (earnedPoints > 0) {
@@ -236,12 +237,12 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ order, onClose, on
                     <span className={isDark ? 'text-[var(--color-muted)]' : 'text-muted-light'}>
                       {item.quantity}× {item.product.name}
                     </span>
-                    <span>R$ {(item.price * item.quantity).toFixed(2)}</span>
+                    <span>{formatCurrency(item.price * item.quantity)}</span>
                   </div>
                 ))}
                 <div className={`flex justify-between pt-2 mt-2 border-t ${isDark ? 'border-[var(--color-border)]' : 'border-border-light'}`}>
                   <span>Subtotal</span>
-                  <span className="font-medium">R$ {order.subtotal.toFixed(2)}</span>
+                  <span className="font-medium">{formatCurrency(order.subtotal)}</span>
                 </div>
                 {isMesa && (
                   <label className={`flex items-center gap-2 pt-1 ${hasPartialPayments ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}>
@@ -253,7 +254,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ order, onClose, on
                       className="accent-[var(--color-accent)]"
                     />
                     <span>Taxa de serviço ({Math.round(serviceChargeRate * 100)}%)</span>
-                    <span className="ml-auto">R$ {serviceCharge.toFixed(2)}</span>
+                    <span className="ml-auto">{formatCurrency(serviceCharge)}</span>
                   </label>
                 )}
                 {customer && loyaltyConfig.active && (
@@ -276,7 +277,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ order, onClose, on
                           className="accent-[var(--color-accent)]"
                         />
                         <span>Resgatar {loyaltyConfig.redeemThreshold} pontos</span>
-                        <span className="ml-auto text-warning">-R$ {loyaltyConfig.redeemValue.toFixed(2)}</span>
+                        <span className="ml-auto text-warning">-{formatCurrency(loyaltyConfig.redeemValue)}</span>
                       </label>
                     )}
                   </div>
@@ -284,14 +285,14 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ order, onClose, on
                 {loyaltyDiscount > 0 && (
                   <div className="flex justify-between text-warning">
                     <span>Desconto fidelidade</span>
-                    <span>-R$ {loyaltyDiscount.toFixed(2)}</span>
+                    <span>-{formatCurrency(loyaltyDiscount)}</span>
                   </div>
                 )}
                 {partialPayments.length > 0 && (
                   <div className={`space-y-2 pt-2 mt-2 border-t ${isDark ? 'border-[var(--color-border)]' : 'border-border-light'}`}>
                     <div className="flex justify-between text-xs font-semibold">
                       <span>Pagamentos parciais</span>
-                      <span className="text-success">R$ {partialAmountPaid.toFixed(2)}</span>
+                      <span className="text-success">{formatCurrency(partialAmountPaid)}</span>
                     </div>
                     {partialPayments.map((payment, index) => (
                       <div key={`${payment.paidAt}-${index}`} className="flex items-center justify-between text-xs">
@@ -301,20 +302,20 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ order, onClose, on
                             {new Date(payment.paidAt).toLocaleString('pt-BR')}
                           </span>
                         </div>
-                        <span>R$ {payment.amount.toFixed(2)}</span>
+                        <span>{formatCurrency(payment.amount)}</span>
                       </div>
                     ))}
                   </div>
                 )}
                 <div className={`flex justify-between text-lg font-bold pt-3 mt-1 border-t ${isDark ? 'border-[var(--color-border)]' : 'border-border-light'}`}>
                   <span>Total</span>
-                  <span className="text-[var(--color-accent)]">R$ {totalAmount.toFixed(2)}</span>
+                  <span className="text-[var(--color-accent)]">{formatCurrency(totalAmount)}</span>
                 </div>
                 {partialPayments.length > 0 && (
                   <div className="flex justify-between text-sm font-semibold">
                     <span>Saldo devedor</span>
                     <span className={amountRemaining > 0.01 ? 'text-danger' : 'text-success'}>
-                      R$ {amountRemaining.toFixed(2)}
+                      {formatCurrency(amountRemaining)}
                     </span>
                   </div>
                 )}
@@ -349,7 +350,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ order, onClose, on
                       className={`h-10 w-14 px-3 text-center rounded-control border text-sm outline-none ${isDark ? 'bg-[var(--color-surface)] border-[var(--color-border)] text-white' : 'bg-surface-light border-border-light'}`}
                     />
                     <span className="text-sm ml-auto font-bold text-[var(--color-accent)]">
-                      R$ {(totalAmount / splitCount).toFixed(2)} / cada
+                      {formatCurrency(totalAmount / splitCount)} / cada
                     </span>
                   </div>
                 )}
@@ -360,11 +361,11 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ order, onClose, on
               <div className={`p-4 rounded-control border space-y-2 text-sm ${isDark ? 'bg-[var(--color-app-base)] border-[var(--color-border)]' : 'bg-elevated-light border-border-light'}`}>
                 <div className="flex justify-between">
                   <span className={isDark ? 'text-[var(--color-muted)]' : 'text-muted-light'}>Total já recebido</span>
-                  <span className="font-bold text-success">R$ {partialAmountPaid.toFixed(2)}</span>
+                  <span className="font-bold text-success">{formatCurrency(partialAmountPaid)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className={isDark ? 'text-[var(--color-muted)]' : 'text-muted-light'}>Saldo atual da mesa</span>
-                  <span className="font-bold text-danger">R$ {amountRemaining.toFixed(2)}</span>
+                  <span className="font-bold text-danger">{formatCurrency(amountRemaining)}</span>
                 </div>
               </div>
             )}
@@ -412,7 +413,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ order, onClose, on
               {checkoutMode === 'fechar' && currentMethod === 'dinheiro' && (
                 <div className={`mt-2 flex items-center justify-between rounded-control border px-3 py-2 text-xs ${isDark ? 'bg-[var(--color-app-base)] border-[var(--color-border)]' : 'bg-elevated-light border-border-light'}`}>
                   <span className={isDark ? 'text-[var(--color-muted)]' : 'text-muted-light'}>Troco a devolver</span>
-                  <span className="font-bold text-warning">R$ {draftTroco.toFixed(2)}</span>
+                  <span className="font-bold text-warning">{formatCurrency(draftTroco)}</span>
                 </div>
               )}
             </div>
@@ -423,7 +424,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ order, onClose, on
                   <div key={idx} className="flex justify-between items-center">
                     <span className="capitalize">{payment.method}</span>
                     <div className="flex items-center gap-3">
-                      <span className="font-medium">R$ {(payment.receivedAmount ?? payment.amount).toFixed(2)}</span>
+                      <span className="font-medium">{formatCurrency(payment.receivedAmount ?? payment.amount)}</span>
                       <button
                         onClick={() => handleRemovePayment(idx)}
                         className={`text-xs px-2 py-0.5 rounded border transition-colors ${isDark ? 'border-[var(--color-border)] text-[var(--color-muted)] hover:border-red-800 hover:text-danger' : 'border-border-light text-muted-light hover:border-red-300 hover:text-danger'}`}
@@ -439,18 +440,18 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ order, onClose, on
             <div className={`p-4 rounded-control border space-y-1.5 text-sm ${isDark ? 'bg-[var(--color-app-base)] border-[var(--color-border)]' : 'bg-elevated-light border-border-light'}`}>
               <div className="flex justify-between">
                 <span className={isDark ? 'text-[var(--color-muted)]' : 'text-muted-light'}>Valor recebido</span>
-                <span className="font-bold text-success">R$ {amountReceived.toFixed(2)}</span>
+                <span className="font-bold text-success">{formatCurrency(amountReceived)}</span>
               </div>
               {amountRemaining > 0.01 && (
                 <div className="flex justify-between">
                   <span className={isDark ? 'text-[var(--color-muted)]' : 'text-muted-light'}>Falta</span>
-                  <span className="font-bold text-danger">R$ {amountRemaining.toFixed(2)}</span>
+                  <span className="font-bold text-danger">{formatCurrency(amountRemaining)}</span>
                 </div>
               )}
               {troco > 0.01 && (
                 <div className="flex justify-between font-bold text-warning">
                   <span>Troco</span>
-                  <span>R$ {troco.toFixed(2)}</span>
+                  <span>{formatCurrency(troco)}</span>
                 </div>
               )}
             </div>

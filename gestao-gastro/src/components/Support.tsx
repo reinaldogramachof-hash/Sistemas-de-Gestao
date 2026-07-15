@@ -1,7 +1,7 @@
-﻿import React from 'react';
+import React from 'react';
 import { useApp } from '../store/AppContext';
 import {
-  LifeBuoy,
+  Headphones,
   MessageCircle,
   Mail,
   Phone,
@@ -51,7 +51,7 @@ export const Support: React.FC = () => {
       {/* Header section */}
       <div className="text-center space-y-4">
         <div className="inline-flex p-4 rounded-xl bg-[#475569]/10 text-[#475569] mb-4">
-          <LifeBuoy className="w-10 h-10" />
+          <Headphones className="w-10 h-10" />
         </div>
         <h1 className="text-4xl font-black tracking-tighter uppercase">Central de Suporte</h1>
         <p className="text-sm font-bold opacity-40 uppercase tracking-[0.2em] max-w-lg mx-auto">
@@ -89,7 +89,7 @@ export const Support: React.FC = () => {
 
         <div className="absolute top-0 right-0 w-64 h-64 bg-[#475569]/5  -mr-32 -mt-32" />
 
-        <div className="flex flex-col md:flex-row items-center justify-between gap-12 relative z-10">
+        <div className="flex flex-col md:flex-row items-center justify-between gap-8 relative z-10">
           <div className="space-y-6 flex-1 text-center md:text-left">
             <div>
               <h2 className="text-2xl font-black tracking-tighter uppercase mb-2">Plena Informática</h2>
@@ -99,12 +99,12 @@ export const Support: React.FC = () => {
             </div>
           </div>
 
-          <div className="flex-shrink-0">
+          <div className="w-full md:w-auto flex-shrink-0">
             <a
               href="https://www.plenainformatica.com.br"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-3 px-10 py-6 bg-[#475569] text-white rounded-lg font-black uppercase tracking-widest text-[11px] shadow-sm shadow-[#475569]/40  active:scale-95 transition-all"
+              className="flex w-full md:w-auto items-center justify-center gap-3 px-6 md:px-10 py-6 bg-[#475569] text-white rounded-lg font-black uppercase tracking-widest text-[11px] shadow-sm shadow-[#475569]/40 active:scale-95 transition-all"
             >
               Visitar Nosso Site
               <ExternalLink className="w-5 h-5" />

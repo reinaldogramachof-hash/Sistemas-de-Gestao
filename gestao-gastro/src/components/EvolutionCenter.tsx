@@ -1,7 +1,13 @@
-﻿import React, { useState } from 'react';
-import { Rocket, Cloud, Users, MessageSquare, Globe, BarChart3, ShoppingBag, ShieldCheck } from 'lucide-react';
+import React, { useState } from 'react';
+import { Rocket, Cloud, Users, MessageSquare, Globe, BarChart3, ShoppingBag, ShieldCheck, CheckCircle2 } from 'lucide-react';
+import { useModules } from '../hooks/useModules';
+import { planMatrix, getCommercialModuleName, AppModule } from '../config/modulesConfig';
+import { useApp } from '../store/AppContext';
 
 export const EvolutionCenter: React.FC = () => {
+  const { currentPlan } = useModules();
+  const { theme } = useApp();
+  const isDark = theme === 'dark';
   const [toastMsg, setToastMsg] = useState('');
   const premiumFeatures = [
     {
@@ -92,26 +98,39 @@ export const EvolutionCenter: React.FC = () => {
       )}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight text-white flex items-center gap-3">
+          <h2 className="text-3xl font-black italic uppercase tracking-tighter flex items-center gap-3">
             <Rocket className="w-8 h-8 text-[#475569]" />
             Central de Evolução
           </h2>
-          <p className="text-gray-400 mt-1">Conheça o plano Premium Online Mensal e leve seu restaurante para o Próximo Nível.</p>
+          <p className="opacity-50 font-bold uppercase tracking-wide text-[10px] mt-1">Descubra novos módulos e leve seu restaurante para o Próximo Nível.</p>
         </div>
         <div className="flex items-center gap-2 px-4 py-2 bg-[#475569]/10 border border-[#475569]/30 rounded-full">
           <ShieldCheck className="w-5 h-5 text-[#475569]" />
-          <span className="text-[#475569] font-semibold text-sm">Vitalício Ativo</span>
+          <span className="text-[#475569] font-bold uppercase tracking-wider text-[10px]">Licença Ativa</span>
         </div>
       </div>
 
-      <div className="bg-[#1C1C1E] rounded-lg border border-white/5 p-8 relative overflow-hidden">
+      <div className={`rounded-lg border p-8 relative overflow-hidden ${isDark ? 'bg-[#1C1C1E] border-white/5' : 'bg-gray-50 border-gray-100'}`}>
         {/* Efeito de brilho de fundo */}
-        <div className="absolute top-0 right-0 -mr-20 -mt-20 w-64 h-64 bg-[#475569] rounded-full  filter  opacity-20 pointer-events-none" />
+        <div className="absolute top-0 right-0 -mr-20 -mt-20 w-64 h-64 bg-[#475569] rounded-full filter opacity-10 pointer-events-none" />
 
         <div className="relative z-10 text-center max-w-2xl mx-auto mb-12">
-          <h3 className="text-2xl font-bold text-white mb-4">Em Breve: Premium Online Mensal</h3>
-          <p className="text-gray-400">
-            Sua licença atual é vitalícia e 100% offline. Estamos desenvolvendo recursos premium focados em conectividade e expansão de vendas. Ao assinar o futuro plano mensal, voce desbloqueará as seguintes funcionalidades:
+          <h3 className="text-2xl font-bold mb-4 break-words">Seu Plano Atual: <span className="uppercase text-[#475569]">{currentPlan}</span></h3>
+          <p className="opacity-70 mb-6">
+            Módulos liberados no seu plano atual:
+          </p>
+          <div className="flex flex-wrap justify-center gap-2 mb-10">
+            {planMatrix[currentPlan].allowedModules.map(m => (
+              <span key={m} className="max-w-full break-words px-3 py-1 text-xs font-bold uppercase tracking-wider rounded-full bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 flex items-center gap-1.5">
+                <CheckCircle2 className="w-3 h-3" />
+                {getCommercialModuleName(m)}
+              </span>
+            ))}
+          </div>
+
+          <h3 className="text-2xl font-bold mb-4">Evoluções Disponíveis (Premium/Master)</h3>
+          <p className="opacity-70">
+            Descubra recursos avançados para levar sua gestão ao próximo nível.
           </p>
         </div>
 
@@ -119,17 +138,17 @@ export const EvolutionCenter: React.FC = () => {
           {premiumFeatures.map((feat) => {
             const Icon = feat.icon;
             return (
-              <div key={feat.id} className="bg-[#2A2A2D] rounded-xl p-6 border border-white/5 hover:border-white/10 transition-all hover:translate-y-[-2px]">
+              <div key={feat.id} className={`rounded-xl p-6 border transition-all hover:translate-y-[-2px] ${isDark ? 'bg-[#2A2A2D] border-white/5 hover:border-white/10' : 'bg-white border-gray-100 hover:border-gray-200 shadow-sm'}`}>
                 <div className={`w-12 h-12 rounded-lg ${feat.bg} flex items-center justify-center mb-4`}>
                   <Icon className={`w-6 h-6 ${feat.color}`} />
                 </div>
-                <h4 className="text-lg font-bold text-white mb-2">{feat.title}</h4>
-                <p className="text-sm text-gray-400 leading-relaxed mb-4">
+                <h4 className="text-lg font-bold mb-2">{feat.title}</h4>
+                <p className="text-sm opacity-70 leading-relaxed mb-4">
                   {feat.description}
                 </p>
                 <button
                   onClick={() => handleCTA(feat.message)}
-                  className="mt-auto text-xs font-bold uppercase tracking-wider text-[#475569] hover:text-white transition-colors"
+                  className="mt-auto text-xs font-bold uppercase tracking-wider text-[#475569] hover:opacity-70 transition-colors"
                 >
                   {feat.cta}
                 </button>
@@ -140,13 +159,13 @@ export const EvolutionCenter: React.FC = () => {
 
         <div className="mt-12 text-center relative z-10">
           <button
-            onClick={() => handleCTA('Seu interesse foi registrado localmente. Avisaremos quando estiver dispoNivel!')}
+            onClick={() => handleCTA('Seu interesse foi registrado! Entraremos em contato com opções de upgrade.')}
             className="bg-slate-700 hover:bg-slate-600 text-white font-bold py-3 px-8 rounded-lg transition-all active:scale-95"
           >
-            Quero ser avisado no lançamento
+            Solicitar Upgrade de Plano
           </button>
-          <p className="text-xs text-gray-500 mt-4">
-            * O plano Premium Mensal será opcional. Seu sistema atual continuará funcionando perfeitamente sem custos adicionais.
+          <p className="text-xs opacity-50 mt-4">
+            * O upgrade adicionará novos módulos ao seu painel. Você não perderá os dados atuais.
           </p>
         </div>
       </div>

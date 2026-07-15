@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Shield, Key, Mail, Loader, CheckCircle } from 'lucide-react';
 import { ReceiptConfirmation } from './ReceiptConfirmation';
 import { resolveTenant } from '../config/clientRoutes';
+import { getLicenseApiUrl } from '../services/licenseApi';
 
 interface ActivationGateProps {
   children: React.ReactNode;
@@ -34,7 +35,7 @@ export const ActivationGate: React.FC<ActivationGateProps> = ({ children }) => {
     }
 
     try {
-      const response = await fetch('../api_licenca_ml.php?action=verify', {
+      const response = await fetch(getLicenseApiUrl('verify'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ license_key: savedKey, email: savedEmail, tenant_id: resolvedTenant })
@@ -47,7 +48,7 @@ export const ActivationGate: React.FC<ActivationGateProps> = ({ children }) => {
       const data = await response.json();
 
       if (data.status === 'success' && data.license_status === 'active') {
-        if (resolvedTenant && data.tenant_id && data.tenant_id !== resolvedTenant) {
+        if (resolvedTenant && !data.is_master && (!data.tenant_id || data.tenant_id !== resolvedTenant)) {
           localStorage.removeItem('plena_license');
           localStorage.removeItem('ml_license_email');
           localStorage.removeItem('gestao_gastro_verified_plan');
@@ -98,7 +99,7 @@ export const ActivationGate: React.FC<ActivationGateProps> = ({ children }) => {
         localStorage.setItem('device_id', deviceId);
       }
 
-      const response = await fetch('../api_licenca_ml.php?action=activate', {
+      const response = await fetch(getLicenseApiUrl('activate'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ license_key: licenseKey, email, device_id: deviceId, tenant_id: resolvedTenant })
@@ -107,7 +108,7 @@ export const ActivationGate: React.FC<ActivationGateProps> = ({ children }) => {
       const data = await response.json();
 
       if (data.status === 'success') {
-        if (resolvedTenant && data.tenant_id && data.tenant_id !== resolvedTenant) {
+        if (resolvedTenant && !data.is_master && (!data.tenant_id || data.tenant_id !== resolvedTenant)) {
           setError('Licenca nao pertence a este restaurante.');
           return;
         }

@@ -9,6 +9,8 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { StockMovement, StockItem } from '../types';
 import { ui } from '../ui/styles';
+import { HelpTooltip } from './HelpTooltip';
+import { formatStockQuantity } from '../utils/format';
 
 type TabType = 'overview' | 'movements' | 'losses';
 
@@ -34,6 +36,7 @@ export const Stock: React.FC = () => {
     minStock: 0,
     costPrice: 0,
     supplierId: '',
+    expiryDate: '',
     addQuantity: 0 // Quantidade a ser somada ao estoque atual
   });
 
@@ -67,6 +70,7 @@ export const Stock: React.FC = () => {
         minStock: item.minStock,
         costPrice: item.costPrice,
         supplierId: item.supplierId || '',
+        expiryDate: item.expiryDate || '',
         addQuantity: 0
       });
     } else {
@@ -78,6 +82,7 @@ export const Stock: React.FC = () => {
         minStock: 0,
         costPrice: 0,
         supplierId: '',
+        expiryDate: '',
         addQuantity: 0
       });
     }
@@ -95,6 +100,7 @@ export const Stock: React.FC = () => {
       minStock: Number(formData.minStock),
       costPrice: Number(formData.costPrice),
       supplierId: formData.supplierId,
+      expiryDate: formData.expiryDate || undefined,
       currentStock: (editingItem?.currentStock || 0) + Number(formData.addQuantity)
     };
 
@@ -153,7 +159,10 @@ export const Stock: React.FC = () => {
       {/* Header & Stats */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div className="space-y-1">
-          <h2 className={ui.pageTitle}>Gestão de Suprimentos</h2>
+          <div className="flex items-center gap-1.5">
+            <h2 className={ui.pageTitle}>Gestão de Suprimentos</h2>
+            <HelpTooltip moduleKey="stock" />
+          </div>
           <p className={ui.pageSubtitle}>Controle profundo de insumos e movimentações</p>
         </div>
 
@@ -239,7 +248,7 @@ export const Stock: React.FC = () => {
                   <tr>
                     <th className="px-10 py-7">Insumo</th>
                     <th className="px-10 py-7">Fornecedor Preferencial</th>
-                    <th className="px-10 py-7">Saldo / Unidade</th>
+                    <th className="px-10 py-7">Saldo e Mínimo</th>
                     <th className="px-10 py-7">Custo Un.</th>
                     <th className="px-10 py-7">Status</th>
                     <th className="px-10 py-7 text-right">Gestão</th>
@@ -271,10 +280,13 @@ export const Stock: React.FC = () => {
                         </td>
                         <td className="px-10 py-6">
                           <div className="flex flex-col">
-                            <span className={`text-lg font-bold tabular-nums ${status.color}`}>
-                              {si.currentStock.toFixed(3)} <span className="text-[10px] opacity-40 ml-1 font-bold">{si.unit}</span>
+                            <span className={`text-sm font-bold tracking-tight ${status.color}`}>
+                              {formatStockQuantity(si.currentStock, si.unit)}
                             </span>
-                            <div className="w-20 h-1 bg-current/10 rounded-full overflow-hidden mt-1.5">
+                            <span className="text-[10px] font-semibold opacity-40 mt-0.5">
+                              Mínimo: {formatStockQuantity(si.minStock, si.unit)}
+                            </span>
+                            <div className="w-24 h-1 bg-current/10 rounded-full overflow-hidden mt-2">
                               <div
                                 className={`h-full ${status.color.replace('text', 'bg')}`}
                                 style={{ width: `${Math.min((si.currentStock / (si.minStock * 2 || 1)) * 100, 100)}%` }}
@@ -334,7 +346,7 @@ export const Stock: React.FC = () => {
                           {m.type === 'out' && <span className="inline-flex items-center gap-2 text-blue-500 font-bold text-[9px] uppercase tracking-wide"><ArrowUpRight className="w-4 h-4" /> Consumo PDV</span>}
                           {m.type === 'loss' && <span className="inline-flex items-center gap-2 text-red-500 font-bold text-[9px] uppercase tracking-wide"><AlertTriangle className="w-4 h-4" /> Quebra</span>}
                         </td>
-                        <td className="px-10 py-6 font-bold font-mono text-base">{m.quantity} <span className="text-[10px] opacity-20 uppercase">{item?.unit}</span></td>
+                        <td className="px-10 py-6 font-bold font-mono text-sm">{formatStockQuantity(m.quantity, item?.unit || '')}</td>
                         <td className="px-10 py-6 text-[10px] font-bold uppercase opacity-40">{m.reason}</td>
                       </tr>
                     );
@@ -361,7 +373,7 @@ export const Stock: React.FC = () => {
                   <p className="text-[10px] font-bold opacity-40 uppercase tracking-wide  mb-4">{m.reason}</p>
                   <div className="flex justify-between items-end border-t border-current/5 pt-4">
                      <span className="text-[9px] font-bold uppercase opacity-20">Volume Perdido</span>
-                     <span className="text-xl font-bold text-red-500">-{m.quantity} {item?.unit}</span>
+                     <span className="text-lg font-bold text-red-500">-{formatStockQuantity(m.quantity, item?.unit || '')}</span>
                   </div>
                </div>
              );
@@ -422,9 +434,15 @@ export const Stock: React.FC = () => {
                           </select>
                         </div>
                       </div>
-                      <div className="space-y-2">
-                        <label className="text-[9px] font-bold uppercase tracking-wide opacity-40 ml-2">Estoque de Alerta (mínimo)</label>
-                        <input required type="number" step="0.001" value={formData.minStock} onChange={e => setFormData({...formData, minStock: Number(e.target.value)})} className={`w-full h-14 px-6 rounded-lg border outline-none font-bold text-sm ${isDark ? 'bg-transparent border-[#2C2C2E]' : 'bg-gray-50 border-gray-100'}`} />
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <label className="text-[9px] font-bold uppercase tracking-wide opacity-40 ml-2">Estoque de Alerta (mínimo) ({formData.unit})</label>
+                          <input required type="number" step="0.001" value={formData.minStock} onChange={e => setFormData({...formData, minStock: Number(e.target.value)})} className={`w-full h-14 px-6 rounded-lg border outline-none font-bold text-sm ${isDark ? 'bg-transparent border-[#2C2C2E]' : 'bg-gray-50 border-gray-100'}`} />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-[9px] font-bold uppercase tracking-wide opacity-40 ml-2">Validade (Opcional)</label>
+                          <input type="date" value={formData.expiryDate} onChange={e => setFormData({...formData, expiryDate: e.target.value})} className={`w-full h-14 px-6 rounded-lg border outline-none font-bold text-sm ${isDark ? 'bg-transparent border-[#2C2C2E] text-white [color-scheme:dark]' : 'bg-gray-50 border-gray-100'}`} />
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -451,7 +469,7 @@ export const Stock: React.FC = () => {
                           </div>
                         </div>
                         <div className="space-y-2">
-                          <label className="text-[9px] font-bold uppercase tracking-wide opacity-40 ml-2">{editingItem ? 'Somar ao Estoque' : 'Estoque Inicial'}</label>
+                          <label className="text-[9px] font-bold uppercase tracking-wide opacity-40 ml-2">{editingItem ? `Somar ao Estoque (${formData.unit})` : `Estoque Inicial (${formData.unit})`}</label>
                           <input required type="number" step="0.001" value={formData.addQuantity} onChange={e => setFormData({...formData, addQuantity: Number(e.target.value)})} className={`w-full h-14 px-6 rounded-lg border outline-none font-bold text-sm bg-[#475569]/5 border-[#475569]/20 text-[#475569] placeholder:text-[#475569]/30`} />
                         </div>
                       </div>
@@ -463,7 +481,7 @@ export const Stock: React.FC = () => {
                               <span className="text-[10px] font-bold uppercase tracking-wide opacity-40">Saldo Atualizado</span>
                            </div>
                            <span className="text-xl font-bold ">
-                             {(editingItem.currentStock + Number(formData.addQuantity)).toFixed(3)} {formData.unit}
+                             {formatStockQuantity(editingItem.currentStock + Number(formData.addQuantity), formData.unit)}
                            </span>
                         </div>
                       )}
@@ -493,7 +511,14 @@ export const Stock: React.FC = () => {
               </div>
               <form onSubmit={handleSaveLoss} className="p-8 space-y-6">
                 <div className="space-y-2">
-                  <label className="text-[10px] font-bold uppercase tracking-wide opacity-40 ml-2">Quantidade Perdida</label>
+                  {(() => {
+                    const lossItem = stockItems.find(si => si.id === selectedItemId);
+                    return (
+                      <label className="text-[10px] font-bold uppercase tracking-wide opacity-40 ml-2">
+                        Quantidade Perdida ({lossItem?.unit || ''})
+                      </label>
+                    );
+                  })()}
                   <input required type="number" step="0.001" value={lossData.quantity} onChange={e => setLossData({...lossData, quantity: Number(e.target.value)})} className={`w-full h-14 px-6 rounded-lg border outline-none font-bold text-xl ${isDark ? 'bg-transparent border-[#2C2C2E]' : 'bg-gray-50 border-gray-100'}`} />
                 </div>
                 <div className="space-y-2">

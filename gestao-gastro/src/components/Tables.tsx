@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '../store/AppContext';
 import { OrderModal } from './OrderModal';
 import {
@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ui } from '../ui/styles';
+import { HelpTooltip } from './HelpTooltip';
 
 const TableTimer: React.FC<{ timestamp: string; isDark: boolean; status: string }> = ({ timestamp, isDark, status }) => {
   const [now, setNow] = useState(Date.now());
@@ -83,8 +84,11 @@ export const Tables: React.FC = () => {
       <div className="space-y-6">
         <div className="flex flex-col md:flex-row justify-between md:items-end gap-6">
           <div className="space-y-1">
-            <h2 className={ui.pageTitle}>Mapa de Mesas</h2>
-            <p className={ui.pageSubtitle}>Gestao de Salao</p>
+            <div className="flex items-center gap-1.5">
+              <h2 className={ui.pageTitle}>Mapa de Mesas</h2>
+              <HelpTooltip moduleKey="tables" />
+            </div>
+            <p className={ui.pageSubtitle}>Gestão do Salão</p>
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 flex-1 lg:max-w-3xl">

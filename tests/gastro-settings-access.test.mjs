@@ -12,8 +12,8 @@ test('Settings centralizes waiter access and QR code operations', () => {
   assert.ok(source.includes('getComandaAccessUrl'), 'Settings deve usar helper para montar o link da comanda');
   assert.ok(source.includes('getComandaQrImageUrl'), 'Settings deve gerar QR Code scaneavel para a comanda');
   assert.ok(source.includes("permissions === 'waiter'"), 'Settings deve identificar garçons a partir dos colaboradores');
-  assert.ok(source.includes('tenant_members'), 'Settings deve orientar o vínculo seguro no tenant_members');
-  assert.ok(source.includes('Supabase Auth'), 'Settings deve orientar criação do usuário real no Supabase Auth');
+  assert.ok(source.includes('api_admin_users.php'), 'Settings deve utilizar a API administrativa para gerenciar usuários');
+  assert.ok(source.includes('create_member'), 'Settings deve permitir criação via create_member na API');
   assert.ok(source.includes('navigator.clipboard.writeText'), 'Settings deve permitir copiar o link da comanda');
 });
 

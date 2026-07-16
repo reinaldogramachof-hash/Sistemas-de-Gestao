@@ -41,15 +41,21 @@ $jsonData = json_decode(file_get_contents("php://input"), true) ?? [];
 $action = $jsonData['action'] ?? ($_GET['action'] ?? '');
 
 if ($action === 'login') {
+    $email = strtolower(trim((string) ($jsonData['email'] ?? '')));
     $password = $jsonData['password'] ?? '';
     $ADMIN_SECRET = env('ADMIN_SECRET');
+    $configuredEmail = strtolower(trim(env('ADMIN_MASTER_EMAIL')));
 
-    if (empty($ADMIN_SECRET)) {
+    if (empty($configuredEmail) || empty($ADMIN_SECRET)) {
         echo json_encode(['status' => 'error', 'message' => 'Configuração do servidor incompleta']);
         exit;
     }
 
-    if ($password === $ADMIN_SECRET) {
+    if (
+        filter_var($email, FILTER_VALIDATE_EMAIL) &&
+        hash_equals($configuredEmail, $email) &&
+        hash_equals($ADMIN_SECRET, $password)
+    ) {
         // Gera um token de sessão simples (hash da senha + timestamp)
         $token = hash('sha256', $ADMIN_SECRET . date('Y-m-d'));
         echo json_encode([
@@ -68,7 +74,7 @@ if ($action === 'validate') {
     $ADMIN_SECRET = env('ADMIN_SECRET');
     $validToken = hash('sha256', $ADMIN_SECRET . date('Y-m-d'));
 
-    if ($token === $validToken) {
+    if (hash_equals($validToken, $token)) {
         echo json_encode(['status' => 'success', 'valid' => true]);
     } else {
         http_response_code(401);

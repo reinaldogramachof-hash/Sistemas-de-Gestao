@@ -761,6 +761,14 @@ if ($action === 'activate') {
     if (isset($db[$key])) {
         $isMasterLicense = !empty($db[$key]['is_master']);
 
+        if ($isMasterLicense) {
+            $masterOwnerEmail = $db[$key]['owner_email'] ?? '';
+            $requestEmail = trim($jsonData['email'] ?? '');
+            if (empty($requestEmail) || !hash_equals($masterOwnerEmail, $requestEmail)) {
+                echo json_encode(['status' => 'error', 'message' => 'E-mail inválido para esta licença master.']);
+                exit;
+            }
+        }
         // --- EXPIRATION CHECK (V11.7) ---
         if (!$isMasterLicense && !empty($db[$key]['expiration_date'])) {
             $exp = strtotime($db[$key]['expiration_date']);
@@ -911,7 +919,7 @@ if ($action === 'confirm_receipt') {
 if ($action === 'backup') {
     // Aceita POST (seguro) ou GET (legado)
     $secret = $jsonData['secret'] ?? ($_GET['secret'] ?? '');
-    if ($secret !== $ADMIN_SECRET) {
+    if (!validateSecret(['secret' => $secret], $ADMIN_SECRET)) {
         http_response_code(403);
         die(json_encode(['status' => 'error', 'message' => 'Acesso Negado']));
     }

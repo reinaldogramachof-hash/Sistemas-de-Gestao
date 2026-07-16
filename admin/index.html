@@ -97,7 +97,9 @@
             <p class="text-slate-500 text-sm mb-6">Painel de Gestão - Acesso Restrito</p>
 
             <form onsubmit="doLogin(event)" class="space-y-4">
-                <input type="password" id="admin-pass" placeholder="Senha de Admin"
+                <input type="email" id="admin-email" placeholder="E-mail do administrador" autocomplete="username" required
+                    class="w-full border border-slate-300 rounded-lg px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-center">
+                <input type="password" id="admin-pass" placeholder="Senha de Admin" autocomplete="current-password" required
                     class="w-full border border-slate-300 rounded-lg px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all font-mono text-center">
                 <button type="submit"
                     class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg transition-all shadow-lg hover:shadow-blue-200">
@@ -1432,8 +1434,31 @@
         }
 
         function showCustomerDetails(name) {
-            console.log("Detalhes do cliente selecionado:", name);
-            alert("Detalhes de " + name + ": Funcionalidade em desenvolvimento.");
+            const client = loadedCustomers.find(c => (c.name || c.email || c.slug) === name);
+            if (!client) {
+                alert("Cliente não encontrado.");
+                return;
+            }
+
+            document.getElementById('generic-modal-title').innerText = "Detalhes do Cliente";
+
+            const isFallback = !!client.is_fallback;
+            const bodyHtml = `
+                <div class="space-y-4">
+                    <div><span class="block text-xs font-bold text-slate-400 uppercase">Nome / Empresa</span><span class="font-medium text-slate-800">${escapeHtml(client.name || 'N/A')}</span></div>
+                    <div><span class="block text-xs font-bold text-slate-400 uppercase">E-mail</span><span class="font-medium text-slate-800">${escapeHtml(client.email || 'N/A')}</span></div>
+                    <div><span class="block text-xs font-bold text-slate-400 uppercase">Tenant / Slug</span><span class="font-mono text-sm text-blue-600">${escapeHtml(client.slug || 'N/A')}</span></div>
+                    <div><span class="block text-xs font-bold text-slate-400 uppercase">Plano</span><span class="font-medium text-slate-800">${escapeHtml(client.plan_name || client.plan || 'N/A')}</span></div>
+                    <div><span class="block text-xs font-bold text-slate-400 uppercase">Status</span><span class="font-medium text-slate-800 uppercase text-sm">${escapeHtml(client.status || 'N/A')}</span></div>
+                    <div class="mt-4 p-3 rounded-lg ${isFallback ? 'bg-amber-50 border border-amber-200 text-amber-800' : 'bg-emerald-50 border border-emerald-200 text-emerald-800'}">
+                        <span class="block text-xs font-bold uppercase mb-1">Origem dos Dados</span>
+                        <span class="text-sm font-medium">${isFallback ? 'Banco Local (Fallback/Mock)' : 'Supabase (Nuvem / Tempo Real)'}</span>
+                    </div>
+                </div>
+            `;
+
+            document.getElementById('generic-modal-body').innerHTML = bodyHtml;
+            document.getElementById('generic-modal').classList.remove('hidden');
         }
 
         function applyCustomersRender(customersList) {
@@ -1668,8 +1693,22 @@
         }
 
         function openSystemCatalogAction(action, systemSlug = '', planSlug = '') {
-            const subject = planSlug ? `plano ${planSlug} do sistema ${systemSlug}` : (systemSlug ? `sistema ${systemSlug}` : 'catálogo de sistemas');
-            alert(`Edição de ${subject}: funcionalidade de catálogo em próxima etapa.`);
+            document.getElementById('generic-modal-title').innerText = "Catálogo de Sistemas";
+
+            let html = `<div class="p-4 bg-amber-50 border border-amber-200 text-amber-800 rounded-lg text-sm mb-4">Ação <b>${escapeHtml(action)}</b> está em desenvolvimento.</div>`;
+
+            if (systemSlug) {
+                const sysMeta = SAAS_CATALOG[systemSlug] || { title: systemSlug, description: 'N/A' };
+                html += `<div><span class="block text-xs font-bold text-slate-400 uppercase">Sistema</span><span class="font-medium text-slate-800">${escapeHtml(sysMeta.title)}</span></div>`;
+            }
+            if (planSlug && systemSlug && SAAS_CATALOG[systemSlug]?.plans[planSlug]) {
+                const plan = SAAS_CATALOG[systemSlug].plans[planSlug];
+                html += `<div class="mt-4"><span class="block text-xs font-bold text-slate-400 uppercase">Plano</span><span class="font-medium text-slate-800">${escapeHtml(plan.name)}</span></div>`;
+                html += `<div class="mt-2"><span class="block text-xs font-bold text-slate-400 uppercase">Módulos</span><span class="font-medium text-slate-600 text-sm">${plan.modules.map(m => escapeHtml(m[1])).join(', ')}</span></div>`;
+            }
+
+            document.getElementById('generic-modal-body').innerHTML = html;
+            document.getElementById('generic-modal').classList.remove('hidden');
         }
 
         async function renderSaasSystems() {
@@ -1782,7 +1821,7 @@
         // INIT
         document.addEventListener('DOMContentLoaded', () => {
             lucide.createIcons();
-            renderSaasConsole();
+            populateProvisionCatalog();
             const savedToken = sessionStorage.getItem('admin_token');
             if (savedToken) {
                 AUTH_SECRET = savedToken;
@@ -1815,6 +1854,7 @@
                 if (data.valid) {
                     document.getElementById('login-modal').classList.add('hidden');
                     document.getElementById('admin-panel').classList.remove('hidden');
+                    renderSaasConsole();
                     testConnection();
                 } else {
                     sessionStorage.removeItem('admin_token');
@@ -1828,14 +1868,15 @@
 
         async function doLogin(e) {
             if (e) e.preventDefault();
+            const email = document.getElementById('admin-email')?.value?.trim();
             const pass = document.getElementById('admin-pass')?.value;
-            if (!pass) return;
+            if (!email || !pass) return;
 
             try {
                 const res = await fetch(AUTH_API, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ action: 'login', password: pass })
+                    body: JSON.stringify({ action: 'login', email: email, password: pass })
                 });
                 const data = await res.json();
 
@@ -1844,6 +1885,7 @@
                     sessionStorage.setItem('admin_token', data.token);
                     document.getElementById('login-modal').classList.add('hidden');
                     document.getElementById('admin-panel').classList.remove('hidden');
+                    renderSaasConsole();
                     testConnection();
                 } else {
                     document.getElementById('login-msg').innerText = 'Senha incorreta.';
@@ -1903,12 +1945,13 @@
         // Função genérica para chamar a API
         async function apiCall(action, payload = {}) {
             const url = `${API_URL}?action=${action}`;
+            if (!AUTH_SECRET) return null;
 
             // Sempre inclui o secret no payload para as rotas que exigem
             const body = {
                 ...payload,
                 secret: AUTH_SECRET,
-                action: action // V10.1 aceita action no body também
+                action: action
             };
 
             try {
@@ -1918,7 +1961,17 @@
                     body: JSON.stringify(body)
                 });
 
-                if (res.status === 403) return null;
+                if (!res.ok) {
+                    if (res.status === 403) {
+                        alert("Acesso Negado (403): Sessão inválida ou sem permissão.");
+                        if (typeof logout === 'function') logout();
+                    } else if (res.status === 500) {
+                        alert("Erro Interno (500). Verifique os logs do servidor.");
+                    } else {
+                        console.warn(`API HTTP Error: ${res.status}`);
+                    }
+                    return null;
+                }
                 return await res.json();
             } catch (e) {
                 console.error("Erro API:", e);
@@ -3206,7 +3259,26 @@ Qualquer dúvida, estamos à disposição!`;
         function fmtMoney(val) {
             return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
         }
+        function closeGenericModal() {
+            document.getElementById('generic-modal').classList.add('hidden');
+        }
     </script>
+
+    <!-- Modais Genéricos -->
+    <div id="generic-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]">
+            <div class="p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                <h3 id="generic-modal-title" class="text-lg font-black text-slate-800">Detalhes</h3>
+                <button onclick="closeGenericModal()" class="text-slate-400 hover:text-slate-600 transition-colors">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+            <div id="generic-modal-body" class="p-6 overflow-y-auto"></div>
+            <div class="p-4 border-t border-slate-100 bg-slate-50 flex justify-end">
+                <button onclick="closeGenericModal()" class="px-4 py-2 bg-slate-200 text-slate-700 font-bold rounded-lg hover:bg-slate-300 transition-colors">Fechar</button>
+            </div>
+        </div>
+    </div>
 </body>
 
 </html>

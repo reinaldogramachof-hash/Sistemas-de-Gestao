@@ -3355,17 +3355,6 @@
                     if (!email || !key) { alert('Preencha o e-mail e a chave de licença.'); return; }
 
                     // MASTER KEYS - bypass total, sem necessidade de API ou receipt
-                    var MASTERS = ['MASTER123', 'ADMIN_ML', 'TESTE2026'];
-                    if (MASTERS.indexOf(key) !== -1) {
-                        localStorage.setItem('plena_license', key);
-                        localStorage.setItem('ml_license_email', email);
-                        localStorage.setItem('ml_receipt_confirmed', 'true');
-                        localStorage.setItem('ml_master_mode', 'true');
-                        if (btn) btn.textContent = 'Acesso Liberado...';
-                        setTimeout(function () { window.location.reload(); }, 400);
-                        return;
-                    }
-
                     // Fluxo API normal para licencas reais
                     if (btn) { btn.disabled = true; btn.textContent = 'Verificando...'; }
                     var deviceId = localStorage.getItem('device_id');

@@ -12,16 +12,10 @@
     }
 
     async function checkStatus() {
-        // --- MASTER PASSWORD BYPASS ---
-        if (localStorage.getItem('ml_master_mode') === 'true') {
-            unlockSystem();
-            console.log('🔓 Master Mode Enabled - API Check Skipped');
-            return;
-        }
-
         const key = getLocalLicense();
+        const email = localStorage.getItem(EMAIL_KEY);
 
-        if (!key) {
+        if (!key || !email) {
             redirectToLogin("Ative sua licença para continuar.");
             return;
         }
@@ -30,7 +24,7 @@
             const res = await fetch(API_URL + '?action=verify', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ license_key: key })
+                body: JSON.stringify({ license_key: key, email: email })
             });
             const data = await res.json();
 
@@ -41,7 +35,7 @@
                     blockSystem("Licença Bloqueada", "Entre em contato com o suporte.");
                 } else {
                     // ATIVO ou TRIAL VÁLIDO
-                    if (!localStorage.getItem('ml_receipt_confirmed') && localStorage.getItem('ml_master_mode') !== 'true') {
+                    if (!localStorage.getItem('ml_receipt_confirmed')) {
                         hideApp();
                         const login = document.getElementById('view-login');
                         if (login) login.style.display = 'none';

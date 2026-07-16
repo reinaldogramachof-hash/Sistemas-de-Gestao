@@ -11,6 +11,18 @@ test('notification admin endpoint does not accept a hardcoded fallback admin sec
   assert.equal(source.includes('ml_factory_2026_adm'), false);
 });
 
+test('admin login requires the configured master email and keeps credentials out of the frontend', () => {
+  const phpSource = read('api_admin_auth.php');
+  const htmlSource = read('admin/index.html');
+
+  assert.match(phpSource, /env\('ADMIN_MASTER_EMAIL'\)/);
+  assert.match(phpSource, /hash_equals\(\$configuredEmail, \$email\)/);
+  assert.match(phpSource, /hash_equals\(\$ADMIN_SECRET, \$password\)/);
+  assert.equal(htmlSource.includes('ADMIN_SECRET='), false);
+  assert.match(htmlSource, /id="admin-email"/);
+  assert.match(htmlSource, /email: email/);
+});
+
 test('notification admin list route requires admin authentication', () => {
   const source = read('api_notificacoes_admin.php');
   const secretPosition = source.indexOf("$secret =");
@@ -196,4 +208,20 @@ test('master licenses do not expire or bind to a single device', () => {
   assert.match(source, /!\$isMasterLicense &&\s*\$db\[\$key\]\['status'\] === 'active'/);
   assert.match(source, /\$db\[\$key\]\['device_id'\] = \$isMasterLicense \? '' : \$device/);
   assert.match(source, /\$response\['is_master'\] = true/);
+});
+
+test('master licenses are server-issued, owner-bound, and never bypassed in client code', () => {
+  const apiSource = read('api_licenca_ml.php');
+  const bootstrapSource = read('scripts/create_master_license.php');
+  const barbeariaSource = read('gestao-barbearia/index.html');
+  const belezaSource = read('gestao-beleza/index.html');
+
+  assert.match(apiSource, /\$masterOwnerEmail/);
+  assert.match(apiSource, /hash_equals\(\$masterOwnerEmail, \$requestEmail\)/);
+  assert.match(bootstrapSource, /PHP_SAPI !== 'cli'/);
+  assert.match(bootstrapSource, /ADMIN_MASTER_EMAIL/);
+  assert.match(bootstrapSource, /MASTER_LICENSE_KEY/);
+  assert.match(bootstrapSource, /is_master/);
+  assert.equal(barbeariaSource.includes('MASTER123'), false);
+  assert.equal(belezaSource.includes('MASTER123'), false);
 });

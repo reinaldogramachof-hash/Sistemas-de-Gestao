@@ -110,19 +110,19 @@ export const AdminAuthGate: React.FC<AdminAuthGateProps> = ({ children }) => {
 
     const initializeAuth = async () => {
       setLoading(true);
-      await checkOwnerStatus();
-
-      if (!isActive) return;
-
       if (isSupabaseConfigured && supabase) {
         // Verifica se há sessão ativa
         const { data: { session } } = await supabase.auth.getSession();
+        if (!isActive) return;
+
         if (session && session.user) {
           setSessionUser(session.user);
+          setHasOwner(true);
           await checkAdminMembership(session.user.id);
         } else {
           setSessionUser(null);
           setIsAdminMember(false);
+          await checkOwnerStatus();
         }
 
         // Subscreve a mudanças de auth
@@ -140,6 +140,7 @@ export const AdminAuthGate: React.FC<AdminAuthGateProps> = ({ children }) => {
         unsubscribe = () => subscription.unsubscribe();
       } else {
         setIsAdminMember(true);
+        await checkOwnerStatus();
       }
     };
 

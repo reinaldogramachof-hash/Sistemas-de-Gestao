@@ -1953,28 +1953,6 @@
             }
 
             // 🔑 SENHA MESTRE PARA TESTES
-            const MASTER_KEYS = ['MASTER123', 'ADMIN_ML', 'TESTE2026'];
-
-            if (MASTER_KEYS.includes(key.toUpperCase())) {
-                console.log('🔓 Master Access Granted');
-                localStorage.setItem('plena_license', key);
-                localStorage.setItem('ml_license_email', email);
-                localStorage.setItem('ml_master_mode', 'true');
-
-                if (btn) {
-                    const originalText = btn.innerText;
-                    btn.innerText = '🔓 Acesso Liberado...';
-                    btn.classList.remove('from-emerald-600', 'to-emerald-700', 'from-brand-primary', 'to-brand-dark');
-                    btn.classList.add('bg-blue-600', 'text-white'); // Fallback style
-                }
-
-                setTimeout(() => {
-                    alert('Modo de Teste/Admin Ativado com Sucesso!');
-                    window.location.reload();
-                }, 500);
-                return;
-            }
-
             // 🌍 FLUXO PADRÃO (API)
             if (btn) {
                 const originalText = btn.innerText;
@@ -1997,7 +1975,6 @@
                     if (data.status === 'success') {
                         localStorage.setItem('plena_license', key);
                         localStorage.setItem('ml_license_email', email);
-                        localStorage.removeItem('ml_master_mode');
                         alert('Licença Ativada com Sucesso!');
                         window.location.reload();
                     } else {
@@ -2117,23 +2094,6 @@
             }
 
             // 🔑 MASTER KEYS (Testes / Admin)
-            const MASTER_KEYS = ['MASTER123', 'ADMIN_ML', 'TESTE2026'];
-
-            if (MASTER_KEYS.includes(key.toUpperCase())) {
-                console.log('🔓 Master Access Granted');
-                localStorage.setItem('plena_license', key);
-                localStorage.setItem('ml_license_email', email);
-                localStorage.setItem('ml_master_mode', 'true');
-                localStorage.setItem('ml_receipt_confirmed', 'true');
-
-                if (btn) btn.innerText = '🔓 Acesso Liberado...';
-                setTimeout(() => {
-                    alert('Modo Admin/Teste ativado com sucesso!');
-                    window.location.reload();
-                }, 500);
-                return;
-            }
-
             // 🌍 FLUXO PADRÃO (API)
             if (btn) {
                 btn.innerText = 'Verificando...';
@@ -2167,7 +2127,6 @@
                     // ✅ Salva credenciais localmente
                     localStorage.setItem('plena_license', key);
                     localStorage.setItem('ml_license_email', email);
-                    localStorage.removeItem('ml_master_mode');
 
                     // Exibe modal de recibo ANTES de liberar o app
                     if (!localStorage.getItem('ml_receipt_confirmed')) {

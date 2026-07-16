@@ -12,7 +12,7 @@ export default defineConfig(({mode}) => {
       tailwindcss(),
       VitePWA({
         registerType: 'autoUpdate',
-        includeAssets: ['pwa-512x512.png', 'favicon.ico', 'robots.txt'],
+        includeAssets: ['pwa-512x512.png', 'favicon.svg', 'robots.txt'],
         manifest: {
           name: 'Gestão Gastro',
           short_name: 'Gastro',
@@ -51,10 +51,6 @@ export default defineConfig(({mode}) => {
           target: 'http://127.0.0.1:8000',
           changeOrigin: true,
         },
-      },
-      hmr: {
-        protocol: 'wss',
-        clientPort: 443 // Vercel/Production uses 443 for wss
       }
     },
   };

@@ -23,6 +23,7 @@ import {
   Headphones,
   Monitor,
   Rocket,
+  HelpCircle,
   LogOut
 } from 'lucide-react';
 import { isSupabaseConfigured, supabase } from '../lib/supabase';
@@ -130,7 +131,7 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setCurrentView, chi
     {
       title: 'Sistema',
       items: [
-        { id: 'manual',        icon: BookOpen,        label: 'Manual de Uso' },
+        { id: 'manual',        icon: HelpCircle,      label: 'Manual de Uso' },
         { id: 'seguranca',     icon: Shield,          label: 'Segurança'    },
         { id: 'configuracoes', icon: Settings,        label: 'Configurações'},
         { id: 'suporte',       icon: Headphones,      label: 'Suporte'      },

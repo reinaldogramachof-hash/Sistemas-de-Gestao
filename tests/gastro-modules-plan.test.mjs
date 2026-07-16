@@ -116,3 +116,28 @@ test('Inspect App.tsx for defensive content blocking', () => {
   assert.match(appContent, /if\s*\(!checkAccess\(currentView/, 'Should block view conditionally');
   assert.match(appContent, /Modulo nao disponivel no plano atual/i, 'Should render lock screen text');
 });
+
+test('UserManual only documents modules available in the current contract', () => {
+  const manualPath = path.join(gastroDir, 'src', 'components', 'UserManual.tsx');
+  const manualContent = fs.readFileSync(manualPath, 'utf-8');
+
+  assert.match(manualContent, /useModules/, 'Manual should use the same module access hook as navigation');
+  assert.match(manualContent, /module:\s*AppModule/, 'Each manual guide should be linked to a contracted module');
+  assert.match(manualContent, /visibleModuleGuides\s*=\s*moduleGuides\.filter\(\(guide\)\s*=>\s*checkAccess\(guide\.module\)\)/, 'Manual should filter guides by checkAccess');
+  assert.match(manualContent, /visibleModuleGuides\.map/, 'Manual should render only visible guides');
+  assert.doesNotMatch(manualContent, /moduleGuides\.map\(\(guide\)/, 'Manual must not render every guide regardless of plan');
+  assert.match(manualContent, /id:\s*'guide_clientes'[\s\S]*?module:\s*'clientes'/, 'Clientes guide should depend on clientes module');
+  assert.match(manualContent, /id:\s*'guide_fornecedores'[\s\S]*?module:\s*'fornecedores'/, 'Fornecedores guide should depend on fornecedores module');
+  assert.match(manualContent, /id:\s*'guide_colaboradores'[\s\S]*?module:\s*'colaboradores'/, 'Colaboradores guide should depend on colaboradores module');
+  assert.match(manualContent, /activeTab\s*===\s*'tips'/, 'Professional tips tab should render with its declared tab key');
+});
+
+test('UserManual does not expose implementation-oriented first day checklist', () => {
+  const manualPath = path.join(gastroDir, 'src', 'components', 'UserManual.tsx');
+  const manualContent = fs.readFileSync(manualPath, 'utf-8');
+
+  assert.doesNotMatch(manualContent, /roteiro/i, 'Manual should not expose a first day roadmap tab');
+  assert.doesNotMatch(manualContent, /firstDay/i, 'Manual should not keep first-day implementation checklist code');
+  assert.doesNotMatch(manualContent, /Ativar Licen/, 'Manual should not include license activation as user-facing training');
+  assert.doesNotMatch(manualContent, /Conferir rota/i, 'Manual should not include deployment route checks');
+});

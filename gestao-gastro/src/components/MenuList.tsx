@@ -1,7 +1,7 @@
 import React from 'react';
 import { useApp } from '../store/AppContext';
 import { Product } from '../types';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion } from 'motion/react';
 import { ui } from '../ui/styles';
 import { getProductIcon } from '../utils/productIcons';
 import { ShoppingCart } from 'lucide-react';
@@ -31,21 +31,20 @@ export const MenuList: React.FC<MenuListProps> = ({ category, searchTerm, onSele
 
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3 xl:gap-4">
-      <AnimatePresence mode="popLayout">
-        {filteredProducts.map((product) => {
+      {filteredProducts.map((product) => {
           const stockQty = getProductStock(product, stockItems);
           const isOutOfStock = stockQty === 0;
           const CategoryIcon = getCategoryIcon(product.category, product.name);
 
           return (
             <motion.button
-              layout
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              whileHover={isOutOfStock ? {} : { y: -3, scale: 1.01 }}
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.14, ease: 'easeOut' }}
+              whileHover={isOutOfStock ? {} : { y: -2 }}
               whileTap={isOutOfStock ? {} : { scale: 0.98 }}
               key={product.id}
+              type="button"
               onClick={() => !isOutOfStock && onSelect(product)}
               disabled={isOutOfStock}
               className={`group relative min-h-[190px] flex flex-col items-start p-4 rounded-panel border text-left transition-all duration-300
@@ -90,8 +89,7 @@ export const MenuList: React.FC<MenuListProps> = ({ category, searchTerm, onSele
               </div>
             </motion.button>
           );
-        })}
-      </AnimatePresence>
+      })}
     </div>
   );
 };

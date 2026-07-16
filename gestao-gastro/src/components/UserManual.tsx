@@ -10,19 +10,31 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { HelpTooltip } from './HelpTooltip';
+import { AppModule } from '../config/modulesConfig';
+import { useModules } from '../hooks/useModules';
 
 export const UserManual: React.FC = () => {
   const { theme, readGuides, toggleGuideRead } = useApp();
+  const { checkAccess } = useModules();
   const isDark = theme === 'dark';
-  const [activeTab, setActiveTab] = useState<'guides' | 'tips' | 'roteiro'>('guides');
+  const [activeTab, setActiveTab] = useState<'guides' | 'tips'>('guides');
 
-  const moduleGuides = [
+  const moduleGuides: Array<{
+    id: string;
+    module: AppModule;
+    title: string;
+    icon: React.ElementType;
+    color: 'rose' | 'blue' | 'amber' | 'emerald' | 'slate';
+    description: string;
+    steps: Array<{ t: string; d: string }>;
+  }> = [
     {
       id: 'guide_pdv',
+      module: 'pdv',
       title: 'PDV & Balcão',
       icon: MonitorPlay,
       color: 'rose',
-      description: 'O coracao da sua Operação. Agilidade é a palavra-chave.',
+      description: 'O coração da sua operação. Agilidade é a palavra-chave.',
       steps: [
         { t: 'Trocar Atendente', d: 'Selecione quem está operando o caixa no momento para rastrear vendas.' },
         { t: 'Adicionar Produto ou Avulso', d: 'Clique no item do cardápio ou digite valor/descrição de um item avulso.' },
@@ -31,18 +43,20 @@ export const UserManual: React.FC = () => {
     },
     {
       id: 'guide_dashboard',
+      module: 'dashboard',
       title: 'Dashboard BI',
       icon: LayoutDashboard,
       color: 'blue',
-      description: 'Acompanhe os principais indicadores da operacao.',
+      description: 'Acompanhe os principais indicadores da operação.',
       steps: [
-        { t: 'Ticket Medio', d: 'Veja quanto cada cliente gasta em media e use isso para melhorar combos e ofertas.' },
-        { t: 'Horarios de Pico', d: 'Identifique os momentos de maior movimento para ajustar equipe e preparo.' },
-        { t: 'Produtos Mais Vendidos', d: 'Use o ranking para saber o que manter em destaque no cardapio.' }
+        { t: 'Ticket Médio', d: 'Veja quanto cada cliente gasta em média e use isso para melhorar combos e ofertas.' },
+        { t: 'Horários de Pico', d: 'Identifique os momentos de maior movimento para ajustar equipe e preparo.' },
+        { t: 'Produtos Mais Vendidos', d: 'Use o ranking para saber o que manter em destaque no cardápio.' }
       ]
     },
     {
       id: 'guide_mesas',
+      module: 'mesas',
       title: 'Gestão de Mesas',
       icon: LayoutDashboard,
       color: 'blue',
@@ -55,6 +69,7 @@ export const UserManual: React.FC = () => {
     },
     {
       id: 'guide_cozinha',
+      module: 'cozinha',
       title: 'Cozinha (KDS)',
       icon: Utensils,
       color: 'amber',
@@ -62,11 +77,12 @@ export const UserManual: React.FC = () => {
       steps: [
         { t: 'Modo de Operação', d: 'Escolha entre Modo Visualização (apenas tela) ou Interativo (clicar para dar andamento).' },
         { t: 'Interpretar Status', d: 'Novo Pedido, Em Preparo e Pronto. Tudo sincronizado com os garçons.' },
-        { t: 'Fila de Pedidos', d: 'Os itens aparecem automaticamente assim que a comanda ou PDV confimar o pedido.' }
+        { t: 'Fila de Pedidos', d: 'Os itens aparecem automaticamente assim que a comanda ou PDV confirmar o pedido.' }
       ]
     },
     {
       id: 'guide_cardapio',
+      module: 'produtos',
       title: 'Cardápio Digital',
       icon: List,
       color: 'emerald',
@@ -79,6 +95,7 @@ export const UserManual: React.FC = () => {
     },
     {
       id: 'guide_estoque',
+      module: 'estoque',
       title: 'Estoque & Insumos',
       icon: Box,
       color: 'slate',
@@ -91,6 +108,7 @@ export const UserManual: React.FC = () => {
     },
     {
       id: 'guide_caixa',
+      module: 'caixa',
       title: 'Caixa & Financeiro',
       icon: LineChart,
       color: 'rose',
@@ -103,6 +121,7 @@ export const UserManual: React.FC = () => {
     },
     {
       id: 'guide_colaboradores',
+      module: 'colaboradores',
       title: 'Colaboradores',
       icon: UserCheck,
       color: 'blue',
@@ -115,6 +134,7 @@ export const UserManual: React.FC = () => {
     },
     {
       id: 'guide_clientes',
+      module: 'clientes',
       title: 'Clientes',
       icon: Users,
       color: 'amber',
@@ -126,6 +146,7 @@ export const UserManual: React.FC = () => {
     },
     {
       id: 'guide_fornecedores',
+      module: 'fornecedores',
       title: 'Fornecedores',
       icon: Truck,
       color: 'emerald',
@@ -137,6 +158,7 @@ export const UserManual: React.FC = () => {
     },
     {
       id: 'guide_config',
+      module: 'configuracoes',
       title: 'Configurações',
       icon: Settings,
       color: 'slate',
@@ -149,6 +171,7 @@ export const UserManual: React.FC = () => {
     },
     {
       id: 'guide_seguranca',
+      module: 'seguranca',
       title: 'Segurança & Backup',
       icon: ShieldCheck,
       color: 'rose',
@@ -160,6 +183,7 @@ export const UserManual: React.FC = () => {
     },
     {
       id: 'guide_suporte',
+      module: 'suporte',
       title: 'Suporte Técnico',
       icon: MessageCircle,
       color: 'blue',
@@ -171,6 +195,7 @@ export const UserManual: React.FC = () => {
     },
     {
       id: 'guide_evolucao',
+      module: 'evolucao',
       title: 'Centro de Evolução',
       icon: Target,
       color: 'amber',
@@ -189,8 +214,13 @@ export const UserManual: React.FC = () => {
     { id: 'tip_4', title: 'Fidelização', icon: UserCheck, content: 'Use o cadastro de clientes para registrar preferências e datas especiais. Um cliente que se sente reconhecido volta 3x mais.' }
   ];
 
-  const totalItems = moduleGuides.length + proTips.length;
-  const completedItems = readGuides.length;
+  const visibleModuleGuides = moduleGuides.filter((guide) => checkAccess(guide.module));
+  const visibleGuideIds = new Set([
+    ...visibleModuleGuides.map((guide) => guide.id),
+    ...proTips.map((tip) => tip.id),
+  ]);
+  const totalItems = visibleGuideIds.size;
+  const completedItems = readGuides.filter((guideId) => visibleGuideIds.has(guideId)).length;
   const progressPercent = Math.round((completedItems / totalItems) * 100);
 
   return (
@@ -254,17 +284,6 @@ export const UserManual: React.FC = () => {
           >
             Dicas Profissionais
           </button>
-          <button
-            onClick={() => setActiveTab('roteiro')}
-            className={`px-10 py-3 rounded-xl font-black text-[11px] uppercase tracking-[0.1em] transition-all
-              ${activeTab === 'roteiro'
-                ? 'bg-[#475569] text-white shadow-lg shadow-[#475569]/20'
-                : 'opacity-40 hover:opacity-100'
-              }
-            `}
-          >
-            Roteiro Primeiro Dia
-          </button>
         </div>
       </div>
 
@@ -278,7 +297,7 @@ export const UserManual: React.FC = () => {
             exit={{ opacity: 0, y: -20 }}
             className="grid grid-cols-1 md:grid-cols-2 gap-8"
           >
-            {moduleGuides.map((guide) => {
+            {visibleModuleGuides.map((guide) => {
               const isRead = readGuides.includes(guide.id);
               const colorClass =
                 guide.color === 'rose' ? 'bg-rose-500' :
@@ -336,7 +355,7 @@ export const UserManual: React.FC = () => {
               );
             })}
           </motion.div>
-        ) : activeTab === 'dicas' ? (
+        ) : (
           <motion.div
             key="tips"
             initial={{ opacity: 0, y: 20 }}
@@ -382,54 +401,6 @@ export const UserManual: React.FC = () => {
                 </div>
               );
             })}
-          </motion.div>
-        ) : (
-          <motion.div
-            key="roteiro"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className="grid grid-cols-1 gap-8 max-w-4xl mx-auto"
-          >
-            <div className={`p-10 rounded-xl border flex flex-col group transition-all duration-500
-              ${isDark ? 'bg-[#1C1C1E] border-[#2C2C2E]' : 'bg-white border-gray-100 shadow-sm shadow-gray-200/10'}
-            `}>
-              <div className="flex items-center gap-4 mb-8">
-                <div className="w-16 h-16 rounded-xl bg-accent flex items-center justify-center text-white flex-shrink-0 shadow-lg shadow-accent/20">
-                  <MonitorPlay className="w-8 h-8" />
-                </div>
-                <div>
-                  <h3 className="text-2xl font-black uppercase italic tracking-tighter">O Roteiro de Primeiro Dia</h3>
-                  <p className="text-sm font-bold opacity-60 leading-relaxed uppercase tracking-tight">Siga estas 8 etapas para iniciar sua operação com sucesso no Gestão Gastro.</p>
-                </div>
-              </div>
-              <div className="space-y-6">
-                {[
-                  { n: 1, title: 'Conferir Rota do Cliente', desc: 'Garanta que a rota de acesso está configurada (ex: localhost/resenha).' },
-                  { n: 2, title: 'Ativar Licença', desc: 'Valide a licença do sistema usando o código fornecido pela Plena Informática.' },
-                  { n: 3, title: 'Criar Acesso Admin', desc: 'No primeiro uso, cadastre o administrador principal.' },
-                  { n: 4, title: 'Revisar Dados', desc: 'Em Configurações, preencha nome do local, telefone e CNPJ para o cupom.' },
-                  { n: 5, title: 'Configurar Mesas', desc: 'Em Configurações > Salão, defina o número total de mesas operacionais.' },
-                  { n: 6, title: 'Revisar Cardápio', desc: 'Edite produtos existentes ou adicione novos no Módulo Cardápio.' },
-                  { n: 7, title: 'Cadastrar Equipe', desc: 'Em Colaboradores, crie senhas para Garçons e Caixas.' },
-                  { n: 8, title: 'Testar Comanda Mobile', desc: 'Acesse o IP do servidor pelo celular do garçom para verificar o envio de pedidos.' },
-                  { n: 9, title: 'Abrir o Caixa', desc: 'Em Caixa, inicie o dia declarando o troco que está na gaveta.' },
-                  { n: 10, title: 'Fazer Venda Teste', desc: 'Faça um pedido no PDV ou Mesa e confirme o faturamento.' },
-                  { n: 11, title: 'Fechar Caixa Teste', desc: 'Realize o fechamento simulando o fim do dia para ver as métricas de sobra/falta.' },
-                  { n: 12, title: 'Validar Relatórios', desc: 'Confira se a venda teste apareceu no Dashboard.' },
-                ].map(step => (
-                  <div key={step.n} className="flex gap-5 items-center p-4 rounded-lg bg-current/[0.02]">
-                    <div className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-black flex-shrink-0 bg-accent/10 text-accent">
-                      {step.n}
-                    </div>
-                    <div>
-                      <h4 className="text-base font-black uppercase tracking-tight">{step.title}</h4>
-                      <p className="text-xs font-bold opacity-50 uppercase tracking-tighter mt-1">{step.desc}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
           </motion.div>
         )}
       </AnimatePresence>

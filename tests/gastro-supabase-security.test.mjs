@@ -98,6 +98,20 @@ describe('Supabase Security — gestao-gastro', () => {
     );
   });
 
+  test('supabase.ts deve separar sessao Auth da comanda e do painel', () => {
+    const content = readSrc('lib/supabase.ts');
+
+    assert.ok(
+      content.includes('storageKey: authStorageKey'),
+      'cliente Supabase deve usar storageKey explicitamente',
+    );
+    assert.ok(
+      content.includes('gestao-gastro-comanda-auth') &&
+      content.includes('gestao-gastro-admin-auth'),
+      'comanda e painel devem ter chaves Auth diferentes para evitar conflito entre abas',
+    );
+  });
+
   test('supabase.ts NÃO deve exportar null como cliente sem guard', () => {
     const content = readSrc('lib/supabase.ts');
     // Garante que o cliente é condicional, não sempre null ou sempre non-null
@@ -163,6 +177,21 @@ describe('Supabase Security — gestao-gastro', () => {
     assert.ok(
       !/const payload: OrderInsertRow = \{[\s\S]*\bid:/.test(service),
       'createOrder nao deve montar id manual se o banco tem DEFAULT',
+    );
+  });
+
+  test('createOrder deve respeitar defaults NOT NULL do Supabase real', () => {
+    const service = readSrc('services/ordersSupabaseService.ts');
+
+    assert.ok(
+      service.includes('partial_payments: data.partialPayments ?? []'),
+      'partial_payments e NOT NULL no Supabase real e deve receber [] em vez de null',
+    );
+    assert.ok(
+      service.includes('loyalty_discount: data.loyaltyDiscount ?? 0') &&
+      service.includes('loyalty_points_earned: data.loyaltyPointsEarned ?? 0') &&
+      service.includes('loyalty_points_redeemed: data.loyaltyPointsRedeemed ?? 0'),
+      'campos numericos NOT NULL devem receber 0 quando ausentes',
     );
   });
 

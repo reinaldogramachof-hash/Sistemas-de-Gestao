@@ -32,7 +32,7 @@ const AppContent = () => {
   }, [setCurrentView]);
 
   React.useEffect(() => {
-    const storedRole = localStorage.getItem('gestao_gastro_user_role');
+    const storedRole = sessionStorage.getItem('gestao_gastro_user_role');
     if (storedRole === 'waiter') {
       const clientRoute = getClientRouteFromPath(window.location.pathname);
       const targetPath = clientRoute?.comandaPath ?? '/comanda';

@@ -58,11 +58,11 @@ test('comandaAccess.ts: deve rejeitar localhost, 127.0.0.1, URLs com caminho e I
 test('comandaAccess.ts: getComandaAccessUrl deve usar validateLanOrigin internamente', () => {
   const source = read('gestao-gastro/src/utils/comandaAccess.ts');
   assert.ok(
-    source.includes('validateLanOrigin(localTestOrigin)'),
-    'getComandaAccessUrl deve chamar validateLanOrigin ao processar o localTestOrigin'
+    source.includes('validateLanOrigin(targetOrigin)'),
+    'getComandaAccessUrl deve chamar validateLanOrigin ao processar o origin local'
   );
   assert.ok(
-    source.includes("'https://sistemasdegestao.tech'"),
+    source.includes("'https://www.sistemasdegestao.tech'"),
     'Em producao, deve usar sempre o dominio HTTPS oficial'
   );
 });

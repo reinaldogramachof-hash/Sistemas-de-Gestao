@@ -39,6 +39,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ order, onClose, on
   const [amountInput, setAmountInput] = useState('');
   const [receiptOrder, setReceiptOrder] = useState<Order | null>(null);
   const [redeemLoyalty, setRedeemLoyalty] = useState(() => hasPartialPayments ? (order.loyaltyDiscount ?? 0) > 0 : false);
+  const [isFinishing, setIsFinishing] = useState(false);
+  const [syncResult, setSyncResult] = useState<{message: string, status: 'success'|'error'} | null>(null);
 
   const serviceChargeRate = settings.serviceChargeRate ?? 0.10;
   const serviceCharge = includeService && isMesa ? order.subtotal * serviceChargeRate : 0;
@@ -82,7 +84,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ order, onClose, on
     loyaltyPointsRedeemed,
   });
 
-  const finalizeOrder = (finalPayments: PaymentItem[], partialList: PartialPaymentItem[]) => {
+  const finalizeOrder = async (finalPayments: PaymentItem[], partialList: PartialPaymentItem[]) => {
+    setIsFinishing(true);
     const closedOrder = buildOrderSnapshot(partialList);
 
     if (loyaltyConfig.active && customer) {
@@ -104,8 +107,16 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ order, onClose, on
       }
     }
 
-    closeOrder(closedOrder, finalPayments, serviceCharge);
+    const result = await closeOrder(closedOrder, finalPayments, serviceCharge);
+
+    if (result.remoteSynced) {
+      setSyncResult({ message: 'Venda sincronizada com a nuvem.', status: 'success' });
+    } else if (result.remoteError) {
+      setSyncResult({ message: 'Venda salva neste dispositivo. A sincronização com a nuvem não foi confirmada.', status: 'error' });
+    }
+
     setReceiptOrder({ ...closedOrder, payments: finalPayments });
+    setIsFinishing(false);
   };
 
   const handleSelectCheckoutMode = (mode: CheckoutMode) => {
@@ -185,6 +196,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ order, onClose, on
     return (
       <ReceiptModal
         order={receiptOrder}
+        syncMessage={syncResult?.message}
+        syncStatus={syncResult?.status}
         onClose={() => {
           setReceiptOrder(null);
           onSuccess();
@@ -476,10 +489,10 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ order, onClose, on
           ) : (
             <button
               onClick={handleFinish}
-              disabled={amountPaid < totalAmount - 0.01}
+              disabled={amountPaid < totalAmount - 0.01 || isFinishing}
               className="h-10 px-4 rounded-control bg-success text-white text-xs font-medium shadow-lg shadow-[var(--color-success)]/20 hover:brightness-110 disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              Confirmar Pagamento
+              {isFinishing ? 'Processando...' : 'Confirmar Pagamento'}
             </button>
           )}
         </div>

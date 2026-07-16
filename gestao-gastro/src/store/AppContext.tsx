@@ -1,8 +1,8 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { Product, Table, Order, Waiter, Expense, CashierSession, PaymentItem, Customer, Collaborator, StockMovement, StockItem, Supplier, AppSettings, KitchenItemStatus, Promotion, Combo, Campaign, LoyaltyConfig, LoyaltyEntry } from '../types';
+import { Product, Table, Order, Waiter, Expense, CashierSession, PaymentItem, Customer, Collaborator, StockMovement, StockItem, Supplier, AppSettings, KitchenItemStatus, Promotion, Combo, Campaign, LoyaltyConfig, LoyaltyEntry, OrderCloseResult } from '../types';
 import { mockProducts, mockTables, mockWaiters, mockCustomers, mockCollaborators, mockStockItems, mockSuppliers, mockSettings } from './mock';
 import { cantinhoDaResenhaProducts } from './cantinhoDaResenhaSeed';
-import { CANTINHO_DA_RESENHA_SLUG, getClientRouteFromPath } from '../config/clientRoutes';
+import { CANTINHO_DA_RESENHA_TENANT_ID, getClientRouteFromPath, getClientSlugFromPath, resolveTenant } from '../config/clientRoutes';
 import { useTables } from '../hooks/useTables';
 import { useOrders } from '../hooks/useOrders';
 import { isSupabaseConfigured, supabase } from '../lib/supabase';
@@ -12,6 +12,26 @@ import { syncProduct } from '../services/menuSupabaseService';
 
 const TENANT_ID = import.meta.env.VITE_GASTRO_TENANT_ID as string;
 const LOCAL_TENANT_ID = 'default-empresa';
+const CANTINHO_CLEANUP_VERSION = 'cantinho-real-tests-cleanup-20260716-v1';
+const CANTINHO_OPERATIONAL_KEYS_TO_CLEAR = [
+  'stockItems',
+  'suppliers',
+  'tables',
+  'orders',
+  'expenses',
+  'cashierSession',
+  'cashierHistory',
+  'customers',
+  'collaborators',
+  'stockMovements',
+  'draftOrder',
+  'promotions',
+  'combos',
+  'campaigns',
+  'loyaltyEntries',
+  'productSyncErrors',
+  'productSyncIds',
+] as const;
 
 interface AppState {
   products: Product[];
@@ -57,8 +77,8 @@ interface AppContextType extends AppState {
   deleteSupplier: (id: string) => void;
   updateTable: (table: Table) => void;
   updateOrder: (order: Order) => void;
-  addOrder: (order: Order) => void;
-  closeOrder: (order: Order, payments: PaymentItem[], serviceCharge: number) => void;
+  addOrder: (order: Order) => Promise<Order>;
+  closeOrder: (order: Order, payments: PaymentItem[], serviceCharge: number) => Promise<OrderCloseResult>;
   addExpense: (expense: Expense) => void;
   updateExpense: (expense: Expense) => void;
   deleteExpense: (id: string) => void;
@@ -88,9 +108,10 @@ interface AppContextType extends AppState {
 }
 
 const getTenantKey = (key: string): string => {
-  const routeTenantId = getClientRouteFromPath(window.location.pathname)?.tenantId;
+  const routeTenantId = resolveTenant(window.location.pathname);
   const configuredTenantId = import.meta.env.VITE_GASTRO_TENANT_ID as string;
-  const currentTenantId = routeTenantId || configuredTenantId || LOCAL_TENANT_ID;
+  const hasClientSlug = Boolean(getClientSlugFromPath(window.location.pathname));
+  const currentTenantId = routeTenantId || (hasClientSlug ? LOCAL_TENANT_ID : configuredTenantId) || LOCAL_TENANT_ID;
 
   if (import.meta.env.PROD && currentTenantId === LOCAL_TENANT_ID) {
     throw new Error('Tenant ID ausente. Operação remota bloqueada.');
@@ -118,10 +139,12 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const clientRoute = getClientRouteFromPath(window.location.pathname);
-  const effectiveTenantId = clientRoute?.tenantId || TENANT_ID;
+  const hasClientSlug = Boolean(getClientSlugFromPath(window.location.pathname));
+  const resolvedTenantId = resolveTenant(window.location.pathname);
+  const effectiveTenantId = resolvedTenantId || (hasClientSlug ? '' : TENANT_ID);
   const isSaaS = Boolean(effectiveTenantId && effectiveTenantId !== LOCAL_TENANT_ID);
 
-  const isCantinhoRoute = clientRoute?.slug === CANTINHO_DA_RESENHA_SLUG;
+  const isCantinhoRoute = clientRoute?.tenantId === CANTINHO_DA_RESENHA_TENANT_ID;
   const defaultProducts = isCantinhoRoute
     ? cantinhoDaResenhaProducts
     : mockProducts;
@@ -299,6 +322,34 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // Migração e limpeza de chaves legadas para armazenamento com prefixo de tenant
   useEffect(() => {
     const runMigration = async () => {
+      if (isCantinhoRoute && isSaaS) {
+        const cleanupKey = getTenantKey('cantinhoCleanupVersion');
+        if (localStorage.getItem(cleanupKey) !== CANTINHO_CLEANUP_VERSION) {
+          CANTINHO_OPERATIONAL_KEYS_TO_CLEAR.forEach(key => localStorage.removeItem(getTenantKey(key)));
+          localStorage.removeItem('garcom_offline_queue');
+
+          setStockItems([]);
+          setSuppliers([]);
+          setCustomers([]);
+          setCollaborators([]);
+          setLocalOrders([]);
+          setExpenses([]);
+          setStockMovements([]);
+          setCashierSession(null);
+          setCashierHistory([]);
+          setLocalTables([]);
+          setDraftOrderState(null);
+          setPromotions([]);
+          setCombos([]);
+          setCampaigns([]);
+          setLoyaltyEntries([]);
+          setProductSyncErrors({});
+          setProductSyncIds({});
+
+          localStorage.setItem(cleanupKey, CANTINHO_CLEANUP_VERSION);
+        }
+      }
+
       const migratedKey = getTenantKey('migrated');
       const alreadyMigrated = localStorage.getItem(migratedKey);
       if (alreadyMigrated === 'true') return;
@@ -378,7 +429,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
 
     runMigration();
-  }, [isSupabaseConfigured, effectiveTenantId, isSaaS]);
+  }, [isSupabaseConfigured, effectiveTenantId, isSaaS, isCantinhoRoute]);
 
   useEffect(() => {
     if (!isSupabaseConfigured || !supabase) {
@@ -627,7 +678,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setLocalTables(prev => prev.map(t => t.number === updatedTable.number ? updatedTable : t));
   };
 
-  const addOrder = (order: Order) => {
+  const addOrder = async (order: Order): Promise<Order> => {
     // Local sempre (garante fallback e fechamento do caixa)
     setLocalOrders(prev => {
       if (prev.some(o => o.id === order.id)) return prev;
@@ -636,39 +687,66 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     // Supabase: cria pedido e atualiza mesa se online
     if (isSupabaseConfigured && !effectiveTenantId) {
       console.error('VITE_GASTRO_TENANT_ID e obrigatorio para criar pedidos online.');
-      return;
+      return order;
     }
     if (isSupabaseConfigured && order.mode === 'mesa' && order.tableNumber) {
-      void createOrderSupabase(effectiveTenantId, {
-        mode: order.mode,
-        tableNumber: order.tableNumber,
-        customerName: order.customerName,
-        items: order.items,
-        subtotal: order.subtotal,
-        serviceCharge: order.serviceCharge,
-        total: order.total,
-        waiterId: order.waiterId,
-        timestamp: order.timestamp,
-      }).then(created => {
+      try {
+        const created = await createOrderSupabase(effectiveTenantId, {
+          mode: order.mode,
+          tableNumber: order.tableNumber,
+          customerName: order.customerName,
+          customerCount: order.customerCount,
+          adultCount: order.adultCount,
+          childrenCount: order.childrenCount,
+          partialPayments: order.partialPayments,
+          loyaltyDiscount: order.loyaltyDiscount,
+          loyaltyPointsEarned: order.loyaltyPointsEarned,
+          loyaltyPointsRedeemed: order.loyaltyPointsRedeemed,
+          items: order.items,
+          subtotal: order.subtotal,
+          serviceCharge: order.serviceCharge,
+          total: order.total,
+          waiterId: order.waiterId,
+          timestamp: order.timestamp,
+        });
         if (created && order.tableNumber) {
-          void setTableOccupied(effectiveTenantId, order.tableNumber, created.id);
+          setLocalOrders(prev => prev.map(o => o.id === order.id ? { ...o, id: created.id } : o));
+          await setTableOccupied(effectiveTenantId, order.tableNumber, created.id);
+          return { ...order, id: created.id };
         }
-      }).catch(console.error);
+      } catch (err) {
+        console.error(err);
+      }
     } else if (order.mode === 'mesa' && order.tableNumber) {
       // Fallback local: atualiza mesa no estado local
       setLocalTables(prev => prev.map(t =>
         t.number === order.tableNumber ? { ...t, status: 'ocupada', activeOrderId: order.id } : t
       ));
     }
+    return order;
   };
 
   const updateOrder = (updatedOrder: Order) => {
     setLocalOrders(prev => prev.map(o => o.id === updatedOrder.id ? updatedOrder : o));
+    if (isSupabaseConfigured && updatedOrder.mode === 'mesa') {
+      void import('../services/ordersSupabaseService').then(({ updateOrderItems, updateOrderMeta }) => {
+        updateOrderItems(effectiveTenantId, updatedOrder.id, updatedOrder.items).catch(console.error);
+        updateOrderMeta(effectiveTenantId, updatedOrder.id, {
+          customerCount: updatedOrder.customerCount,
+          adultCount: updatedOrder.adultCount,
+          childrenCount: updatedOrder.childrenCount,
+          partialPayments: updatedOrder.partialPayments,
+          loyaltyDiscount: updatedOrder.loyaltyDiscount,
+          loyaltyPointsEarned: updatedOrder.loyaltyPointsEarned,
+          loyaltyPointsRedeemed: updatedOrder.loyaltyPointsRedeemed,
+        }).catch(console.error);
+      });
+    }
   };
 
-  const closeOrder = (order: Order, payments: PaymentItem[], serviceCharge: number) => {
+  const closeOrder = async (order: Order, payments: PaymentItem[], serviceCharge: number): Promise<OrderCloseResult> => {
     const orderInState = localOrders.find(o => o.id === order.id);
-    if (orderInState && orderInState.status === 'closed') return;
+    if (orderInState && orderInState.status === 'closed') return { localSaved: true, remoteSynced: false };
 
     const closedOrder: Order = {
       ...order,
@@ -685,17 +763,44 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         : [...prev, closedOrder];
     });
 
+    let remoteSynced = false;
+    let remoteError: string | undefined;
+
     // Fecha pedido no Supabase e libera mesa
     if (isSupabaseConfigured && !effectiveTenantId) {
       console.error('VITE_GASTRO_TENANT_ID e obrigatorio para fechar pedidos online.');
+      remoteError = 'Tenant ID não configurado';
     } else if (isSupabaseConfigured) {
-      void closeOrderSupabase(effectiveTenantId, order.id, {
-        payments,
-        serviceCharge,
-        total: order.subtotal + serviceCharge,
-      }).catch(console.error);
-      if (order.tableNumber) {
-        void clearTableSupabase(effectiveTenantId, order.tableNumber).catch(console.error);
+      try {
+        if (order.mode === 'balcao') {
+          const created = await createOrderSupabase(effectiveTenantId, {
+            mode: 'balcao',
+            items: order.items,
+            subtotal: order.subtotal,
+            serviceCharge,
+            total: order.subtotal + serviceCharge,
+            waiterId: order.waiterId,
+            timestamp: order.timestamp,
+          });
+          await closeOrderSupabase(effectiveTenantId, created.id, {
+            payments,
+            serviceCharge,
+            total: order.subtotal + serviceCharge,
+          });
+        } else {
+          await closeOrderSupabase(effectiveTenantId, order.id, {
+            payments,
+            serviceCharge,
+            total: order.subtotal + serviceCharge,
+          });
+          if (order.tableNumber) {
+            await clearTableSupabase(effectiveTenantId, order.tableNumber);
+          }
+        }
+        remoteSynced = true;
+      } catch (err: any) {
+        console.error(err);
+        remoteError = err.message || 'Erro na sincronização';
       }
     } else if (order.tableNumber) {
       // Fallback local
@@ -753,6 +858,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           : c
       ));
     }
+
+    return { localSaved: true, remoteSynced, remoteError };
   };
 
   const addExpense = (expense: Expense) => {

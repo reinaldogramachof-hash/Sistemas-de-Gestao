@@ -40,6 +40,8 @@ $fileLicenses = __DIR__ . '/api_data/database_licenses_secure.json';
 $fileArchivedLicenses = __DIR__ . '/api_data/database_licenses_archived.json';
 $fileLogs = __DIR__ . '/api_data/system_logs.json';
 $fileReceipts = __DIR__ . '/api_data/receipts_log.json';
+$SUPABASE_URL = env('SUPABASE_URL');
+$SUPABASE_KEY = env('SUPABASE_SERVICE_KEY');
 
 // 2. CAPTURA DE DADOS
 $action = $_GET['action'] ?? '';
@@ -81,6 +83,149 @@ function validateSecret($data, $secret)
     // Aceita a senha direta OU o token diário (hash da senha + data)
     $token = hash('sha256', $secret . date('Y-m-d'));
     return ($data['secret'] === $secret || $data['secret'] === $token);
+}
+
+function normalizeTenantSlugValue($slug)
+{
+    return preg_replace('/[^a-z0-9-]/', '', strtolower(trim((string)$slug)));
+}
+
+function resolveKnownTenantId($slug)
+{
+    $normalized = normalizeTenantSlugValue($slug);
+    $knownTenants = [
+        'cantinhodaresenha' => 'cd8f21f4-73a1-4c87-a385-9b6deacaeae7',
+        'cantinho-da-resenha' => 'cd8f21f4-73a1-4c87-a385-9b6deacaeae7'
+    ];
+
+    return $knownTenants[$normalized] ?? null;
+}
+
+function getLicenseTenantId(array $license)
+{
+    return $license['tenant_id'] ?? resolveKnownTenantId($license['tenant_slug'] ?? '');
+}
+
+function supabaseLicenseRequest($method, $endpoint, $body = null)
+{
+    global $SUPABASE_URL, $SUPABASE_KEY;
+
+    if (empty($SUPABASE_URL) || empty($SUPABASE_KEY)) {
+        return ['code' => 0, 'data' => null, 'error' => 'Supabase nao configurado.', 'raw' => ''];
+    }
+
+    $ch = curl_init(rtrim($SUPABASE_URL, '/') . $endpoint);
+    $headers = [
+        "apikey: $SUPABASE_KEY",
+        "Authorization: Bearer $SUPABASE_KEY",
+        "Content-Type: application/json"
+    ];
+
+    if ($method === 'POST') {
+        curl_setopt($ch, CURLOPT_POST, 1);
+        if ($body !== null) {
+            curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($body));
+        }
+    } elseif ($method !== 'GET') {
+        curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $method);
+    }
+
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+    curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 30);
+
+    $response = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $curlError = curl_error($ch);
+    curl_close($ch);
+
+    return [
+        'code' => $httpCode,
+        'data' => json_decode($response, true),
+        'error' => $curlError,
+        'raw' => $response === false ? '' : $response
+    ];
+}
+
+function findSaasLicense($key, $requestEmail = '', $requestTenantId = '', $requestTenantSlug = '')
+{
+    $safeKey = rawurlencode((string)$key);
+    $endpoint = '/rest/v1/licenses?select=license_key,status,expires_at,license_type,tenant_id,activation_email,metadata,plans(code),tenants(slug,name),customers(email,name)&license_key=eq.' . $safeKey . '&limit=1';
+    $res = supabaseLicenseRequest('GET', $endpoint);
+
+    if ($res['code'] !== 200 || empty($res['data'][0])) {
+        return null;
+    }
+
+    $license = $res['data'][0];
+    $status = (string)($license['status'] ?? '');
+    if (!empty($license['expires_at']) && time() > strtotime($license['expires_at'])) {
+        $status = 'expired';
+    }
+
+    $tenantId = trim((string)($license['tenant_id'] ?? ''));
+    $tenant = $license['tenants'] ?? [];
+    $tenantSlug = trim((string)($tenant['slug'] ?? ''));
+
+    if ($requestTenantId !== '' && !hash_equals(strtolower($tenantId), strtolower(trim((string)$requestTenantId)))) {
+        return null;
+    }
+
+    if ($requestTenantSlug !== '' && !hash_equals(normalizeTenantSlugValue($tenantSlug), normalizeTenantSlugValue($requestTenantSlug))) {
+        return null;
+    }
+
+    $customer = $license['customers'] ?? [];
+    $licenseEmail = strtolower(trim((string)($license['activation_email'] ?? $customer['email'] ?? '')));
+    $requestEmailNormalized = strtolower(trim((string)$requestEmail));
+    if ($requestEmailNormalized !== '' && $licenseEmail !== '' && !hash_equals($licenseEmail, $requestEmailNormalized)) {
+        return null;
+    }
+
+    $plan = $license['plans'] ?? [];
+    $metadata = is_array($license['metadata'] ?? null) ? $license['metadata'] : [];
+
+    return [
+        'status' => $status,
+        'client' => $tenant['name'] ?? $customer['name'] ?? 'Gestao Gastro',
+        'tenant_id' => $tenantId,
+        'tenant_slug' => $tenantSlug,
+        'plan' => $plan['code'] ?? $metadata['plan_slug'] ?? 'base',
+        'is_trial' => (($license['license_type'] ?? '') === 'trial'),
+        'expiration_date' => $license['expires_at'] ?? null,
+    ];
+}
+
+function buildSaasLicenseResponse(array $license, $forVerify = false)
+{
+    $response = [
+        'status' => 'success',
+        'client' => $license['client'],
+        'tenant_id' => $license['tenant_id'],
+        'plan' => $license['plan'],
+        'is_master' => false,
+    ];
+
+    if ($forVerify) {
+        $response['license_status'] = $license['status'];
+    } else {
+        $response['valid'] = $license['status'] === 'active';
+    }
+
+    if (!empty($license['is_trial'])) {
+        $response['is_trial'] = true;
+        $response['expiration_date'] = $license['expiration_date'];
+    }
+
+    if ($license['status'] === 'expired') {
+        $response['status'] = $forVerify ? 'success' : 'expired';
+        if (!$forVerify) {
+            $response['message'] = 'Periodo de teste expirado.';
+        }
+    }
+
+    return $response;
 }
 
 function isArchiveCandidate(array $license)
@@ -263,6 +408,8 @@ if ($action === 'dashboard_stats') {
         'trial_expired' => 0,
         'revenue_total' => 0.0,
         'recurring_revenue' => 0.0,
+        'revenue_ml' => 0.0,
+        'revenue_direta' => 0.0,
         'by_plan_code' => [],
         'by_sales_channel' => [],
         'by_product' => []
@@ -304,8 +451,17 @@ if ($action === 'dashboard_stats') {
 
             $billingModel = $l['billing_model'] ?? '';
             $planCode = $l['plan_code'] ?? '';
-            if ($billingModel === 'recurring' || $planCode === 'premium_monthly') {
+            $channel = $l['sales_channel'] ?? 'mercado_livre';
+
+            if ($billingModel === 'recurring' || $planCode === 'premium_monthly' || $channel === 'premium_online') {
                 $stats['recurring_revenue'] += $price;
+            } elseif ($channel === 'mercado_livre') {
+                $stats['revenue_ml'] += $price;
+            } elseif ($channel === 'venda_direta') {
+                $stats['revenue_direta'] += $price;
+            } else {
+                // Se não identificado, assume ML por legado
+                $stats['revenue_ml'] += $price;
             }
         }
 
@@ -477,10 +633,16 @@ if ($action === 'generate') {
     $canonicalPlans = [
         'ml_lifetime' => ['name' => 'ML Vitalício', 'billing' => 'one_time', 'channel' => 'mercado_livre', 'version' => 'standalone_ml'],
         'direct_lifetime' => ['name' => 'Direto Vitalício', 'billing' => 'one_time', 'channel' => 'venda_direta', 'version' => 'standalone_direct'],
-        'pro_lifetime' => ['name' => 'Pro Vitalício', 'billing' => 'one_time', 'channel' => 'venda_direta', 'version' => 'standalone_pro'],
-        'premium_monthly' => ['name' => 'Premium Online Mensal', 'billing' => 'recurring', 'channel' => 'premium_online', 'version' => 'premium_online']
+        'pro_lifetime' => ['name' => 'Pro Vitalício', 'billing' => 'one_time', 'channel' => 'venda_direta', 'version' => 'standalone_pro']
     ];
     $reqPlanCode = $jsonData['plan_code'] ?? 'ml_lifetime';
+
+    // Bloqueia tentativas de gerar licença vitalícia com plano online/SaaS
+    if ($reqPlanCode === 'premium_monthly') {
+        echo json_encode(['status' => 'error', 'message' => 'Provisionamento de planos mensais online não permitido nesta rota. Use o provisionamento SaaS.']);
+        exit;
+    }
+
     if (!isset($canonicalPlans[$reqPlanCode])) {
         $reqPlanCode = 'ml_lifetime';
     }
@@ -513,11 +675,9 @@ if ($action === 'generate') {
 
     $maxUsers = array_key_exists('max_users', $jsonData) && $jsonData['max_users'] !== null ? (int)$jsonData['max_users'] : null;
     $maxDevices = array_key_exists('max_devices', $jsonData) && $jsonData['max_devices'] !== null ? (int)$jsonData['max_devices'] : null;
-    $tenantSlug = preg_replace('/[^a-z0-9-]/', '', strtolower(trim((string)($jsonData['tenant_slug'] ?? ''))));
-    $operationMode = $jsonData['operation_mode'] ?? ($reqPlanCode === 'premium_monthly' ? 'saas' : 'local');
-    if (!in_array($operationMode, ['local', 'saas'], true)) {
-        $operationMode = $reqPlanCode === 'premium_monthly' ? 'saas' : 'local';
-    }
+    // Força operação offline/vitalícia para novas emissões
+    $tenantSlug = '';
+    $operationMode = 'local';
 
     $keys = [];
 
@@ -546,13 +706,14 @@ if ($action === 'generate') {
             'max_users' => $maxUsers,
             'max_devices' => $maxDevices,
             'tenant_slug' => $tenantSlug,
+            'tenant_id' => null,
             'operation_mode' => $operationMode
         ];
 
         if ($isTrial) {
             $licenseData['is_trial'] = true;
             // Expira em X dias a partir da criação (ou ativação? Vamos por criação p/ simplificar, ou ativação é melhor?)
-            // Melhor: Define a duração do trial, e a expiração é calculada na ATIVAÇÃO.
+            // Melhor: Define a duração do trial, e a expiração é calculada na ATIVACAO.
             // Mas para simplificar a gestão visual, vamos definir expiração na ativação.
             // Aqui guardamos apenas a flag.
             $licenseData['trial_duration_days'] = $trialDays;
@@ -801,7 +962,7 @@ if ($action === 'activate') {
             exit;
         }
 
-        // ATIVAÇÃO INICIAL
+        // ATIVACAO INICIAL
         if ($db[$key]['status'] !== 'active') {
             // Se for TRIAL e ainda não tiver data de expiração, seta agora
             if (!empty($db[$key]['is_trial']) && empty($db[$key]['expiration_date'])) {
@@ -825,7 +986,7 @@ if ($action === 'activate') {
             'status' => 'success',
             'valid' => true,
             'client' => $db[$key]['client'],
-            'tenant_id' => $db[$key]['tenant_id'] ?? null,
+            'tenant_id' => getLicenseTenantId($db[$key]),
             'plan' => $db[$key]['plan_slug'] ?? $db[$key]['plan_code'] ?? 'base'
         ];
         if (!empty($db[$key]['expiration_date'])) {
@@ -839,8 +1000,22 @@ if ($action === 'activate') {
         addLog("Sucesso: Chave $key ativada no device $device", 'info');
         echo json_encode($response);
     } else {
-        addLog("Falha: Tentativa de ativação com chave inválida $key", 'error');
-        echo json_encode(['status' => 'error', 'message' => 'Licença não encontrada']);
+        $saasLicense = findSaasLicense(
+            $key,
+            $jsonData['email'] ?? '',
+            $jsonData['tenant_id'] ?? '',
+            $jsonData['tenant_slug'] ?? ''
+        );
+
+        if ($saasLicense && $saasLicense['status'] === 'active') {
+            addLog("Sucesso: Chave SaaS $key validada para tenant " . $saasLicense['tenant_id'], 'info');
+            echo json_encode(buildSaasLicenseResponse($saasLicense, false));
+        } elseif ($saasLicense && $saasLicense['status'] === 'expired') {
+            echo json_encode(['status' => 'expired', 'message' => 'Periodo de teste expirado.']);
+        } else {
+            addLog("Falha: Tentativa de ativacao com chave invalida $key", 'error');
+            echo json_encode(['status' => 'error', 'message' => 'Licenca nao encontrada']);
+        }
     }
     exit;
 }
@@ -870,12 +1045,23 @@ if ($action === 'verify') {
             'client' => $db[$key]['client'],
             'is_trial' => !empty($db[$key]['is_trial']),
             'expiration_date' => $db[$key]['expiration_date'] ?? null,
-            'tenant_id' => $db[$key]['tenant_id'] ?? null,
+            'tenant_id' => getLicenseTenantId($db[$key]),
             'is_master' => !empty($db[$key]['is_master']),
             'plan' => $db[$key]['plan_slug'] ?? $db[$key]['plan_code'] ?? 'base'
         ]);
     } else {
-        echo json_encode(['status' => 'error', 'message' => 'Licença não encontrada']);
+        $saasLicense = findSaasLicense(
+            $key,
+            $jsonData['email'] ?? '',
+            $jsonData['tenant_id'] ?? '',
+            $jsonData['tenant_slug'] ?? ''
+        );
+
+        if ($saasLicense) {
+            echo json_encode(buildSaasLicenseResponse($saasLicense, true));
+        } else {
+            echo json_encode(['status' => 'error', 'message' => 'Licenca nao encontrada']);
+        }
     }
     exit;
 }

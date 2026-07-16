@@ -35,6 +35,20 @@ export const Settings: React.FC = () => {
   const [isInitializingTables, setIsInitializingTables] = useState<boolean>(false);
   const [lanValidationMsg, setLanValidationMsg] = useState<{ type: 'error' | 'warn' | 'ok'; text: string } | null>(null);
 
+  const withTimeout = async <T,>(promise: Promise<T>, ms: number, message: string): Promise<T> => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      return await Promise.race([
+        promise,
+        new Promise<T>((_, reject) => {
+          timer = setTimeout(() => reject(new Error(message)), ms);
+        }),
+      ]);
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
+  };
+
   React.useEffect(() => {
     if (tables.length > 0) {
       setInitTablesCount(tables.length);
@@ -156,7 +170,11 @@ export const Settings: React.FC = () => {
 
     setIsInitializingTables(true);
     try {
-      await initializeTables(initTablesCount);
+      await withTimeout(
+        initializeTables(initTablesCount),
+        20000,
+        'A sincronizaÃ§Ã£o com o Supabase demorou mais que o esperado. Recarregue a tela e confira sua conexÃ£o antes de tentar novamente.'
+      );
       alert('Mesas inicializadas com sucesso no restaurante!');
     } catch (err: any) {
       alert(err.message || 'Erro ao inicializar mesas. Verifique sua conexão com o banco.');
@@ -199,7 +217,7 @@ export const Settings: React.FC = () => {
     reader.readAsText(file);
   };
 
-  const comandaAccessUrl = getComandaAccessUrl(window.location.origin, window.location.pathname, settings.localTestOrigin);
+  const comandaAccessUrl = getComandaAccessUrl(window.location.origin, window.location.pathname, formData.waiterAccessMode || 'local', formData.waiterLocalOrigin, formData.localTestOrigin);
   const comandaQrUrl = getComandaQrImageUrl(comandaAccessUrl);
   const waiterMembers = collaborators.filter(member => member.permissions === 'waiter');
   const activeWaiterMembers = waiterMembers.filter(member => member.status === 'active');
@@ -498,70 +516,98 @@ export const Settings: React.FC = () => {
                   <QrCode className="w-6 h-6 text-emerald-500" />
                 </div>
                 <div>
-                  <h3 className="text-xl font-bold uppercase tracking-tighter">Acessos e QR Code</h3>
-                  <p className="text-[10px] font-bold uppercase tracking-wide opacity-40">Garçons, mesas e acesso mobile</p>
+                  <h3 className="text-xl font-bold uppercase tracking-tighter">Acesso dos Garçons</h3>
+                  <p className="text-[10px] font-bold uppercase tracking-wide opacity-40">Modo de acesso da comanda e QR Code</p>
                 </div>
               </div>
 
-              {/* IP local para testes em dev */}
-              {(window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') && (
-                <div className={`p-6 rounded-xl border ${isDark ? 'bg-white/5 border-white/5' : 'bg-gray-50 border-gray-100'}`}>
-                  <p className="text-xs font-bold uppercase tracking-wide mb-2 text-amber-500">Endereço da rede local para testes (Apenas Localhost)</p>
-                  <div className="flex flex-col md:flex-row gap-3">
+              {/* Controle de Modo de Acesso */}
+              <div className={`p-6 rounded-xl border mb-6 ${isDark ? 'bg-white/5 border-white/5' : 'bg-gray-50 border-gray-100'}`}>
+                <p className="text-xs font-bold uppercase tracking-wide mb-4">Modo de acesso da comanda</p>
+                <div className="flex flex-col md:flex-row gap-6 mb-4">
+                  <label className="flex items-center gap-2 cursor-pointer">
                     <input
-                      type="text"
-                      value={formData.localTestOrigin || ''}
-                      onChange={e => {
-                        setFormData({ ...formData, localTestOrigin: e.target.value });
-                        setLanValidationMsg(null);
-                      }}
-                      placeholder="http://192.168.0.10:3000"
-                      className={`flex-1 h-10 px-3 rounded-lg border outline-none text-sm font-mono ${
-                        isDark ? 'bg-transparent border-[#2C2C2E]' : 'bg-white border-gray-200'
-                      } ${
-                        lanValidationMsg?.type === 'error' ? 'border-red-400' :
-                        lanValidationMsg?.type === 'ok' ? 'border-emerald-400' : ''
-                      }`}
+                      type="radio"
+                      name="waiterAccessMode"
+                      value="local"
+                      checked={formData.waiterAccessMode !== 'external'}
+                      onChange={() => setFormData({ ...formData, waiterAccessMode: 'local' })}
+                      className="accent-emerald-500 w-4 h-4"
                     />
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const result = validateLanOrigin(formData.localTestOrigin || '');
-                        if (!result.valid) {
-                          setLanValidationMsg({ type: 'error', text: result.message || 'Endereço inválido.' });
-                          return;
-                        }
-                        // Normaliza: salva somente protocolo://IP:porta
-                        const normalized = result.origin!;
-                        const updated = { ...formData, localTestOrigin: normalized };
-                        setFormData(updated);
-                        updateSettings(updated);
-                        setLanValidationMsg({
-                          type: result.message ? 'warn' : 'ok',
-                          text: result.message || `Origem salva: ${normalized}`
-                        });
-                      }}
-                      className="h-10 px-6 rounded-lg bg-[#475569] text-white text-xs font-bold uppercase tracking-wide hover:opacity-90 active:scale-95 transition-all"
-                    >
-                      Aplicar IP
-                    </button>
-                  </div>
-                  {lanValidationMsg && (
-                    <p className={`text-[10px] font-semibold mt-2 ${
-                      lanValidationMsg.type === 'error' ? 'text-red-500' :
-                      lanValidationMsg.type === 'warn' ? 'text-amber-500' :
-                      'text-emerald-500'
-                    }`}>
-                      {lanValidationMsg.text}
-                    </p>
-                  )}
-                  {!lanValidationMsg && (
-                    <p className="text-[10px] opacity-40 font-semibold mt-2">
-                      Informe apenas o IP e a porta da sua máquina na rede Wi-Fi (ex: http://192.168.0.10:3000). Caminhos serão removidos automaticamente.
-                    </p>
-                  )}
+                    <span className="text-sm font-semibold">Rede local do restaurante (mais seguro)</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="waiterAccessMode"
+                      value="external"
+                      checked={formData.waiterAccessMode === 'external'}
+                      onChange={() => setFormData({ ...formData, waiterAccessMode: 'external' })}
+                      className="accent-emerald-500 w-4 h-4"
+                    />
+                    <span className="text-sm font-semibold">Internet / acesso externo</span>
+                  </label>
                 </div>
-              )}
+
+                {formData.waiterAccessMode !== 'external' && (
+                  <div className="mt-4 p-5 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+                    <p className="text-xs font-bold text-emerald-600 dark:text-emerald-400 mb-3">Para funcionar, precisamos detectar sua rede Wi-Fi local.</p>
+                    <div className="flex flex-col sm:flex-row gap-3">
+                      <input
+                        type="text"
+                        value={formData.waiterLocalOrigin || formData.localTestOrigin || ''}
+                        readOnly
+                        placeholder="Clique em Detectar rede local..."
+                        className={`flex-1 h-11 px-4 rounded-lg border outline-none text-sm font-mono opacity-70 ${
+                          isDark ? 'bg-black/20 border-[#2C2C2E]' : 'bg-white border-gray-200'
+                        }`}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const hostname = window.location.hostname;
+                          const isLoopbackOrigin = hostname === 'localhost' || hostname.startsWith('127.');
+                          const result = validateLanOrigin(window.location.origin);
+                          if (result.valid && result.origin) {
+                             const updated = { ...formData, waiterLocalOrigin: result.origin };
+                             setFormData(updated);
+                             setLanValidationMsg({ type: 'ok', text: 'Rede local detectada com sucesso!' });
+                          } else if (!isLoopbackOrigin) {
+                             const updated = { ...formData, waiterAccessMode: 'external' as const, waiterLocalOrigin: '', localTestOrigin: '' };
+                             setFormData(updated);
+                             setLanValidationMsg({
+                               type: 'warn',
+                               text: 'Ambiente online detectado. O QR Code usara o acesso externo seguro. Para usar rede local, abra o painel pelo IP privado do computador do restaurante, como http://192.168.0.10:3000.'
+                             });
+                          } else {
+                             setLanValidationMsg({ type: 'error', text: 'Você precisa acessar este painel usando o IP da máquina na rede Wi-Fi, como http://192.168.0.10:3000, e não localhost.' });
+                          }
+                        }}
+                        className="h-11 px-6 rounded-lg bg-emerald-500 text-white text-[10px] font-bold uppercase tracking-wide hover:opacity-90 active:scale-95 transition-all"
+                      >
+                        Detectar rede local
+                      </button>
+                    </div>
+                    {lanValidationMsg && (
+                      <p className={`text-[10px] font-semibold mt-3 ${lanValidationMsg.type === 'error' ? 'text-red-500' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                        {lanValidationMsg.text}
+                      </p>
+                    )}
+                    {(!formData.waiterLocalOrigin && !formData.localTestOrigin && !lanValidationMsg) && (
+                      <p className="text-[10px] font-semibold opacity-80 mt-3 text-emerald-600 dark:text-emerald-400">
+                         Conecte este computador à mesma rede Wi-Fi dos garçons e clique em Detectar rede local.
+                      </p>
+                    )}
+                  </div>
+                )}
+                {formData.waiterAccessMode === 'external' && (
+                  <div className="mt-4 p-5 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                    <p className="text-xs font-bold text-amber-600 dark:text-amber-400">
+                      Use esta opção apenas se os garçons puderem acessar a comanda fora do restaurante.
+                    </p>
+                  </div>
+                )}
+              </div>
 
               <div className="grid grid-cols-1 xl:grid-cols-[1fr_280px] gap-6">
                 <div className="space-y-6">
@@ -699,7 +745,11 @@ export const Settings: React.FC = () => {
                   </div>
                   <div>
                     <p className="text-xs font-bold uppercase tracking-wide">QR Code da comanda</p>
-                    <p className="text-[10px] font-bold opacity-40 uppercase tracking-wide mt-1">Imprima ou fixe perto da operação interna.</p>
+                    <p className="text-[10px] font-bold opacity-60 mt-1">
+                      {formData.waiterAccessMode !== 'external'
+                        ? 'Mostre este QR para o garçom acessar a comanda pelo celular conectado ao Wi-Fi do restaurante.'
+                        : 'Imprima ou fixe perto da operação.'}
+                    </p>
                   </div>
                   <button
                     type="button"
@@ -707,7 +757,7 @@ export const Settings: React.FC = () => {
                     className="w-full h-11 rounded-lg bg-emerald-500 text-white text-[9px] font-bold uppercase tracking-wide flex items-center justify-center gap-2"
                   >
                     <QrCode className="w-4 h-4" />
-                    Abrir QR
+                    Gerar QR da comanda
                   </button>
                 </div>
               </div>

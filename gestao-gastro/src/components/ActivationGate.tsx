@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Shield, Key, Mail, Loader, CheckCircle } from 'lucide-react';
 import { ReceiptConfirmation } from './ReceiptConfirmation';
-import { resolveTenant } from '../config/clientRoutes';
+import { getClientSlugFromPath, persistTenantRoute, resolveTenant } from '../config/clientRoutes';
 import { getLicenseApiUrl } from '../services/licenseApi';
 
 interface ActivationGateProps {
@@ -21,6 +21,7 @@ export const ActivationGate: React.FC<ActivationGateProps> = ({ children }) => {
     const savedEmail = localStorage.getItem('ml_license_email');
     const receiptConfirmed = localStorage.getItem('ml_receipt_confirmed');
     const resolvedTenant = resolveTenant(window.location.pathname);
+    const tenantSlug = getClientSlugFromPath(window.location.pathname);
 
     if (!savedKey || !savedEmail) {
       setIsAuthorized(false);
@@ -38,7 +39,7 @@ export const ActivationGate: React.FC<ActivationGateProps> = ({ children }) => {
       const response = await fetch(getLicenseApiUrl('verify'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ license_key: savedKey, email: savedEmail, tenant_id: resolvedTenant })
+        body: JSON.stringify({ license_key: savedKey, email: savedEmail, tenant_id: resolvedTenant, tenant_slug: tenantSlug })
       });
 
       if (!response.ok) {
@@ -62,6 +63,9 @@ export const ActivationGate: React.FC<ActivationGateProps> = ({ children }) => {
           localStorage.setItem('gestao_gastro_verified_plan', data.plan);
         } else {
           localStorage.setItem('gestao_gastro_verified_plan', 'base');
+        }
+        if (data.tenant_id) {
+          persistTenantRoute(tenantSlug, data.tenant_id);
         }
         if (receiptConfirmed !== 'true') setNeedsReceipt(true);
       } else if (data.status === 'success' && (data.license_status === 'blocked' || data.license_status === 'expired')) {
@@ -94,6 +98,7 @@ export const ActivationGate: React.FC<ActivationGateProps> = ({ children }) => {
     try {
       let deviceId = localStorage.getItem('device_id');
       const resolvedTenant = resolveTenant(window.location.pathname);
+      const tenantSlug = getClientSlugFromPath(window.location.pathname);
       if (!deviceId) {
         deviceId = 'dev_' + Math.random().toString(36).substr(2, 9);
         localStorage.setItem('device_id', deviceId);
@@ -102,7 +107,7 @@ export const ActivationGate: React.FC<ActivationGateProps> = ({ children }) => {
       const response = await fetch(getLicenseApiUrl('activate'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ license_key: licenseKey, email, device_id: deviceId, tenant_id: resolvedTenant })
+        body: JSON.stringify({ license_key: licenseKey, email, device_id: deviceId, tenant_id: resolvedTenant, tenant_slug: tenantSlug })
       });
 
       const data = await response.json();
@@ -119,8 +124,15 @@ export const ActivationGate: React.FC<ActivationGateProps> = ({ children }) => {
         } else {
           localStorage.setItem('gestao_gastro_verified_plan', 'base');
         }
-        if (resolvedTenant) {
-          localStorage.setItem('gestao_gastro_tenant_id', resolvedTenant);
+        if (data.tenant_id) {
+          persistTenantRoute(tenantSlug, data.tenant_id);
+        } else if (resolvedTenant) {
+          persistTenantRoute(tenantSlug, resolvedTenant);
+        }
+
+        if (!resolvedTenant && data.tenant_id) {
+          window.location.reload();
+          return;
         }
 
         setIsAuthorized(true);

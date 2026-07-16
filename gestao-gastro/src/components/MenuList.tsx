@@ -77,7 +77,7 @@ export const MenuList: React.FC<MenuListProps> = ({ category, searchTerm, onSele
                 <div className="flex items-center gap-1.5">
                   <div className={`w-1.5 h-1.5 rounded-full ${isOutOfStock ? 'bg-red-500' : stockQty > 10 ? 'bg-emerald-500' : 'bg-amber-500'}`} />
                   <span className="text-[9px] font-bold uppercase tracking-tight opacity-45">
-                    {stockQty === 999 ? 'Disponível' : isOutOfStock ? 'Sem estoque' : `${stockQty} em estoque`}
+                    {stockQty === 999 ? 'Disponível · s/ baixa auto' : (isOutOfStock && product.recipe?.some(r => !stockItems.some(si => si.id === r.stockItemId))) ? 'Ficha Incompleta' : isOutOfStock ? 'Sem estoque' : `${stockQty} em estoque`}
                   </span>
                 </div>
                 {!isOutOfStock && (

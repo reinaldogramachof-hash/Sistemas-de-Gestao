@@ -8,9 +8,11 @@ import { formatCurrency } from '../utils/format';
 interface ReceiptModalProps {
   order: Order;
   onClose: () => void;
+  syncMessage?: string;
+  syncStatus?: 'success' | 'error';
 }
 
-export const ReceiptModal: React.FC<ReceiptModalProps> = ({ order, onClose }) => {
+export const ReceiptModal: React.FC<ReceiptModalProps> = ({ order, onClose, syncMessage, syncStatus }) => {
   const { theme, waiters, settings } = useApp();
   const isDark = theme === 'dark';
 
@@ -52,6 +54,11 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ order, onClose }) =>
         </div>
 
         <div className={`p-6 font-mono text-[12px] leading-[1.4] ${isDark ? 'text-gray-300' : 'text-gray-800'} print:text-black print:p-0 print:w-full print:text-[12px]`}>
+           {syncMessage && (
+             <div className={`text-center p-2 mb-4 rounded-md text-[10px] font-sans font-bold print:hidden ${syncStatus === 'success' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-amber-500/10 text-amber-500'}`}>
+               {syncMessage}
+             </div>
+           )}
            <div className="print-content-wrapper">
              <div className="text-center mb-6">
                <div className="text-xl mb-1 print:hidden">🍸</div>

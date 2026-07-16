@@ -1,8 +1,9 @@
 import React from 'react';
-import type { Table } from '../types';
+import type { Order, Table } from '../types';
 
 interface ComandaMesaGridProps {
   tables: Table[];
+  openOrders?: Order[];
   onSelectTable: (table: Table) => void;
   onSelectBalcao: () => void;
 }
@@ -23,9 +24,16 @@ const statusLabel: Record<Table['status'], string> = {
 
 export const ComandaMesaGrid: React.FC<ComandaMesaGridProps> = React.memo(({
   tables,
+  openOrders = [],
   onSelectTable,
   onSelectBalcao,
 }) => {
+  const ordersByTable = new Map(
+    openOrders
+      .filter(order => order.mode === 'mesa' && typeof order.tableNumber === 'number')
+      .map(order => [order.tableNumber, order]),
+  );
+
   return (
     <div className="space-y-4">
       <div>
@@ -34,16 +42,26 @@ export const ComandaMesaGrid: React.FC<ComandaMesaGridProps> = React.memo(({
       </div>
 
       <div className="grid grid-cols-2 gap-3">
-        {tables.map(table => (
-          <button
-            key={table.number}
-            onClick={() => onSelectTable(table)}
-            className={`h-20 rounded-xl border-2 transition-all active:scale-[0.97] ${statusClass[table.status]}`}
-          >
-            <p className="text-base font-bold">Mesa {table.number}</p>
-            <p className="text-[11px] mt-1 opacity-80">{statusLabel[table.status]}</p>
-          </button>
-        ))}
+        {tables.map(table => {
+          const order = ordersByTable.get(table.number);
+          const itemCount = order?.items.reduce((sum, item) => sum + item.quantity, 0) ?? 0;
+
+          return (
+            <button
+              key={table.number}
+              onClick={() => onSelectTable(table)}
+              className={`min-h-20 rounded-xl border-2 p-3 transition-all active:scale-[0.97] ${statusClass[table.status]}`}
+            >
+              <p className="text-base font-bold">Mesa {table.number}</p>
+              <p className="text-[11px] mt-1 opacity-80">{statusLabel[table.status]}</p>
+              {order && (
+                <p className="text-[10px] mt-1 font-semibold opacity-90">
+                  {itemCount} item(ns) · {order.total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                </p>
+              )}
+            </button>
+          );
+        })}
       </div>
 
       <button

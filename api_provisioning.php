@@ -222,6 +222,70 @@ if ($action === 'systems_catalog') {
     exit;
 }
 
+if ($action === 'saas_clients') {
+    if (!validateAdminSecret($jsonData['admin_secret'] ?? '', $ADMIN_SECRET)) {
+        http_response_code(403);
+        echo json_encode(['status' => 'error', 'message' => 'Acesso Negado']);
+        exit;
+    }
+    if (!$SUPABASE_URL || !$SUPABASE_KEY) {
+        http_response_code(500);
+        echo json_encode(['status' => 'error', 'message' => 'Supabase nao configurado no servidor.']);
+        exit;
+    }
+
+    $endpoint = '/rest/v1/tenants?select=id,name,slug,status,created_at,systems(slug,name,metadata),customers(name,email),licenses(license_key,status,license_type,payment_model,expires_at,created_at,plans(code,name)),tenant_modules(module_key,enabled)&order=created_at.desc&limit=100';
+    $res = supabase_request('GET', $endpoint);
+
+    if ($res['code'] >= 400 || !empty($res['error'])) {
+        http_response_code(500);
+        echo json_encode([
+            'status' => 'error',
+            'message' => 'Erro ao consultar clientes SaaS no Supabase.',
+            'details' => $res['error'] ?? $res['data']
+        ]);
+        exit;
+    }
+
+    $clients = [];
+    foreach (($res['data'] ?? []) as $tenant) {
+        $system = $tenant['systems'] ?? [];
+        $customer = $tenant['customers'] ?? [];
+        $licenses = is_array($tenant['licenses'] ?? null) ? $tenant['licenses'] : [];
+        $modules = is_array($tenant['tenant_modules'] ?? null) ? $tenant['tenant_modules'] : [];
+        $license = $licenses[0] ?? [];
+        $plan = $license['plans'] ?? [];
+        $systemSlug = $system['slug'] ?? '';
+        $metadata = is_array($system['metadata'] ?? null) ? $system['metadata'] : [];
+        $publicPath = $metadata['public_path'] ?? $systemSlug;
+        $slug = $tenant['slug'] ?? '';
+
+        $clients[] = [
+            'tenant_id' => $tenant['id'] ?? '',
+            'name' => $tenant['name'] ?? ($customer['name'] ?? ''),
+            'slug' => $slug,
+            'email' => $customer['email'] ?? '',
+            'status' => $tenant['status'] ?? 'active',
+            'system_slug' => $systemSlug,
+            'system_name' => $system['name'] ?? $systemSlug,
+            'plan_code' => $plan['code'] ?? '',
+            'plan_name' => $plan['name'] ?? '',
+            'license_key' => $license['license_key'] ?? '',
+            'license_status' => $license['status'] ?? '',
+            'license_type' => $license['license_type'] ?? '',
+            'created_at' => $tenant['created_at'] ?? '',
+            'modules_count' => count(array_filter($modules, fn($module) => !empty($module['enabled']))),
+            'public_link' => ($publicPath && $slug) ? rtrim($PUBLIC_BASE_URL, '/') . '/' . trim($publicPath, '/') . '/' . $slug : ''
+        ];
+    }
+
+    echo json_encode([
+        'status' => 'success',
+        'data' => $clients
+    ], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
 if ($action === 'provision_tenant') {
     $name = trim($jsonData['name'] ?? '');
     $slug = trim($jsonData['slug'] ?? '');
@@ -332,13 +396,14 @@ if ($action === 'provision_tenant') {
     if (!$rpcSuccess) {
         // Compensa: deleta o usuário criado
         $rollbackRes = supabase_request('DELETE', '/auth/v1/admin/users/' . $userId);
-        $rollbackOk = $rollbackRes['code'] >= 200 && $rollbackRes['code'] < 300;
+        $rollbackOk = ($rollbackRes['code'] >= 200 && $rollbackRes['code'] < 300) || $rollbackRes['code'] === 404;
 
         echo json_encode([
             'status' => 'error',
-            'message' => $rollbackOk ? 'Falha na criacao do banco (rollback Auth realizado)' : 'Falha na criacao do banco e rollback Auth nao confirmado',
+            'message' => $rollbackOk ? 'Falha na criacao do banco (usuario Auth limpo)' : 'Falha na criacao do banco e rollback Auth nao confirmado',
             'details' => $rpcError,
-            'rollback_auth_deleted' => $rollbackOk
+            'rollback_auth_deleted' => $rollbackOk,
+            'rollback_http_code' => $rollbackRes['code']
         ]);
         exit;
     }

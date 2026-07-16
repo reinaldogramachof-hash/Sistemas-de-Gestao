@@ -15,7 +15,7 @@ import { formatStockQuantity } from '../utils/format';
 type TabType = 'overview' | 'movements' | 'losses';
 
 export const Stock: React.FC = () => {
-  const { stockItems, updateStockItem, addStockItem, deleteStockItem, suppliers, stockMovements, addStockMovement, theme } = useApp();
+  const { stockItems, updateStockItem, addStockItem, deleteStockItem, suppliers, stockMovements, addStockMovement, theme, products } = useApp();
   const isDark = theme === 'dark';
 
   const [activeTab, setActiveTab] = useState<TabType>('overview');
@@ -45,6 +45,17 @@ export const Stock: React.FC = () => {
     quantity: 0,
     reason: ''
   });
+
+  const handleDeleteStockItem = (id: string, name: string) => {
+    const isUsed = products.some(p => p.recipe?.some(r => r.stockItemId === id));
+    if (isUsed) {
+      window.alert(`Este insumo está vinculado a produtos do cardápio. Remova ou substitua na ficha técnica antes de excluir.`);
+      return;
+    }
+    if (window.confirm(`Tem certeza que deseja excluir o insumo ${name}?`)) {
+      deleteStockItem(id);
+    }
+  };
 
   const categories = ['Todas', ...Array.from(new Set(stockItems.map(i => i.category)))];
 
@@ -190,6 +201,10 @@ export const Stock: React.FC = () => {
 
       {activeTab === 'overview' && (
         <div className="space-y-8">
+          <div className={`p-4 rounded-xl border border-dashed flex items-center gap-3 text-[10px] font-bold uppercase tracking-wide opacity-70 ${isDark ? 'border-white/10 bg-white/5 text-white' : 'border-gray-200 bg-gray-50 text-gray-700'}`}>
+            <Info className="w-5 h-5 flex-shrink-0" />
+            Estoque salvo neste dispositivo. Para operação multi-dispositivo, a sincronização em nuvem precisa estar ativa.
+          </div>
           {/* Controls */}
           <div className="flex flex-col lg:flex-row gap-4">
             <div className={`relative flex-1 group`}>
@@ -307,6 +322,7 @@ export const Stock: React.FC = () => {
                             <button onClick={() => handleOpenModal(si)} className={`p-3 rounded-lg transition-all ${isDark ? 'bg-white/5 hover:bg-white/10' : 'bg-gray-50 hover:bg-gray-100'}`}><Edit2 className="w-4 h-4 opacity-40" /></button>
                             <button onClick={() => { setSelectedItemId(si.id); setIsLossModalOpen(true); }} className="p-3 rounded-lg bg-red-500/10 text-red-500 hover:bg-red-500/20 transition-all"><AlertTriangle className="w-4 h-4" /></button>
                             <button onClick={() => handleOpenModal(si)} className="p-3 rounded-lg bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 transition-all"><Plus className="w-4 h-4" /></button>
+                            <button onClick={() => handleDeleteStockItem(si.id, si.name)} className={`p-3 rounded-lg transition-all ${isDark ? 'bg-white/5 hover:bg-red-500/20 hover:text-red-500' : 'bg-gray-50 hover:bg-red-50 hover:text-red-500'}`}><Trash2 className="w-4 h-4 opacity-40 hover:opacity-100" /></button>
                           </div>
                         </td>
                       </tr>

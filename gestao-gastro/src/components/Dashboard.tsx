@@ -20,13 +20,25 @@ export const Dashboard: React.FC = () => {
   const { orders, tables, products, stockItems, theme, currentEmpresa } = useApp();
   const isDark = theme === 'dark';
 
+  const isToday = (timestampStr: string) => {
+    const orderDate = new Date(timestampStr);
+    const today = new Date();
+    return (
+      orderDate.getDate() === today.getDate() &&
+      orderDate.getMonth() === today.getMonth() &&
+      orderDate.getFullYear() === today.getFullYear()
+    );
+  };
+
   const closedOrders = orders.filter(o => o.status === 'closed');
-  const salesToday = closedOrders.reduce((acc, o) => acc + o.total, 0);
-  const totalOrders = closedOrders.length;
-  const avgTicket = totalOrders > 0 ? salesToday / totalOrders : 0;
+  const openOrders = orders.filter(o => o.status !== 'closed');
+  const closedOrdersToday = closedOrders.filter(o => isToday(o.timestamp));
+  const salesToday = closedOrdersToday.reduce((acc, o) => acc + o.total, 0);
+  const totalOrdersToday = closedOrdersToday.length;
+  const avgTicket = totalOrdersToday > 0 ? salesToday / totalOrdersToday : 0;
   const occupiedTables = tables.filter(t => t.status !== 'livre').length;
 
-  const categorySales = closedOrders.flatMap(o => o.items).reduce<Record<string, number>>((acc, item) => {
+  const categorySales = closedOrdersToday.flatMap(o => o.items).reduce<Record<string, number>>((acc, item) => {
     acc[item.product.category] = (acc[item.product.category] || 0) + (item.price * item.quantity);
     return acc;
   }, {});
@@ -34,7 +46,7 @@ export const Dashboard: React.FC = () => {
   const recentOrders = [...orders].reverse().slice(0, 6);
 
   // Top Selling Products logic
-  const productSales = closedOrders.flatMap(o => o.items).reduce((acc, item) => {
+  const productSales = closedOrdersToday.flatMap(o => o.items).reduce((acc, item) => {
     if (!acc[item.product.id]) {
       acc[item.product.id] = { name: item.product.name, qty: 0, category: item.product.category };
     }
@@ -68,13 +80,42 @@ export const Dashboard: React.FC = () => {
     }
   };
 
-  const comparisonLabel = totalOrders > 1 ? 'Em comparação ao período anterior' : 'Sem comparação';
+  const comparisonLabelClosed = 'Baseado nos pedidos fechados hoje';
+  const comparisonLabelRealtime = 'Atualizado em tempo real';
   const kpis = [
-    { label: 'Vendas Hoje', value: formatCurrency(salesToday), icon: TrendingUp, color: 'text-emerald-500', bg: 'bg-emerald-500/10', trend: comparisonLabel },
-    { label: 'Ticket Médio', value: formatCurrency(avgTicket), icon: ShoppingBag, color: 'text-blue-500', bg: 'bg-blue-500/10', trend: comparisonLabel },
-    { label: 'Pedidos', value: totalOrders.toString(), icon: Clock, color: 'text-accent', bg: 'bg-accent/10', trend: comparisonLabel },
-    { label: 'Mesas Ocupadas', value: occupiedTables.toString(), icon: TableIcon, color: 'text-amber-500', bg: 'bg-amber-500/10', trend: `${occupiedTables}/${tables.length}` },
+    { label: 'Vendas Hoje', value: formatCurrency(salesToday), icon: TrendingUp, color: 'text-emerald-500', bg: 'bg-emerald-500/10', trend: comparisonLabelClosed },
+    { label: 'Ticket Médio', value: formatCurrency(avgTicket), icon: ShoppingBag, color: 'text-blue-500', bg: 'bg-blue-500/10', trend: comparisonLabelClosed },
+    { label: 'Pedidos', value: totalOrdersToday.toString(), icon: Clock, color: 'text-accent', bg: 'bg-accent/10', trend: `${totalOrdersToday} fechados hoje · ${openOrders.length} ${openOrders.length === 1 ? 'aberto' : 'abertos'}` },
+    { label: 'Mesas Ocupadas', value: occupiedTables.toString(), icon: TableIcon, color: 'text-amber-500', bg: 'bg-amber-500/10', trend: comparisonLabelRealtime },
   ];
+
+  const handleExportCSV = () => {
+    if (recentOrders.length === 0) return;
+    const headers = ['ID', 'Data/Hora', 'Modo', 'Status', 'Valor'];
+
+    const escapeCSV = (val: string) => {
+      const clean = val.replace(/"/g, '""');
+      return `"${clean}"`;
+    };
+
+    const rows = recentOrders.map(o => [
+      escapeCSV(o.id),
+      escapeCSV(new Date(o.timestamp).toLocaleString('pt-BR')),
+      escapeCSV(o.mode),
+      escapeCSV(o.status === 'closed' ? 'Concluído' : 'Aberto'),
+      escapeCSV(o.total.toFixed(2))
+    ]);
+
+    const csvContent = '\uFEFF' + [headers.map(escapeCSV).join(';'), ...rows.map(r => r.join(';'))].join('\r\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `pedidos_dashboard_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   return (
     <div className="space-y-8 animate-in fade-in duration-200 pb-12">
@@ -107,8 +148,8 @@ export const Dashboard: React.FC = () => {
                <div className={`p-2.5 rounded-xl ${kpi.bg}`}>
                  <kpi.icon className={`w-5 h-5 ${kpi.color}`} />
                </div>
-               <span className={`max-w-[10rem] text-right text-[9px] font-bold px-2 py-1 rounded-lg ${
-                 kpi.trend.includes('+') ? 'bg-emerald-500/10 text-emerald-500' : 'bg-gray-500/10 text-gray-500'
+               <span className={`max-w-[15rem] text-right text-[9px] font-bold px-2 py-1 rounded-lg ${
+                 kpi.trend.includes('fechados') || kpi.trend.includes('tempo real') ? 'bg-emerald-500/10 text-emerald-500' : 'bg-gray-500/10 text-gray-500'
                }`}>
                  {kpi.trend}
                </span>
@@ -148,12 +189,12 @@ export const Dashboard: React.FC = () => {
                    </div>
                  )
               })}
-              {Object.keys(categorySales).length === 0 && (
-                <div className="flex flex-col items-center justify-center py-12 opacity-50">
-                  <ShoppingBag className="w-12 h-12 mb-3" />
-                  <p className="text-sm">Sem dados de vendas hoje</p>
-                </div>
-              )}
+               {Object.keys(categorySales).length === 0 && (
+                 <div className="flex flex-col items-center justify-center py-12 opacity-50">
+                   <ShoppingBag className="w-12 h-12 mb-3" />
+                   <p className="text-sm font-semibold opacity-70 px-4 text-center">Feche o primeiro pedido hoje para ver as categorias mais vendidas.</p>
+                 </div>
+               )}
             </div>
          </div>
 
@@ -162,7 +203,7 @@ export const Dashboard: React.FC = () => {
              <div className="flex items-center justify-between mb-8">
                <h3 className="font-bold text-sm uppercase tracking-wide">Últimos Pedidos</h3>
                <div className="flex gap-2">
-                 <button className={`px-4 py-2 rounded-xl text-[9px] font-bold uppercase tracking-wide transition-colors ${isDark ? 'bg-white/5 hover:bg-white/10' : 'bg-gray-50 hover:bg-gray-100'}`}>Exportar</button>
+                 <button onClick={handleExportCSV} disabled={recentOrders.length === 0} className={`px-4 py-2 rounded-xl text-[9px] font-bold uppercase tracking-wide transition-colors disabled:opacity-30 ${isDark ? 'bg-white/5 hover:bg-white/10' : 'bg-gray-50 hover:bg-gray-100'}`}>Exportar</button>
                </div>
              </div>
              <div className="overflow-x-auto -mx-2">
@@ -195,7 +236,7 @@ export const Dashboard: React.FC = () => {
                        <td className="px-4 py-4 border-y border-transparent">
                          <span className="flex items-center gap-2">
                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                           <span className="text-[10px] font-bold uppercase tracking-wide opacity-60">Concluído</span>
+                           <span className="text-[10px] font-bold uppercase tracking-wide opacity-60">{o.status === 'closed' ? 'Concluído' : 'Aberto'}</span>
                          </span>
                        </td>
                        <td className="px-4 py-4 last:rounded-r-2xl border-y border-transparent text-right font-bold text-sm">
@@ -205,6 +246,11 @@ export const Dashboard: React.FC = () => {
                    ))}
                  </tbody>
                </table>
+                {recentOrders.length === 0 && (
+                  <div className="py-12 flex flex-col items-center justify-center opacity-40">
+                    <p className="text-sm font-semibold">Pedidos aparecerão aqui.</p>
+                  </div>
+                )}
              </div>
          </div>
       </div>
@@ -234,9 +280,9 @@ export const Dashboard: React.FC = () => {
                 </div>
               </div>
             ))}
-            {topProducts.length === 0 && (
-              <div className="py-12 text-center opacity-20  text-sm">Nenhum dado de vendas ainda.</div>
-            )}
+             {topProducts.length === 0 && (
+               <div className="py-12 text-center opacity-40 text-sm font-semibold">O ranking de hoje aparece após as primeiras vendas do dia.</div>
+             )}
           </div>
         </div>
 
@@ -267,7 +313,7 @@ export const Dashboard: React.FC = () => {
             {lowStockItems.length === 0 && (
               <div className="py-12 flex flex-col items-center justify-center gap-3 opacity-30">
                 <CheckCircle2 className="w-10 h-10 text-emerald-500" />
-                <p className="text-xs font-bold uppercase tracking-wide">Tudo em dia!</p>
+                <p className="text-xs font-bold uppercase tracking-wide">Nenhum item abaixo do mínimo.</p>
               </div>
             )}
           </div>
@@ -295,12 +341,12 @@ export const Dashboard: React.FC = () => {
                     </div>
                     <div>
                       <p className="text-xs font-bold uppercase tracking-tight">{item.name}</p>
-                      <p className="text-[9px] font-bold opacity-30 uppercase tracking-wide">{isExpired ? 'Vencido' : 'Próximo do Venc.'}</p>
+                      <p className="text-[9px] font-bold opacity-30 uppercase tracking-wide">{isExpired ? 'Vencido' : diffDays === 0 ? 'Vence hoje' : `Vence em ${diffDays} dias`}</p>
                     </div>
                   </div>
                   <div className="text-right">
                     <p className={`text-sm font-bold ${isExpired ? 'text-rose-500' : 'text-amber-500'}`}>{expiry.toLocaleDateString('pt-BR')}</p>
-                    <p className="text-[9px] font-bold opacity-30 uppercase tracking-wide">{isExpired ? 'Descartar' : (diffDays === 0 ? 'Hoje' : `em ${diffDays} dias`)}</p>
+                    <p className="text-[9px] font-bold opacity-30 uppercase tracking-wide">{isExpired ? 'Vencido' : (diffDays === 0 ? 'Hoje' : `em ${diffDays} dias`)}</p>
                   </div>
                 </div>
               );
@@ -308,7 +354,7 @@ export const Dashboard: React.FC = () => {
             {expiringItems.length === 0 && (
               <div className="py-12 flex flex-col items-center justify-center gap-3 opacity-30">
                 <CheckCircle2 className="w-10 h-10 text-emerald-500" />
-                <p className="text-xs font-bold uppercase tracking-wide">Tudo na validade!</p>
+                <p className="text-xs font-bold uppercase tracking-wide">Nenhum item próximo do vencimento.</p>
               </div>
             )}
           </div>

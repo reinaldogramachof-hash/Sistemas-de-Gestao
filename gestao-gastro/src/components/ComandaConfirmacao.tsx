@@ -34,8 +34,8 @@ export const ComandaConfirmacao: React.FC<ComandaConfirmacaoProps> = React.memo(
           <CheckCircle2 className="w-9 h-9 text-emerald-500" />
         </div>
         <div>
-          <h3 className="text-lg font-semibold">Pedido enviado!</h3>
-          <p className="text-xs text-gray-500 mt-1">A cozinha já recebeu esta comanda.</p>
+          <h3 className="text-lg font-semibold">Lançamento concluído!</h3>
+          <p className="text-xs text-gray-500 mt-1">Os itens foram registrados na comanda da mesa.</p>
         </div>
       </div>
     );
@@ -83,7 +83,7 @@ export const ComandaConfirmacao: React.FC<ComandaConfirmacaoProps> = React.memo(
         onClick={onConfirm}
         className="w-full h-12 rounded-xl bg-slate-700 text-white text-sm font-semibold active:scale-[0.98] transition-all"
       >
-        {isOnline ? 'Confirmar e Enviar para Cozinha ✓' : 'Salvar na fila offline'}
+        {isOnline ? 'Concluir lançamento ✓' : 'Salvar na fila offline'}
       </button>
     </div>
   );

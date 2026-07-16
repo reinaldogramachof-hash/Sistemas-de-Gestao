@@ -107,9 +107,9 @@ test('Base modules keep Portuguese visible labels accented', () => {
       'Informações Básicas',
     ],
     'gestao-gastro/src/components/Reports.tsx': [
-      'Gestão consolidada de fluxo e operação',
+      'Gestão consolidada de caixa, vendas e despesas',
       'Lançar Despesa',
-      'Lucro Líquido Real',
+      'Lucro Líquido',
       'Comissão Acumulada',
     ],
     'gestao-gastro/src/components/Stock.tsx': [
@@ -126,4 +126,25 @@ test('Base modules keep Portuguese visible labels accented', () => {
       assert.ok(source.includes(label), `${path} deve conter "${label}"`);
     }
   }
+});
+
+test('Reports keeps finance calculations restricted to closed orders', () => {
+  const source = read('gestao-gastro/src/components/Reports.tsx');
+
+  assert.match(
+    source,
+    /const closedOrders = useMemo\(\(\) => orders\.filter\(order => order\.status === 'closed'\)/,
+    'Financeiro deve separar pedidos fechados antes dos cálculos'
+  );
+  assert.match(
+    source,
+    /return closedOrders\.filter\(order => isWithinPeriod\(order\.timestamp, period\)\)/,
+    'Filtro de período deve usar somente pedidos fechados'
+  );
+  assert.doesNotMatch(
+    source,
+    /return orders\.filter\(o => \{/,
+    'Financeiro não deve calcular faturamento diretamente sobre todos os pedidos'
+  );
+  assert.ok(source.includes('CMV estimado incompleto'), 'Financeiro deve avisar quando CMV estiver incompleto');
 });

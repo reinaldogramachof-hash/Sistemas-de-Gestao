@@ -88,11 +88,17 @@ export interface Order {
   timestamp: string;
 }
 
+export interface OrderCloseResult {
+  localSaved: boolean;
+  remoteSynced: boolean;
+  remoteError?: string;
+}
 export interface Table {
   number: number;
   status: 'livre' | 'ocupada' | 'aguardando' | 'reservada';
   activeOrderId?: string;
   reservationReason?: string;
+  sector?: string;
 }
 
 export interface Waiter {
@@ -211,7 +217,10 @@ export interface AppSettings {
   paymentMethods?: PaymentMethod[];
   kitchenMode?: 'display' | 'interactive';
   serviceChargeRate?: number;
-  localTestOrigin?: string;
+  localTestOrigin?: string; // deprecated, mantendo por retrocompatibilidade
+  waiterAccessMode?: 'local' | 'external';
+  waiterLocalOrigin?: string;
+  waiterExternalOrigin?: string;
   metadata?: {
     updatedAt: string;
     source: string;

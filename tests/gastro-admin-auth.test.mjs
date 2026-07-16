@@ -182,6 +182,11 @@ test('HTTP Contract - license proof rejects tenant and email mismatch using an i
       status: 'active',
       tenant_id: 'tenant-contract',
       email_activation: 'owner.contract@example.test'
+    },
+    'CANTINHO-SLUG-ONLY': {
+      status: 'active',
+      tenant_slug: 'cantinho-da-resenha',
+      email_activation: 'cantinho.owner@example.test'
     }
   }));
 
@@ -233,6 +238,19 @@ test('HTTP Contract - license proof rejects tenant and email mismatch using an i
   const validProofBody = await validProof.text();
   assert.equal(validProof.status, 200, `A licença isolada válida deve passar pela validação do endpoint: ${validProofBody}`);
   assert.deepEqual(JSON.parse(validProofBody), { status: 'success', has_owner: false });
+
+  const validCantinhoSlugOnly = await post({
+    action: 'get_owner_status',
+    tenant_id: 'cd8f21f4-73a1-4c87-a385-9b6deacaeae7',
+    license_key: 'CANTINHO-SLUG-ONLY',
+    email: 'cantinho.owner@example.test'
+  });
+  const validCantinhoSlugOnlyBody = await validCantinhoSlugOnly.text();
+  assert.equal(
+    validCantinhoSlugOnly.status,
+    200,
+    `Licenca antiga do Cantinho com tenant_slug e sem tenant_id deve passar: ${validCantinhoSlugOnlyBody}`
+  );
 });
 
 test('Inspect Layout.tsx for dynamic profile, dropdown and logout button', () => {
@@ -274,7 +292,10 @@ test('Inspect AppContext.tsx for prefixing localstorage keys and initializeTable
 
   // c) ResetToMocks restringe limpeza apenas de chaves do tenant atual em SaaS
   assert.ok(
-    source.includes('resetToMocks') && source.includes('isSaaS') && source.includes('window.confirm'),
+    source.includes('resetToMocks') && source.includes('isSaaS') && source.includes('window.confirm') &&
+    source.includes('CANTINHO_CLEANUP_VERSION') &&
+    source.includes('CANTINHO_OPERATIONAL_KEYS_TO_CLEAR') &&
+    source.includes("localStorage.removeItem('garcom_offline_queue')"),
     'AppContext.tsx deve pedir confirmação e limpar seletivamente chaves do tenant'
   );
 });
@@ -290,7 +311,10 @@ test('Inspect Settings.tsx for private LAN IP validation regex', () => {
 
   // b) Deve renderizar a aba "Mesas do salão" com totalizador e botão de inicialização
   assert.ok(
-    source.includes('tables') && source.includes('initializeTables'),
+    source.includes('tables') && source.includes('initializeTables') &&
+    source.includes('withTimeout') &&
+    source.includes('Ambiente online detectado') &&
+    source.includes("waiterAccessMode: 'external'"),
     'Settings.tsx deve renderizar a aba de gerenciamento de mesas'
   );
 });

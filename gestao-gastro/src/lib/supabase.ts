@@ -11,12 +11,18 @@ export const isSupabaseConfigured =
   Boolean(supabaseAnonKey) &&
   supabaseAnonKey !== 'SUBSTITUA_PELA_CHAVE_ANON_DO_SUPABASE';
 
+const isComandaRoute = typeof window !== 'undefined' && window.location.pathname.includes('/comanda');
+const authStorageKey = isComandaRoute
+  ? 'gestao-gastro-comanda-auth'
+  : 'gestao-gastro-admin-auth';
+
 export const supabase = isSupabaseConfigured
   ? createClient(supabaseUrl!, supabaseAnonKey!, {
       auth: {
         persistSession: true,
         autoRefreshToken: true,
         detectSessionInUrl: true,
+        storageKey: authStorageKey,
       },
     })
   : null;

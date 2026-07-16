@@ -99,24 +99,26 @@ export function validateLanOrigin(raw: string): LanValidationResult {
 export const getComandaAccessUrl = (
   windowOrigin: string,
   pathname: string,
-  localTestOrigin?: string
+  waiterAccessMode: 'local' | 'external' = 'local',
+  waiterLocalOrigin?: string,
+  localTestOrigin?: string // Fallback antigo
 ): string => {
-  const isLocal =
-    windowOrigin.includes('localhost') || windowOrigin.includes('127.0.0.1');
+  const isLocal = windowOrigin.includes('localhost') || windowOrigin.includes('127.0.0.1');
 
-  let baseOrigin: string;
+  let baseOrigin: string = 'https://www.sistemasdegestao.tech';
 
-  if (isLocal && localTestOrigin) {
-    const validation = validateLanOrigin(localTestOrigin);
-    // Usa a origem normalizada (sem caminho) se válida; fallback ao origin do Vite
-    baseOrigin = validation.valid && validation.origin
-      ? validation.origin
-      : windowOrigin;
-  } else if (!isLocal) {
-    // Produção: sempre HTTPS oficial
-    baseOrigin = 'https://sistemasdegestao.tech';
-  } else {
-    baseOrigin = windowOrigin;
+  if (waiterAccessMode === 'local') {
+    const targetOrigin = waiterLocalOrigin || localTestOrigin;
+    if (targetOrigin) {
+      const validation = validateLanOrigin(targetOrigin);
+      if (validation.valid && validation.origin) {
+        baseOrigin = validation.origin;
+      } else if (isLocal) {
+        baseOrigin = windowOrigin;
+      }
+    } else if (isLocal) {
+      baseOrigin = windowOrigin;
+    }
   }
 
   // Extrai o slug do pathname (/gestao-gastro/<slug>/...)

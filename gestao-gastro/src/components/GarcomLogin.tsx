@@ -1,10 +1,10 @@
 import React from 'react';
 import { ChefHat, Eye, EyeOff, Loader2, LockKeyhole, Mail, ShieldCheck } from 'lucide-react';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
-import { CANTINHO_DA_RESENHA_SLUG, getClientRouteFromPath } from '../config/clientRoutes';
+import { getClientRouteFromPath } from '../config/clientRoutes';
 
 interface GarcomLoginProps {
-  onLogin: (waiterId: string, waiterName: string) => void;
+  onLogin: (waiterId: string, waiterName: string) => void | Promise<void>;
 }
 
 export const GarcomLogin: React.FC<GarcomLoginProps> = ({ onLogin }) => {
@@ -14,9 +14,7 @@ export const GarcomLogin: React.FC<GarcomLoginProps> = ({ onLogin }) => {
   const [loading, setLoading] = React.useState(false);
   const [showPassword, setShowPassword] = React.useState(false);
   const clientRoute = getClientRouteFromPath(window.location.pathname);
-  const establishmentName = clientRoute?.slug === CANTINHO_DA_RESENHA_SLUG
-    ? 'Cantinho da Resenha'
-    : 'Gestão Gastro';
+  const establishmentName = clientRoute?.displayName || 'Gestão Gastro';
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -46,7 +44,7 @@ export const GarcomLogin: React.FC<GarcomLoginProps> = ({ onLogin }) => {
 
         if (data.user) {
           const name = data.user.user_metadata?.display_name || data.user.user_metadata?.name || email.split('@')[0];
-          onLogin(data.user.id, name);
+          await onLogin(data.user.id, name);
         }
       } catch (err: any) {
         setError(err.message || 'Não foi possível autenticar este acesso.');
@@ -61,7 +59,12 @@ export const GarcomLogin: React.FC<GarcomLoginProps> = ({ onLogin }) => {
       return;
     }
 
-    onLogin(`${password}_${Date.now()}`, email.split('@')[0]);
+    try {
+      await onLogin(`${password}_${Date.now()}`, email.split('@')[0]);
+    } catch (err: any) {
+      setError(err.message || 'Não foi possível liberar este acesso local.');
+      setLoading(false);
+    }
   };
 
   return (

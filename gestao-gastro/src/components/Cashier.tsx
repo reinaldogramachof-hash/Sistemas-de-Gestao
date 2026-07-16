@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useApp } from '../store/AppContext';
+import { useAudit } from '../hooks/useAudit';
 import { HelpTooltip } from './HelpTooltip';
 import { formatCurrency } from '../utils/format';
 import {
@@ -16,19 +17,28 @@ import {
   CreditCard,
   Banknote,
   Receipt,
-  AlertTriangle
+  AlertTriangle,
+  Edit2,
+  Trash2,
+  Share2,
+  Check
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Expense } from '../types';
 import { ui } from '../ui/styles';
 
 export const Cashier: React.FC = () => {
-  const { cashierSession, cashierHistory, expenses, orders, tables, theme, openCashier, closeCashier, addExpense } = useApp();
+  const { cashierSession, cashierHistory, expenses, orders, tables, theme, openCashier, closeCashier, addExpense, updateExpense, deleteExpense, settings } = useApp();
+  const { log } = useAudit();
   const isDark = theme === 'dark';
 
   const [expenseDesc, setExpenseDesc] = useState('');
   const [expenseVal, setExpenseVal] = useState('');
   const [expenseType, setExpenseType] = useState<'saida' | 'entrada'>('saida');
+
+  const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
+  const [deletingExpense, setDeletingExpense] = useState<Expense | null>(null);
+  const [copied, setCopied] = useState(false);
 
   const [tipsTotal, setTipsTotal] = useState('');
   const [countedCash, setCountedCash] = useState('');
@@ -41,6 +51,19 @@ export const Cashier: React.FC = () => {
 
   const salesToday = closedOrders.reduce((acc, o) => acc + o.subtotal, 0);
   const serviceChargeToday = closedOrders.reduce((acc, o) => acc + o.serviceCharge, 0);
+
+  const paymentTotals = closedOrders.reduce((acc, order) => {
+    order.payments?.forEach(p => {
+      let group = 'Outro';
+      if (p.method === 'dinheiro') group = 'Dinheiro';
+      else if (p.method === 'pix') group = 'Pix';
+      else if (p.method === 'credito' || p.method === 'debito') group = 'Cartão';
+
+      acc[group] = (acc[group] || 0) + p.amount;
+    });
+    return acc;
+  }, {} as Record<string, number>);
+  const hasPayments = Object.keys(paymentTotals).length > 0;
 
   // Saída subtrai do caixa, entrada soma (suprimento)
   const expensesTotal = expenses.reduce((acc, e) => {
@@ -56,9 +79,23 @@ export const Cashier: React.FC = () => {
     const val = parseFloat(initialBalanceInput.replace(',', '.')) || 0;
     openCashier(val);
     setInitialBalanceInput('');
+    log('Caixa', 'abertura', { initialBalance: val });
   };
 
   const handleAddExpense = () => {
+    if (editingExpense) {
+       const v = parseFloat(expenseVal.replace(',', '.'));
+       if (!expenseDesc.trim() || isNaN(v) || v <= 0) return;
+       const updated: Expense = { ...editingExpense, description: expenseDesc.trim(), amount: v, entryType: expenseType };
+       updateExpense(updated);
+       log('Caixa', 'edicao_movimentacao', { expense: updated as unknown as Record<string, unknown> });
+       setEditingExpense(null);
+       setExpenseDesc('');
+       setExpenseVal('');
+       setExpenseType('saida');
+       return;
+    }
+
     const v = parseFloat(expenseVal.replace(',', '.'));
     if (!expenseDesc.trim() || isNaN(v) || v <= 0) return;
 
@@ -73,8 +110,23 @@ export const Cashier: React.FC = () => {
     };
 
     addExpense(newExpense);
+    log('Caixa', 'movimentacao', { expense: newExpense as unknown as Record<string, unknown> });
     setExpenseDesc('');
     setExpenseVal('');
+  };
+
+  const handleEditClick = (e: Expense) => {
+    setEditingExpense(e);
+    setExpenseDesc(e.description);
+    setExpenseVal(e.amount.toString().replace('.', ','));
+    setExpenseType(e.entryType || 'saida');
+  };
+
+  const handleDeleteConfirm = () => {
+    if(!deletingExpense) return;
+    deleteExpense(deletingExpense.id);
+    log('Caixa', 'exclusao_movimentacao', { expense: deletingExpense as unknown as Record<string, unknown> });
+    setDeletingExpense(null);
   };
 
   const handleCloseCashier = () => {
@@ -82,8 +134,44 @@ export const Cashier: React.FC = () => {
     const tips = parseFloat(tipsTotal.replace(',', '.')) || 0;
     const counted = countedCash.trim() ? parseFloat(countedCash.replace(',', '.')) : undefined;
     closeCashier(tips, counted);
+    log('Caixa', 'fechamento', { tips, counted });
     setTipsTotal('');
     setCountedCash('');
+  };
+
+  const handleShareReport = async () => {
+    if(!cashierSession) return;
+    const report = `*Fechamento de Caixa*
+Restaurante: ${settings.establishment.name || 'Gestão Gastro'}
+Abertura: ${new Date(cashierSession.openedAt).toLocaleString('pt-BR')}
+Agora: ${new Date().toLocaleString('pt-BR')}
+
+*Resumo*
+Fundo Inicial: ${formatCurrency(initialBalance)}
+Vendas: ${formatCurrency(salesToday)}
+Taxas/Serviço: ${formatCurrency(serviceChargeToday)}
+Despesas/Sangrias: ${formatCurrency(expenses.filter(e => e.entryType !== 'entrada').reduce((a,b)=>a+b.amount,0))}
+Suprimentos: ${formatCurrency(expenses.filter(e => e.entryType === 'entrada').reduce((a,b)=>a+b.amount,0))}
+Saldo Previsto: ${formatCurrency(saldoPrevisto)}
+Contagem (Declarado): ${countedCash ? formatCurrency(parseFloat(countedCash.replace(',','.'))) : 'Não informado'}
+
+*Formas de Pagamento*
+${Object.entries(paymentTotals).map(([method, amount]) => `${method}: ${formatCurrency(amount as number)}`).join('\n') || 'Nenhuma venda fechada'}`;
+
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: 'Resumo de Caixa',
+          text: report
+        });
+      } catch (err) {
+        console.log('Share cancelado ou falhou');
+      }
+    } else {
+      await navigator.clipboard.writeText(report);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
   };
 
   // Caixa fechado
@@ -233,7 +321,7 @@ export const Cashier: React.FC = () => {
                      const colorClass = isEntrada ? 'text-emerald-500 bg-emerald-500/10' : 'text-red-500 bg-red-500/10';
                      const textClass = isEntrada ? 'text-emerald-500' : 'text-red-500';
                      return (
-                       <div key={e.id} className={`flex items-center justify-between p-5 rounded-lg ${isDark ? 'bg-[#121214]' : 'bg-gray-50'}`}>
+                       <div key={e.id} className={`flex items-center justify-between p-5 rounded-lg group ${isDark ? 'bg-[#121214]' : 'bg-gray-50'}`}>
                          <div className="flex items-center gap-4">
                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${colorClass}`}><ColorIcon className="w-5 h-5" /></div>
                            <div>
@@ -241,7 +329,13 @@ export const Cashier: React.FC = () => {
                              <p className="text-[10px] font-bold opacity-30">{new Date(e.timestamp).toLocaleTimeString('pt-BR')} • {isEntrada ? 'Suprimento' : 'Sangria/Despesa'}</p>
                            </div>
                          </div>
-                         <span className={`font-bold ${textClass}`}>{isEntrada ? '+' : '-'} {formatCurrency(e.amount)}</span>
+                         <div className="flex items-center gap-4">
+                           <span className={`font-bold ${textClass}`}>{isEntrada ? '+' : '-'} {formatCurrency(e.amount)}</span>
+                           <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                             <button onClick={() => handleEditClick(e)} className="p-2 text-gray-400 hover:text-blue-500 transition-colors"><Edit2 className="w-4 h-4" /></button>
+                             <button onClick={() => setDeletingExpense(e)} className="p-2 text-gray-400 hover:text-red-500 transition-colors"><Trash2 className="w-4 h-4" /></button>
+                           </div>
+                         </div>
                        </div>
                      );
                    })}
@@ -253,7 +347,7 @@ export const Cashier: React.FC = () => {
 
         <div className="lg:col-span-4 space-y-6">
           <div className={`p-8 rounded-xl border shadow-sm ${isDark ? 'bg-[#1C1C1E] border-[#2C2C2E]' : 'bg-white border-gray-100'}`}>
-            <h3 className="text-sm font-bold uppercase tracking-wide mb-6 opacity-40">Registrar Movimentação</h3>
+            <h3 className="text-sm font-bold uppercase tracking-wide mb-6 opacity-40">{editingExpense ? 'Editar Movimentação' : 'Registrar Movimentação'}</h3>
             <div className="space-y-4">
               <div className="flex bg-black/5 dark:bg-white/5 p-1 rounded-lg">
                 <button
@@ -271,8 +365,31 @@ export const Cashier: React.FC = () => {
               </div>
               <div className="space-y-2"><label className="text-[10px] font-bold uppercase tracking-wide opacity-30 ml-2">Descrição</label><input type="text" placeholder={expenseType === 'saida' ? "Ex: Pagamento Gelo" : "Ex: Troco extra"} value={expenseDesc} onChange={e => setExpenseDesc(e.target.value)} className={`w-full p-4 rounded-lg border outline-none font-bold text-sm ${isDark ? 'bg-[#121214] border-[#2C2C2E]' : 'bg-gray-50 border-gray-200'}`} /></div>
               <div className="space-y-2"><label className="text-[10px] font-bold uppercase tracking-wide opacity-30 ml-2">Valor</label><div className="relative"><span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-sm opacity-20">R$</span><input type="text" placeholder="0,00" value={expenseVal} onChange={e => setExpenseVal(e.target.value)} className={`w-full pl-10 pr-4 py-4 rounded-lg border outline-none font-bold text-sm ${isDark ? 'bg-[#121214] border-[#2C2C2E]' : 'bg-gray-50 border-gray-200'}`} /></div></div>
-              <button onClick={handleAddExpense} className={`w-full py-4 text-white rounded-lg font-bold uppercase tracking-wide text-[10px] shadow-sm transition-all ${expenseType === 'saida' ? 'bg-red-500 hover:bg-red-600' : 'bg-emerald-500 hover:bg-emerald-600'}`}>Confirmar Movimentação</button>
+              <button onClick={handleAddExpense} className={`w-full py-4 text-white rounded-lg font-bold uppercase tracking-wide text-[10px] shadow-sm transition-all ${expenseType === 'saida' ? 'bg-red-500 hover:bg-red-600' : 'bg-emerald-500 hover:bg-emerald-600'}`}>
+                {editingExpense ? 'Salvar Alterações' : 'Confirmar Movimentação'}
+              </button>
+              {editingExpense && (
+                <button onClick={() => { setEditingExpense(null); setExpenseDesc(''); setExpenseVal(''); setExpenseType('saida'); }} className={`w-full py-3 font-bold text-xs uppercase tracking-wide rounded-lg transition-colors ${isDark ? 'bg-[#2C2C2E] hover:bg-[#3C3C3E]' : 'bg-gray-100 hover:bg-gray-200'}`}>Cancelar Edição</button>
+              )}
             </div>
+          </div>
+
+          <div className={`p-8 rounded-xl border shadow-sm ${isDark ? 'bg-[#1C1C1E] border-[#2C2C2E]' : 'bg-white border-gray-100'}`}>
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-sm font-bold uppercase tracking-wide opacity-40">Formas de Pagamento</h3>
+            </div>
+            {!hasPayments ? (
+              <p className="text-[11px] font-medium opacity-40 text-center py-4">Nenhum pagamento registrado neste turno.</p>
+            ) : (
+              <div className="space-y-3">
+                {Object.entries(paymentTotals).map(([method, amount]) => (
+                  <div key={method} className="flex justify-between items-center">
+                    <span className="text-xs font-bold uppercase opacity-60">{method}</span>
+                    <span className="text-sm font-bold">{formatCurrency(amount as number)}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           <div className={`p-8 rounded-xl border shadow-sm relative overflow-hidden transition-all ${!canCloseCashier ? 'border-amber-500/30 bg-amber-500/5' : 'border-red-500/20 bg-red-500/5'}`}>
@@ -295,14 +412,42 @@ export const Cashier: React.FC = () => {
                 <div className="space-y-2">
                   <label className="text-[10px] font-bold uppercase tracking-wide opacity-40 ml-2">Contagem Declarada (Opcional)</label>
                   <input type="text" placeholder="R$ 0,00" value={countedCash} onChange={e => setCountedCash(e.target.value)} className={`w-full p-4 rounded-lg border border-red-500/20 outline-none font-bold text-sm ${isDark ? 'bg-black/20' : 'bg-white'}`} />
-                  <p className="text-[9px] font-bold opacity-30 ml-2 mt-1 uppercase tracking-wide">Compara com o saldo estimado ({formatCurrency(saldoPrevisto)})</p>
+                  <div className="flex justify-between items-center ml-2 mt-1">
+                    <p className="text-[9px] font-bold opacity-30 uppercase tracking-wide">Compara com o saldo estimado ({formatCurrency(saldoPrevisto)})</p>
+                    {countedCash.trim() && !isNaN(parseFloat(countedCash.replace(',','.'))) && (
+                      <span className={`text-[9px] font-bold uppercase ${parseFloat(countedCash.replace(',','.')) - saldoPrevisto === 0 ? 'text-emerald-500' : parseFloat(countedCash.replace(',','.')) - saldoPrevisto > 0 ? 'text-emerald-500' : 'text-red-500'}`}>
+                        {parseFloat(countedCash.replace(',','.')) - saldoPrevisto === 0 ? 'Caixa conferido' : parseFloat(countedCash.replace(',','.')) - saldoPrevisto > 0 ? `Sobra de ${formatCurrency(parseFloat(countedCash.replace(',','.')) - saldoPrevisto)}` : `Falta de ${formatCurrency(Math.abs(parseFloat(countedCash.replace(',','.')) - saldoPrevisto))}`}
+                      </span>
+                    )}
+                  </div>
                 </div>
-                <button onClick={handleCloseCashier} className="w-full py-5 bg-red-500 text-white rounded-lg font-bold uppercase tracking-wide text-[11px] shadow-sm transition-all mt-4">Fechar Caixa Agora</button>
+                <button onClick={handleShareReport} className={`w-full py-3 rounded-lg font-bold uppercase tracking-wide text-[10px] flex items-center justify-center gap-2 border transition-all mt-6 ${isDark ? 'border-[#2C2C2E] hover:bg-white/5 text-gray-300' : 'border-gray-200 hover:bg-gray-50 text-gray-600'}`}>
+                  {copied ? <><Check className="w-4 h-4 text-emerald-500" /> Resumo Copiado</> : <><Share2 className="w-4 h-4" /> Compartilhar Fechamento</>}
+                </button>
+                <button onClick={handleCloseCashier} className="w-full py-5 bg-red-500 text-white rounded-lg font-bold uppercase tracking-wide text-[11px] shadow-sm transition-all mt-2">Fechar Caixa Agora</button>
               </div>
             )}
           </div>
         </div>
       </div>
+
+      <AnimatePresence>
+        {deletingExpense && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className={`w-full max-w-sm rounded-2xl shadow-xl overflow-hidden ${isDark ? 'bg-[#1C1C1E] border border-[#2C2C2E]' : 'bg-white border border-gray-100'}`}>
+              <div className="p-6">
+                <div className="w-12 h-12 bg-red-500/10 text-red-500 rounded-full flex items-center justify-center mb-4"><Trash2 className="w-6 h-6" /></div>
+                <h3 className="text-lg font-bold tracking-tight mb-2">Excluir Movimentação</h3>
+                <p className="text-sm opacity-60 mb-6">Deseja remover esta movimentação do caixa? O saldo será recalculado imediatamente.</p>
+                <div className="flex items-center gap-3">
+                  <button onClick={() => setDeletingExpense(null)} className={`flex-1 py-3 font-bold text-xs uppercase tracking-wide rounded-lg transition-colors ${isDark ? 'bg-[#2C2C2E] hover:bg-[#3C3C3E]' : 'bg-gray-100 hover:bg-gray-200'}`}>Cancelar</button>
+                  <button onClick={handleDeleteConfirm} className="flex-1 py-3 font-bold text-xs uppercase tracking-wide rounded-lg bg-red-500 text-white hover:bg-red-600 transition-colors">Excluir</button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

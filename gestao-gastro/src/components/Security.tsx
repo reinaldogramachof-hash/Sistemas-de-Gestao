@@ -11,12 +11,46 @@ import {
   Cloud, AlertTriangle, Server,
   Activity, Users, TerminalSquare, ShieldAlert
 } from 'lucide-react';
-import { motion } from 'motion/react';
 
 export const Security: React.FC = () => {
   const { theme, currentEmpresa, currentUser, supabaseOnline, collaborators } = useApp();
   const { currentPlan, checkAccess } = useModules();
   const isDark = theme === 'dark';
+
+  const getRoleDisplayName = (role?: string) => {
+    if (!role) return 'Não informado';
+    switch (role.toLowerCase()) {
+      case 'owner':
+        return 'Proprietário';
+      case 'admin':
+        return 'Administrador';
+      case 'cashier':
+        return 'Caixa';
+      case 'waiter':
+        return 'Garçom';
+      case 'local':
+        return 'Acesso local de teste';
+      default:
+        return 'Colaborador';
+    }
+  };
+
+  const getLogTypeDisplayName = (type: string) => {
+    switch (type) {
+      case 'product_add':
+        return 'Adição de Produto';
+      case 'order_cancel':
+        return 'Cancelamento de Pedido';
+      case 'login':
+        return 'Entrada no Sistema';
+      case 'logout':
+        return 'Saída do Sistema';
+      default:
+        return type
+          .replace(/_/g, ' ')
+          .replace(/\b\w/g, (char) => char.toUpperCase());
+    }
+  };
 
   const [recentLogs, setRecentLogs] = useState<AuditLogEntry[]>([]);
 
@@ -28,7 +62,7 @@ export const Security: React.FC = () => {
   }, [currentEmpresa]);
 
   const tenantId = currentEmpresa?.tenantId || '';
-  const maskedTenant = tenantId ? `${tenantId.substring(0, 8)}...` : 'NÃO DEFINIDO';
+  const maskedTenant = tenantId ? `${tenantId.substring(0, 8)}...` : 'Não informado';
 
   const activeCollabs = collaborators?.filter(c => c.active).length || 0;
   const totalCollabs = collaborators?.length || 0;
@@ -48,7 +82,7 @@ export const Security: React.FC = () => {
             Transparência, Privacidade e Operação
           </p>
           <div className="inline-block mt-2 px-3 py-1 rounded bg-current/5 border border-current/10 text-[10px] font-bold uppercase tracking-widest text-[#475569]">
-            Plano atual: {currentPlan === 'base' ? 'Base' : currentPlan === 'premium' ? 'Premium' : 'Master'}
+            Plano atual: {currentPlan === 'base' ? 'Base' : currentPlan === 'premium' ? 'Premium' : 'Completo'}
           </div>
         </div>
       </div>
@@ -97,12 +131,12 @@ export const Security: React.FC = () => {
         <div className={`p-6 rounded-lg border space-y-4 ${isDark ? 'bg-[#1C1C1E] border-[#2C2C2E]' : 'bg-white border-gray-100 shadow-sm'}`}>
           <div className="flex items-center gap-3 text-blue-500">
             <UserCheck className="w-5 h-5" />
-            <h3 className="text-xs font-bold uppercase tracking-wide">Sessão e Acesso</h3>
+            <h3 className="text-xs font-bold uppercase tracking-wide">Acesso atual</h3>
           </div>
           <div className="space-y-1">
-            <p className="text-sm font-bold truncate">{currentUser?.name || 'N/A'}</p>
+            <p className="text-sm font-bold truncate">{currentUser?.name || 'Não informado'}</p>
             <p className="text-[10px] font-bold opacity-50 uppercase tracking-widest">
-              Perfil de acesso: {currentUser?.role || 'Desconhecido'}
+              Perfil de acesso: {getRoleDisplayName(currentUser?.role)}
             </p>
           </div>
         </div>
@@ -115,7 +149,7 @@ export const Security: React.FC = () => {
           <div className="space-y-1">
             <p className="text-sm font-bold truncate">{currentEmpresa?.name || 'Local'}</p>
             <p className="text-[10px] font-bold opacity-50 uppercase tracking-widest font-mono">
-              ID: {maskedTenant}
+              Identificação: {maskedTenant}
             </p>
           </div>
         </div>
@@ -127,7 +161,7 @@ export const Security: React.FC = () => {
           </div>
           <div className="space-y-1">
             <p className="text-sm font-bold truncate">
-              {supabaseOnline ? 'Nuvem Conectada' : 'Modo Offline'}
+              {supabaseOnline ? 'Nuvem conectada' : 'Modo sem conexão'}
             </p>
             <p className="text-[10px] font-bold opacity-50 uppercase tracking-widest leading-relaxed">
               Sincronização em nuvem quando autenticado e backup local exportável.
@@ -181,7 +215,7 @@ export const Security: React.FC = () => {
       <div className={`p-8 rounded-lg border space-y-6 ${isDark ? 'bg-[#1C1C1E] border-[#2C2C2E]' : 'bg-white border-gray-100 shadow-sm'}`}>
         <div className="flex items-center gap-3">
           <TerminalSquare className="w-5 h-5 text-slate-500" />
-          <h2 className="text-sm font-bold uppercase tracking-wide">Últimos Eventos de Auditoria Local</h2>
+          <h2 className="text-sm font-bold uppercase tracking-wide">Histórico de atividades neste dispositivo</h2>
         </div>
 
         {recentLogs.length > 0 ? (
@@ -190,7 +224,7 @@ export const Security: React.FC = () => {
               <div key={log.id} className="flex flex-col md:flex-row md:items-center justify-between gap-2 p-3 rounded bg-current/5">
                 <div className="flex items-center gap-3">
                   <span className="text-[10px] font-bold opacity-50 uppercase">{new Date(log.timestamp).toLocaleString('pt-BR')}</span>
-                  <span className="text-[11px] font-bold">{log.type}</span>
+                  <span className="text-[11px] font-bold">{getLogTypeDisplayName(log.type)}</span>
                 </div>
                 <div className="flex flex-col md:flex-row md:items-center gap-2">
                   <span className="text-[10px] opacity-70 truncate max-w-xs">{log.detail}</span>
@@ -202,7 +236,7 @@ export const Security: React.FC = () => {
         ) : (
           <div className="p-8 rounded-lg border border-dashed text-center space-y-2">
             <Database className="w-8 h-8 opacity-20 mx-auto" />
-            <p className="text-xs font-bold uppercase tracking-wide opacity-50">Nenhum evento registrado na auditoria local</p>
+            <p className="text-xs font-bold uppercase tracking-wide opacity-50">Nenhuma atividade registrada neste dispositivo</p>
           </div>
         )}
       </div>

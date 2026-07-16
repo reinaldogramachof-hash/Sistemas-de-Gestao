@@ -92,6 +92,7 @@ export const AdminAuthGate: React.FC<AdminAuthGateProps> = ({ children }) => {
         // Salva metadados locais de login
         localStorage.setItem('gestao_gastro_user_role', data.role);
         localStorage.setItem('gestao_gastro_user_name', data.display_name || 'Administradora');
+        sessionStorage.setItem('gestao_gastro_user_role', data.role);
       } else {
         setIsAdminMember(false);
         setError('Acesso negado: esta conta não possui permissão de administrador neste restaurante.');
@@ -135,6 +136,7 @@ export const AdminAuthGate: React.FC<AdminAuthGateProps> = ({ children }) => {
             setIsAdminMember(false);
             localStorage.removeItem('gestao_gastro_user_role');
             localStorage.removeItem('gestao_gastro_user_name');
+            sessionStorage.removeItem('gestao_gastro_user_role');
           }
         });
         unsubscribe = () => subscription.unsubscribe();

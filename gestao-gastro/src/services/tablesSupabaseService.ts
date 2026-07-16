@@ -10,6 +10,7 @@ interface TableRow {
   status: 'livre' | 'ocupada' | 'aguardando' | 'reservada';
   active_order_id: string | null;
   reservation_reason: string | null;
+  sector: string;
   created_at: string;
   updated_at: string;
 }
@@ -20,6 +21,7 @@ interface TableUpdatePayload {
   status?: 'livre' | 'ocupada' | 'aguardando' | 'reservada';
   active_order_id?: string | null;
   reservation_reason?: string | null;
+  sector?: string;
   updated_at?: string;
 }
 
@@ -29,6 +31,7 @@ interface TableInsertRow {
   status: 'livre' | 'ocupada' | 'aguardando' | 'reservada';
   active_order_id: string | null;
   reservation_reason: string | null;
+  sector: string;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -37,11 +40,15 @@ const throwIfError = (message: string, error: { message: string } | null) => {
   if (error) throw new Error(`${message}: ${error.message}`);
 };
 
+const toRealtimeChannelName = (prefix: string, tenantId: string) =>
+  `${prefix}_${tenantId.replace(/[^a-zA-Z0-9_-]/g, '_')}_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+
 const toTable = (row: TableRow): Table => ({
   number: row.number,
   status: row.status,
   activeOrderId: row.active_order_id ?? undefined,
   reservationReason: row.reservation_reason ?? undefined,
+  sector: row.sector ?? 'Salão',
 });
 
 const toUpdatePayload = (data: UpdateTableInput): TableUpdatePayload => {
@@ -49,6 +56,7 @@ const toUpdatePayload = (data: UpdateTableInput): TableUpdatePayload => {
   if (data.status !== undefined) payload.status = data.status;
   if (data.activeOrderId !== undefined) payload.active_order_id = data.activeOrderId;
   if (data.reservationReason !== undefined) payload.reservation_reason = data.reservationReason;
+  if (data.sector !== undefined) payload.sector = data.sector;
   return payload;
 };
 
@@ -136,6 +144,7 @@ export async function initializeTables(tenantId: string, count: number): Promise
         status: 'livre',
         active_order_id: null,
         reservation_reason: null,
+        sector: 'Salão',
       });
     }
   }
@@ -183,7 +192,7 @@ export function subscribeToTables(
   if (!supabase) return () => {};
 
   const channel = supabase
-    .channel(`restaurant_tables:${tenantId}`)
+    .channel(toRealtimeChannelName('restaurant_tables', tenantId))
     .on(
       'postgres_changes',
       {

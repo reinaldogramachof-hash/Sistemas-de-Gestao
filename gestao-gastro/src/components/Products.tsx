@@ -11,6 +11,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Product, RecipeItem } from '../types';
 import { ui } from '../ui/styles';
 import { getProductIcon } from '../utils/productIcons';
+import { formatStockQuantity } from '../utils/format';
 
 export const Products: React.FC = () => {
   const { products, stockItems, updateProduct, addProduct, deleteProduct, theme, productSyncErrors, retrySyncProduct, clearSyncError, supabaseOnline } = useApp();
@@ -53,6 +54,20 @@ export const Products: React.FC = () => {
 
   const handleProductSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (recipeItems.length > 0) {
+      const hasEmpty = recipeItems.some(r => !r.stockItemId);
+      const hasInvalidQty = recipeItems.some(r => r.quantity <= 0 || isNaN(r.quantity));
+      if (hasEmpty) {
+        window.alert('Ficha Técnica incompleta: preencha todos os insumos selecionados ou remova os vazios.');
+        return;
+      }
+      if (hasInvalidQty) {
+        window.alert('Ficha Técnica inválida: a quantidade dos insumos deve ser maior que zero.');
+        return;
+      }
+    }
+
     const formData = new FormData(e.target as HTMLFormElement);
     const product: Product = {
       id: editingProduct?.id || Date.now().toString(),
@@ -153,6 +168,8 @@ export const Products: React.FC = () => {
           {filteredProducts.map(p => {
             const cost = calculateProductionCost(p.recipe);
             const margin = ((p.price - cost) / p.price) * 100;
+            const hasRecipe = p.recipe && p.recipe.length > 0;
+            const isRecipeIncomplete = hasRecipe && p.recipe!.some(r => !stockItems.some(si => si.id === r.stockItemId));
 
             return (
               <motion.div
@@ -218,13 +235,17 @@ export const Products: React.FC = () => {
                       <span className="text-[9px] font-bold uppercase tracking-wide opacity-20">Preço de Venda</span>
                       <span className="text-xl font-bold tracking-tighter">R$ {p.price.toFixed(2)}</span>
                     </div>
-                    {p.recipe && p.recipe.length > 0 ? (
-                      <div className="flex justify-between items-center text-[9px] font-bold uppercase tracking-wide">
-                        <span className="opacity-20">Margem Estimada</span>
-                        <span className={margin > 60 ? 'text-emerald-500' : 'text-amber-500'}>{margin.toFixed(0)}%</span>
-                      </div>
+                    {hasRecipe ? (
+                      isRecipeIncomplete ? (
+                        <div className="text-[8px] font-bold text-red-500 uppercase tracking-wide bg-red-500/5 px-2 py-1 rounded-lg w-fit">Ficha Incompleta</div>
+                      ) : (
+                        <div className="flex justify-between items-center text-[9px] font-bold uppercase tracking-wide">
+                          <span className="opacity-20">Margem Estimada</span>
+                          <span className={margin > 60 ? 'text-emerald-500' : 'text-amber-500'}>{margin.toFixed(0)}%</span>
+                        </div>
+                      )
                     ) : (
-                      <div className="text-[8px] font-bold text-red-500 uppercase tracking-wide bg-red-500/5 px-2 py-1 rounded-lg w-fit">Sem Ficha Técnica</div>
+                      <div className="text-[8px] font-bold text-amber-500 uppercase tracking-wide bg-amber-500/5 px-2 py-1 rounded-lg w-fit" title="Sem ficha técnica: não baixa estoque automaticamente">Sem Ficha Técnica</div>
                     )}
                   </div>
                 </div>
@@ -255,6 +276,8 @@ export const Products: React.FC = () => {
             <tbody className="divide-y divide-current/[0.03]">
               {filteredProducts.map(p => {
                 const cost = calculateProductionCost(p.recipe);
+                const hasRecipe = p.recipe && p.recipe.length > 0;
+                const isRecipeIncomplete = hasRecipe && p.recipe!.some(r => !stockItems.some(si => si.id === r.stockItemId));
                 return (
                   <tr key={p.id} className="group hover:bg-current/[0.01] transition-all">
                     <td className="px-8 py-5">
@@ -303,7 +326,15 @@ export const Products: React.FC = () => {
                        <span className="text-[10px] font-bold uppercase opacity-40">{p.category}</span>
                     </td>
                     <td className="px-8 py-5">
-                       <span className="text-[10px] font-bold opacity-40">{p.recipe?.length || 0} itens</span>
+                       {hasRecipe ? (
+                          isRecipeIncomplete ? (
+                             <span className="px-2 py-1 rounded bg-red-500/10 text-[9px] font-bold uppercase tracking-wide text-red-500" title="Insumos faltando ou excluídos">Incompleta</span>
+                          ) : (
+                             <span className="text-[10px] font-bold opacity-40">{p.recipe!.length} itens</span>
+                          )
+                       ) : (
+                          <span className="px-2 py-1 rounded bg-amber-500/10 text-[9px] font-bold uppercase tracking-wide text-amber-500">Sem Ficha</span>
+                       )}
                     </td>
                     <td className="px-8 py-5">
                        <span className="font-mono text-[11px] font-bold opacity-60">R$ {cost.toFixed(2)}</span>
@@ -415,11 +446,11 @@ export const Products: React.FC = () => {
                             className={`w-full h-12 px-4 rounded-xl border outline-none font-bold text-xs appearance-none ${isDark ? 'bg-[#121214] border-[#2C2C2E] text-white' : 'bg-gray-50 border-gray-100'}`}
                           >
                             <option value="">Selecione...</option>
-                            {stockItems.map(si => <option key={si.id} value={si.id}>{si.name} ({si.unit})</option>)}
+                            {stockItems.map(si => <option key={si.id} value={si.id}>{si.name} - saldo: {formatStockQuantity(si.currentStock, si.unit)}</option>)}
                           </select>
                         </div>
                         <div className="flex-1 space-y-1">
-                          <label className="text-[8px] font-bold uppercase tracking-wide opacity-30 ml-2">Quantidade</label>
+                          <label className="text-[8px] font-bold uppercase tracking-wide opacity-30 ml-2">Quantidade ({stockItems.find(si => si.id === item.stockItemId)?.unit || '?'})</label>
                           <input
                             required
                             type="number"
@@ -436,7 +467,10 @@ export const Products: React.FC = () => {
 
                   {recipeItems.length > 0 && (
                     <div className={`p-6 rounded-lg flex justify-between items-center ${isDark ? 'bg-white/5' : 'bg-gray-50'}`}>
-                      <span className="text-[9px] font-bold uppercase tracking-wide opacity-40">Custo Total de Produção</span>
+                      <div className="flex flex-col gap-1">
+                        <span className="text-[9px] font-bold uppercase tracking-wide opacity-40">Custo Total de Produção</span>
+                        <span className="text-[9px] font-bold uppercase tracking-wide text-emerald-500">Margem Estimada: {editingProduct ? (((editingProduct.price - calculateProductionCost(recipeItems)) / editingProduct.price) * 100).toFixed(0) : 0}%</span>
+                      </div>
                       <span className="font-mono font-bold text-sm">R$ {calculateProductionCost(recipeItems).toFixed(2)}</span>
                     </div>
                   )}

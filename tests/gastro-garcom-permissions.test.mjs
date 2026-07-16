@@ -98,6 +98,10 @@ describe('Garçom Permissions — gestao-gastro', () => {
       'main.tsx deve separar explicitamente rota de comanda do cliente',
     );
     assert.ok(
+      content.includes('!!clientRoute'),
+      'rota de comanda deve aceitar qualquer slug conhecido do cliente, inclusive alias com hifen',
+    );
+    assert.ok(
       content.includes('<App />'),
       'main.tsx deve renderizar App normal para outras rotas',
     );
@@ -106,6 +110,7 @@ describe('Garçom Permissions — gestao-gastro', () => {
   test('clientRoutes deve mapear cantinhodaresenha para o tenant correto e priorizar slug', () => {
     const content = readSrc('config/clientRoutes.ts');
     assert.ok(content.includes('cantinhodaresenha'), 'clientRoutes deve conter o slug publico do cliente');
+    assert.ok(content.includes('cantinho-da-resenha'), 'clientRoutes deve aceitar o slug gerado pelo painel admin');
     assert.ok(
       content.includes('cd8f21f4-73a1-4c87-a385-9b6deacaeae7'),
       'clientRoutes deve conter o tenant UUID do Cantinho',
@@ -140,12 +145,29 @@ describe('Garçom Permissions — gestao-gastro', () => {
       'ComandaMobileApp deve centralizar a chave do role do usuario',
     );
     assert.ok(
-      content.includes('localStorage.setItem(USER_ROLE_KEY, member.role)'),
-      'apos validar tenant_members, ComandaMobileApp deve persistir o role real',
+      content.includes('sessionStorage.setItem(USER_ROLE_KEY, member.role)'),
+      'apos validar tenant_members, ComandaMobileApp deve persistir o role real apenas na aba da comanda',
     );
     assert.ok(
-      content.includes('localStorage.removeItem(USER_ROLE_KEY)'),
-      'logout deve remover role para nao contaminar outro usuario no mesmo navegador',
+      content.includes('sessionStorage.removeItem(USER_ROLE_KEY)'),
+      'logout deve remover role para nao contaminar outro usuario na mesma aba',
+    );
+  });
+
+  test('ComandaMobileApp deve liberar somente garcom ativo para acesso externo', () => {
+    const content = readSrc('components/ComandaMobileApp.tsx');
+
+    assert.ok(
+      content.includes("member.role !== 'waiter'"),
+      'rota externa deve bloquear usuarios que nao possuem papel waiter',
+    );
+    assert.ok(
+      content.includes('display_name'),
+      'nome exibido no modulo externo deve vir do tenant_members quando disponivel',
+    );
+    assert.ok(
+      content.includes('Promise<boolean>') && content.includes('throw new Error'),
+      'falha de permissao deve voltar para o login sem deixar spinner travado',
     );
   });
 
@@ -154,7 +176,7 @@ describe('Garçom Permissions — gestao-gastro', () => {
 
     assert.ok(
       content.includes('gestao_gastro_user_role'),
-      'App deve consultar o role persistido',
+      'App deve consultar o role da sessao da aba',
     );
     assert.ok(
       content.includes("storedRole === 'waiter'"),
@@ -167,6 +189,20 @@ describe('Garçom Permissions — gestao-gastro', () => {
     assert.ok(
       content.includes('getClientRouteFromPath'),
       'redirecionamento deve preservar a rota do cliente quando houver slug',
+    );
+  });
+
+  test('ComandaMobileApp nao deve gravar role waiter em localStorage compartilhado', () => {
+    const content = readSrc('components/ComandaMobileApp.tsx');
+    const appContent = readSrc('App.tsx');
+
+    assert.ok(
+      !content.includes('localStorage.setItem(USER_ROLE_KEY'),
+      'comanda externa nao deve contaminar outras abas com role waiter global',
+    );
+    assert.ok(
+      appContent.includes("sessionStorage.getItem('gestao_gastro_user_role')"),
+      'redirecionamento por role waiter deve considerar somente a sessao da aba',
     );
   });
 
@@ -204,6 +240,33 @@ describe('Garçom Permissions — gestao-gastro', () => {
     );
   });
 
+  test('ComandaMobile deve abrir resumo antes de adicionar itens em mesa ocupada', () => {
+    const content = readSrc('components/ComandaMobile.tsx');
+    const grid = readSrc('components/ComandaMesaGrid.tsx');
+    const resumo = readSrc('components/ComandaMesaResumo.tsx');
+
+    assert.ok(
+      content.includes("type Step = 'mesa' | 'resumo' | 'lancamento' | 'confirmacao'"),
+      'fluxo do garcom deve ter etapa de resumo da comanda',
+    );
+    assert.ok(
+      content.includes("setStep(table.status === 'livre' && !table.activeOrderId ? 'lancamento' : 'resumo')"),
+      'mesa ocupada deve abrir consulta antes do lancamento',
+    );
+    assert.ok(
+      content.includes('<ComandaMesaResumo') && content.includes('selectedOpenOrder'),
+      'ComandaMobile deve renderizar resumo com pedido aberto da mesa selecionada',
+    );
+    assert.ok(
+      grid.includes('openOrders') && grid.includes('item(ns)'),
+      'grid de mesas deve exibir quantidade e total quando houver pedido aberto',
+    );
+    assert.ok(
+      resumo.includes('Comanda aberta') && resumo.includes('Adicionar itens'),
+      'resumo deve mostrar itens existentes e permitir adicionar novos itens',
+    );
+  });
+
   test('ComandaMobile deve preservar pedido ativo na fila offline de mesa ocupada', () => {
     const content = readSrc('components/ComandaMobile.tsx');
 
@@ -215,6 +278,40 @@ describe('Garçom Permissions — gestao-gastro', () => {
       content,
       /item\.existingOrderId[\s\S]*updateOrderItems/,
       'sincronizacao offline deve atualizar pedido existente quando existingOrderId estiver presente',
+    );
+  });
+
+  test('ComandaMobile deve recuperar mesa com activeOrderId orfao criando nova comanda', () => {
+    const content = readSrc('components/ComandaMobile.tsx');
+
+    assert.ok(
+      content.includes('if (activeOrder)'),
+      'pedido existente deve ser atualizado apenas quando encontrado entre pedidos abertos',
+    );
+    assert.ok(
+      content.includes('const createdOrder = await createOrder'),
+      'quando o activeOrderId estiver orfao, fluxo deve cair na criacao de nova comanda',
+    );
+    assert.ok(
+      !content.includes('Pedido ativo da mesa nao encontrado'),
+      'garcom nao deve ser bloqueado por activeOrderId antigo de mesa livre',
+    );
+  });
+
+  test('Confirmacao da comanda nao deve citar cozinha no plano base', () => {
+    const content = readSrc('components/ComandaConfirmacao.tsx');
+
+    assert.ok(
+      content.includes('Concluir lançamento'),
+      'botao principal deve falar em concluir lancamento',
+    );
+    assert.ok(
+      content.includes('Lançamento concluído'),
+      'mensagem de sucesso deve confirmar o registro da comanda',
+    );
+    assert.ok(
+      !content.includes('Cozinha') && !content.includes('cozinha'),
+      'cliente sem modulo cozinha nao deve ver textos de envio para cozinha',
     );
   });
 
@@ -230,6 +327,31 @@ describe('Garçom Permissions — gestao-gastro', () => {
     assert.ok(content.includes('subscribeToOrders'), 'useOrders deve usar subscribeToOrders para Realtime');
     assert.ok(content.includes('setOrdersLocal'), 'useOrders deve ter fallback setOrdersLocal');
     assert.ok(content.includes('online'), 'useOrders deve checar se Supabase está configurado');
+  });
+
+  test('Realtime do garcom deve usar nomes de canal seguros para Supabase', () => {
+    const tableService = readSrc('services/tablesSupabaseService.ts');
+    const orderService = readSrc('services/ordersSupabaseService.ts');
+
+    assert.ok(
+      tableService.includes('toRealtimeChannelName') && orderService.includes('toRealtimeChannelName'),
+      'services de mesas e pedidos devem sanitizar o nome do canal Realtime',
+    );
+    assert.ok(
+      !tableService.includes('restaurant_tables:${tenantId}') &&
+      !orderService.includes('restaurant_orders:${tenantId}'),
+      'canais Realtime nao devem usar ":" no topico enviado ao Supabase',
+    );
+    assert.ok(
+      tableService.includes("replace(/[^a-zA-Z0-9_-]/g, '_')") &&
+      orderService.includes("replace(/[^a-zA-Z0-9_-]/g, '_')"),
+      'tenantId deve ser sanitizado antes de compor o topico do canal',
+    );
+    assert.ok(
+      tableService.includes('Date.now()') && tableService.includes('Math.random()') &&
+      orderService.includes('Date.now()') && orderService.includes('Math.random()'),
+      'cada assinatura Realtime deve ter topico unico para evitar reuso de canal ja inscrito',
+    );
   });
 
 });

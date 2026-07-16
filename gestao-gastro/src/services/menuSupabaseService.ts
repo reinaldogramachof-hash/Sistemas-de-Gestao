@@ -9,6 +9,7 @@ interface MenuProductRow {
   description: string | null;
   price_cents: number | null;
   image: string | null;
+  recipe?: any;
   active: boolean;
   created_at?: string;
   updated_at?: string;
@@ -76,6 +77,7 @@ export async function listActiveProducts(tenantId: string): Promise<Product[]> {
     price: row.price_cents / 100,
     category: row.category_id ? (categoryMap.get(row.category_id) ?? 'Sem Categoria') : 'Sem Categoria',
     image: row.image ?? undefined,
+    recipe: row.recipe ?? [],
     active: row.active,
   }));
 }
@@ -147,6 +149,7 @@ export async function syncProduct(
     description: product.description || '',
     price_cents: priceCents,
     image: product.image || null,
+    recipe: product.recipe || [],
     active: product.active !== false,
     updated_at: new Date().toISOString()
   };

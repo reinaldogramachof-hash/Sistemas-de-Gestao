@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import type { Order, OrderItem, Product, Table } from '../types';
 import { ComandaMesaGrid } from './ComandaMesaGrid';
+import { ComandaMesaResumo } from './ComandaMesaResumo';
 import { ComandaLancamento, ComandaDraftItem } from './ComandaLancamento';
 import { ComandaConfirmacao } from './ComandaConfirmacao';
 import { listTables, setTableOccupied, subscribeToTables } from '../services/tablesSupabaseService';
@@ -9,7 +10,7 @@ import { isSupabaseConfigured } from '../lib/supabase';
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
-type Step = 'mesa' | 'lancamento' | 'confirmacao';
+type Step = 'mesa' | 'resumo' | 'lancamento' | 'confirmacao';
 
 interface WaiterSession {
   waiterId: string;
@@ -229,13 +230,19 @@ export const ComandaMobile: React.FC<ComandaMobileProps> = ({
     setSelectedTable(table);
     setIsBalcao(false);
     setDraftItems([]);
-    setStep('lancamento');
+    setStep(table.status === 'livre' && !table.activeOrderId ? 'lancamento' : 'resumo');
   };
 
   const handleSelectBalcao = () => {
     setSelectedTable(null);
     setIsBalcao(true);
     setDraftItems([]);
+    setStep('lancamento');
+  };
+
+  const handleStartTableOrder = () => {
+    setDraftItems([]);
+    setGeneralObservation('');
     setStep('lancamento');
   };
 
@@ -308,28 +315,26 @@ export const ComandaMobile: React.FC<ComandaMobileProps> = ({
           openOrders.find(order => order.id === selectedTable.activeOrderId) ??
           (await listOpenOrders(tenantId)).find(order => order.id === selectedTable.activeOrderId);
 
-        if (!activeOrder) {
-          throw new Error('Pedido ativo da mesa nao encontrado. Atualize a tela e tente novamente.');
+        if (activeOrder) {
+          await updateOrderItems(
+            tenantId,
+            selectedTable.activeOrderId,
+            mergeOrderItems(activeOrder.items, orderItems),
+          );
+          setSuccess(true);
+          setTimeout(() => {
+            setSuccess(false);
+            setStep('mesa');
+            setDraftItems([]);
+            setGeneralObservation('');
+            setSelectedTable(null);
+            void Promise.all([
+              listTables(tenantId).then(setTables),
+              listOpenOrders(tenantId).then(setOpenOrders),
+            ]).catch(() => {});
+          }, 2500);
+          return;
         }
-
-        await updateOrderItems(
-          tenantId,
-          selectedTable.activeOrderId,
-          mergeOrderItems(activeOrder.items, orderItems),
-        );
-        setSuccess(true);
-        setTimeout(() => {
-          setSuccess(false);
-          setStep('mesa');
-          setDraftItems([]);
-          setGeneralObservation('');
-          setSelectedTable(null);
-          void Promise.all([
-            listTables(tenantId).then(setTables),
-            listOpenOrders(tenantId).then(setOpenOrders),
-          ]).catch(() => {});
-        }, 2500);
-        return;
       }
 
       const createdOrder = await createOrder(tenantId, {
@@ -362,13 +367,19 @@ export const ComandaMobile: React.FC<ComandaMobileProps> = ({
         ]).catch(() => {});
       }, 2500);
     } catch (err) {
-      alert(`Erro ao enviar pedido: ${err instanceof Error ? err.message : 'tente novamente'}`);
+      alert(`Erro ao concluir lançamento: ${err instanceof Error ? err.message : 'tente novamente'}`);
     }
   };
 
   // ─── Rótulo da mesa/balcão atual ─────────────────────────────────────────
 
   const tableLabel = isBalcao ? 'Balcão' : `Mesa ${selectedTable?.number ?? ''}`;
+  const selectedOpenOrder = selectedTable
+    ? (
+        openOrders.find(order => order.id === selectedTable.activeOrderId) ??
+        openOrders.find(order => order.mode === 'mesa' && order.tableNumber === selectedTable.number)
+      )
+    : undefined;
 
   // ─── Render ───────────────────────────────────────────────────────────────
 
@@ -431,10 +442,21 @@ export const ComandaMobile: React.FC<ComandaMobileProps> = ({
           ) : (
             <ComandaMesaGrid
               tables={tables}
+              openOrders={openOrders}
               onSelectTable={handleSelectTable}
               onSelectBalcao={handleSelectBalcao}
             />
           )
+        )}
+
+        {step === 'resumo' && selectedTable && (
+          <ComandaMesaResumo
+            table={selectedTable}
+            order={selectedOpenOrder}
+            onBack={() => setStep('mesa')}
+            onAddItems={handleStartTableOrder}
+            onStartNewOrder={handleStartTableOrder}
+          />
         )}
 
         {step === 'lancamento' && (

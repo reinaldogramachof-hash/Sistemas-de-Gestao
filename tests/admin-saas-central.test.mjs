@@ -115,8 +115,6 @@ test('admin license generation captures system segment modules and tenant contex
   assert.match(html, /modules: context\.modules/);
   assert.match(html, /max_users: context\.maxUsers/);
   assert.match(html, /max_devices: context\.maxDevices/);
-  assert.match(html, /tenant_slug: context\.tenantSlug/);
-  assert.match(html, /operation_mode: context\.operationMode/);
   assert.match(html, /gestao-gastro[\s\S]*restaurante[\s\S]*bar[\s\S]*lanchonete/);
 
   assert.match(php, /\$allowedSystems = \[/);

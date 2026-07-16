@@ -45,6 +45,9 @@ export const Tables: React.FC = () => {
   const [selectedTable, setSelectedTable] = useState<number | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filter, setFilter] = useState<'todos' | 'livre' | 'ocupada' | 'aguardando' | 'reservada'>('todos');
+  const [sectorFilter, setSectorFilter] = useState<string>('todos');
+
+  const sectors = Array.from(new Set(tables.map(t => t.sector).filter(Boolean))) as string[];
 
   const [isSelecting, setIsSelecting] = useState(false);
   const [selectedForReservation, setSelectedForReservation] = useState<number[]>([]);
@@ -59,7 +62,8 @@ export const Tables: React.FC = () => {
   const filteredTables = tables.filter(t => {
     const matchesSearch = t.number.toString().includes(searchTerm);
     const matchesFilter = filter === 'todos' || t.status === filter;
-    return matchesSearch && matchesFilter;
+    const matchesSector = sectorFilter === 'todos' || t.sector === sectorFilter;
+    return matchesSearch && matchesFilter && matchesSector;
   });
 
   const handleTableClick = (num: number) => {
@@ -99,11 +103,21 @@ export const Tables: React.FC = () => {
           </div>
         </div>
 
-        <div className="flex flex-col lg:flex-row justify-between items-center gap-6 pt-6 border-t border-current/5">
-          <div className={`${ui.tabShell(isDark)} w-full lg:w-fit overflow-x-auto scrollbar-none`}>
-            {['todos', 'livre', 'ocupada', 'aguardando', 'reservada'].map((f) => (
-              <button key={f} onClick={() => setFilter(f as any)} className={`flex-1 lg:flex-none px-5 py-2.5 ${ui.tab(filter === f, isDark)}`}>{f}</button>
-            ))}
+        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 pt-6 border-t border-current/5">
+          <div className="flex flex-col gap-3 w-full lg:w-fit">
+            <div className={`${ui.tabShell(isDark)} w-full overflow-x-auto scrollbar-none`}>
+              {['todos', 'livre', 'ocupada', 'aguardando', 'reservada'].map((f) => (
+                <button key={f} onClick={() => setFilter(f as any)} className={`flex-1 lg:flex-none px-5 py-2.5 capitalize ${ui.tab(filter === f, isDark)}`}>{f}</button>
+              ))}
+            </div>
+
+            {sectors.length > 0 && (
+              <div className={`${ui.tabShell(isDark)} w-full overflow-x-auto scrollbar-none`}>
+                {['todos', ...sectors].map((s) => (
+                  <button key={s} onClick={() => setSectorFilter(s)} className={`flex-1 lg:flex-none px-5 py-2.5 capitalize ${ui.tab(sectorFilter === s, isDark)}`}>{s}</button>
+                ))}
+              </div>
+            )}
           </div>
 
           <div className="flex gap-3 w-full lg:w-auto">
@@ -129,9 +143,13 @@ export const Tables: React.FC = () => {
             const isSelected = selectedForReservation.includes(table.number);
 
             let orderTimestamp = '';
+            let orderSubtotal = 0;
             if(!isLivre && table.activeOrderId) {
                const order = orders.find(o => o.id === table.activeOrderId);
-               if(order) orderTimestamp = order.timestamp;
+               if(order) {
+                 orderTimestamp = order.timestamp;
+                 orderSubtotal = order.subtotal;
+               }
             }
 
             return (
@@ -159,7 +177,12 @@ export const Tables: React.FC = () => {
                   </span>
 
                   {(isOcupada || isAguardando) && orderTimestamp && (
-                    <TableTimer timestamp={orderTimestamp} isDark={isDark} status={table.status} />
+                    <div className="flex flex-col items-center gap-1">
+                      <TableTimer timestamp={orderTimestamp} isDark={isDark} status={table.status} />
+                      <span className={`text-[10px] font-bold ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`}>
+                        {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(orderSubtotal)}
+                      </span>
+                    </div>
                   )}
 
                   {isReservada && (
@@ -202,7 +225,16 @@ export const Tables: React.FC = () => {
   );
 };
 
-const StatCard = ({ label, value, subValue, icon: Icon, color, isDark }: any) => {
+interface StatCardProps {
+  label: string;
+  value: string;
+  subValue: string;
+  icon: React.ElementType;
+  color: 'emerald' | 'amber' | 'blue' | 'rose' | 'purple';
+  isDark: boolean;
+}
+
+const StatCard = ({ label, value, subValue, icon: Icon, color, isDark }: StatCardProps) => {
   const colors = {
     emerald: 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20',
     amber: 'text-amber-500 bg-amber-500/10 border-amber-500/20',

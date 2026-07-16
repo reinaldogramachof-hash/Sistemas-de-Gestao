@@ -45,6 +45,8 @@ test('Gestao Gastro must require a known client slug before loading tenant data'
   assert.match(mainSource, /isMissingClientRoute/, 'main.tsx deve bloquear /gestao-gastro/ sem slug de cliente');
   assert.match(mainSource, /Cliente n[aã]o identificado/, 'rota sem cliente deve exibir aviso em vez de abrir o dashboard');
   assert.match(routeSource, /displayName:\s*'Cantinho da Resenha'/, 'clientRoutes deve centralizar o nome publico do cliente');
+  assert.match(routeSource, /CANTINHO_DA_RESENHA_SLUG_ALIAS\s*=\s*'cantinho-da-resenha'/, 'clientRoutes deve aceitar o slug com hifen gerado pelo painel admin');
+  assert.match(routeSource, /\[CANTINHO_DA_RESENHA_SLUG_ALIAS\]/, 'clientRoutes deve mapear o alias com hifen para o mesmo tenant');
   assert.match(contextSource, /clientRoute\?\.tenantId/, 'AppContext deve preferir o tenant resolvido pela rota');
   assert.equal(
     contextSource.includes("settings.establishment.name || 'Cantinho da Resenha'"),

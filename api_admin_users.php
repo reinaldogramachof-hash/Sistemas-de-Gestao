@@ -201,6 +201,59 @@ function count_active_owners($tenantId) {
 }
 
 // VALIDA PROVA DE LICENÇA ATIVA
+function normalizeTenantSlugValue($slug)
+{
+    return preg_replace('/[^a-z0-9-]/', '', strtolower(trim((string)$slug)));
+}
+
+function resolveKnownTenantId($slug)
+{
+    $normalized = normalizeTenantSlugValue($slug);
+    $knownTenants = [
+        'cantinhodaresenha' => 'cd8f21f4-73a1-4c87-a385-9b6deacaeae7',
+        'cantinho-da-resenha' => 'cd8f21f4-73a1-4c87-a385-9b6deacaeae7'
+    ];
+
+    return $knownTenants[$normalized] ?? null;
+}
+
+function getLicenseTenantId(array $license)
+{
+    return $license['tenant_id'] ?? resolveKnownTenantId($license['tenant_slug'] ?? '');
+}
+
+function validate_saas_license_proof($licenseKey, $requestEmail, $tenantId) {
+    if (empty($licenseKey) || empty($requestEmail) || empty($tenantId)) {
+        return false;
+    }
+
+    $endpoint = '/rest/v1/licenses?select=license_key,status,expires_at,tenant_id,activation_email,customers(email)&license_key=eq.'
+        . rawurlencode($licenseKey)
+        . '&tenant_id=eq.'
+        . rawurlencode($tenantId)
+        . '&limit=1';
+    $res = supabase_admin_request('GET', $endpoint);
+
+    if ($res['code'] !== 200 || empty($res['data'][0])) {
+        return false;
+    }
+
+    $license = $res['data'][0];
+    $status = $license['status'] ?? '';
+    if (!empty($license['expires_at']) && time() > strtotime($license['expires_at'])) {
+        $status = 'expired';
+    }
+    if ($status !== 'active') {
+        return false;
+    }
+
+    $customer = $license['customers'] ?? [];
+    $licenseEmail = strtolower(trim((string)($license['activation_email'] ?? $customer['email'] ?? '')));
+    $requestEmailNormalized = strtolower(trim((string)$requestEmail));
+
+    return $licenseEmail !== '' && $requestEmailNormalized !== '' && hash_equals($licenseEmail, $requestEmailNormalized);
+}
+
 function validate_license_proof($licenseKey, $requestEmail, $tenantId) {
     global $fileLicenses;
     
@@ -211,7 +264,7 @@ function validate_license_proof($licenseKey, $requestEmail, $tenantId) {
     $db = getDB($fileLicenses);
 
     if (!isset($db[$licenseKey])) {
-        return false;
+        return validate_saas_license_proof($licenseKey, $requestEmail, $tenantId);
     }
 
     $license = $db[$licenseKey];
@@ -230,7 +283,7 @@ function validate_license_proof($licenseKey, $requestEmail, $tenantId) {
     }
 
     // 2. O tenant retornado pela licença é o tenant solicitado
-    $licenseTenant = trim((string)($license['tenant_id'] ?? ''));
+    $licenseTenant = trim((string)getLicenseTenantId($license));
     if ($licenseTenant === '' || !hash_equals(strtolower($licenseTenant), strtolower(trim($tenantId)))) {
         return false;
     }

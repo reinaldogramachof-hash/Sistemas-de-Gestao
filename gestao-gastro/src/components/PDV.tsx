@@ -78,7 +78,7 @@ export const PDV: React.FC = () => {
 
     const validation = validateStock(product, stockItems, currentQty, 1);
     if (!validation.available) {
-      alert(`Estoque insuficiente para ${product.name}`);
+      alert(`Venda bloqueada: ${validation.insufficientItemName === 'Insumo não cadastrado' ? 'Ficha Técnica incompleta' : 'Estoque insuficiente'}`);
       return;
     }
 

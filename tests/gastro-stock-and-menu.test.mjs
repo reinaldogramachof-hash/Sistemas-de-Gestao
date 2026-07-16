@@ -52,6 +52,21 @@ test('Inspect MenuList.tsx for out-of-stock blocking', () => {
   );
 });
 
+test('Inspect PDV.tsx and MenuList.tsx for Ficha Incompleta logic', () => {
+  const pdvSource = read('gestao-gastro/src/components/PDV.tsx');
+  const menuSource = read('gestao-gastro/src/components/MenuList.tsx');
+
+  assert.ok(
+    pdvSource.includes('Ficha Técnica incompleta') || pdvSource.includes('Ficha Incompleta'),
+    'PDV.tsx deve validar se a ficha está incompleta e bloquear a venda'
+  );
+
+  assert.ok(
+    menuSource.includes('Ficha Incompleta') || menuSource.includes('Incompleta'),
+    'MenuList.tsx deve exibir que a Ficha está Incompleta'
+  );
+});
+
 test('Inspect Dashboard.tsx for stock alerts logic correction', () => {
   const source = read('gestao-gastro/src/components/Dashboard.tsx');
 

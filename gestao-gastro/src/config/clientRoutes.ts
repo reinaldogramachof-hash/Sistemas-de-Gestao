@@ -3,6 +3,7 @@ export const CANTINHO_DA_RESENHA_TENANT_ID = 'cd8f21f4-73a1-4c87-a385-9b6deacaea
 
 export interface ClientRouteConfig {
   slug: string;
+  displayName: string;
   basePath: string;
   comandaPath: string;
   tenantId: string;
@@ -11,6 +12,7 @@ export interface ClientRouteConfig {
 export const clientRoutes: Record<string, ClientRouteConfig> = {
   [CANTINHO_DA_RESENHA_SLUG]: {
     slug: CANTINHO_DA_RESENHA_SLUG,
+    displayName: 'Cantinho da Resenha',
     basePath: `/gestao-gastro/${CANTINHO_DA_RESENHA_SLUG}`,
     comandaPath: `/gestao-gastro/${CANTINHO_DA_RESENHA_SLUG}/comanda`,
     tenantId: CANTINHO_DA_RESENHA_TENANT_ID,

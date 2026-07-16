@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { useApp } from '../store/AppContext';
+import { HelpTooltip } from './HelpTooltip';
 import { Search, UserPlus, Shield, Briefcase, Calendar, Edit3, Trash2, CheckCircle2, XCircle, User, Clock, Zap, X, LayoutGrid, List, LogIn, LogOut, FileText, Banknote, CreditCard, MapPin, UserCheck } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { HelpTooltip } from './HelpTooltip';
+
 
 
 export const Collaborators: React.FC = () => {
@@ -386,7 +387,7 @@ export const Collaborators: React.FC = () => {
                         </select>
                       </div>
                       <div className="space-y-2">
-                        <label className="text-[10px] font-black uppercase tracking-widest opacity-40 ml-2">Status Operacional</label>
+                        <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest opacity-40 ml-2">Status Operacional <HelpTooltip content="Desativar um colaborador (Offline) impede o acesso dele ao sistema, mas preserva todo o histórico de vendas e atividades associado a ele." /></label>
                         <select value={formData.status} onChange={e => setFormData({ ...formData, status: e.target.value as any })} className={`w-full p-4 rounded-lg border outline-none font-bold text-sm transition-all focus:ring-4 focus:ring-[#475569]/10 ${isDark ? 'bg-[#121214] border-[#2C2C2E] focus:border-[#475569]/40 text-white' : 'bg-gray-50 border-gray-200 focus:border-slate-300'}`}>
                           <option value="active">Ativo</option>
                           <option value="break">Em Pausa</option>

@@ -2,7 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Product, Table, Order, Waiter, Expense, CashierSession, PaymentItem, Customer, Collaborator, StockMovement, StockItem, Supplier, AppSettings, KitchenItemStatus, Promotion, Combo, Campaign, LoyaltyConfig, LoyaltyEntry } from '../types';
 import { mockProducts, mockTables, mockWaiters, mockCustomers, mockCollaborators, mockStockItems, mockSuppliers, mockSettings } from './mock';
 import { cantinhoDaResenhaProducts } from './cantinhoDaResenhaSeed';
-import { CANTINHO_DA_RESENHA_SLUG, getClientSlugFromPath } from '../config/clientRoutes';
+import { CANTINHO_DA_RESENHA_SLUG, getClientRouteFromPath } from '../config/clientRoutes';
 import { useTables } from '../hooks/useTables';
 import { useOrders } from '../hooks/useOrders';
 import { isSupabaseConfigured, supabase } from '../lib/supabase';
@@ -88,14 +88,14 @@ interface AppContextType extends AppState {
 }
 
 const getTenantKey = (key: string): string => {
-  const TENANT_ID = import.meta.env.VITE_GASTRO_TENANT_ID as string;
-  const LOCAL_TENANT_ID = 'default-empresa';
+  const routeTenantId = getClientRouteFromPath(window.location.pathname)?.tenantId;
+  const configuredTenantId = import.meta.env.VITE_GASTRO_TENANT_ID as string;
+  const currentTenantId = routeTenantId || configuredTenantId || LOCAL_TENANT_ID;
 
-  if (import.meta.env.PROD && !TENANT_ID) {
+  if (import.meta.env.PROD && currentTenantId === LOCAL_TENANT_ID) {
     throw new Error('Tenant ID ausente. Operação remota bloqueada.');
   }
 
-  const currentTenantId = TENANT_ID ? TENANT_ID : LOCAL_TENANT_ID;
   return `gestao_gastro:${currentTenantId}:${key}`;
 };
 
@@ -117,9 +117,11 @@ const parseJSON = <T,>(key: string, fallback: T): T => {
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const isSaaS = Boolean(import.meta.env.VITE_GASTRO_TENANT_ID && import.meta.env.VITE_GASTRO_TENANT_ID !== 'default-empresa');
+  const clientRoute = getClientRouteFromPath(window.location.pathname);
+  const effectiveTenantId = clientRoute?.tenantId || TENANT_ID;
+  const isSaaS = Boolean(effectiveTenantId && effectiveTenantId !== LOCAL_TENANT_ID);
 
-  const isCantinhoRoute = getClientSlugFromPath(window.location.pathname) === CANTINHO_DA_RESENHA_SLUG;
+  const isCantinhoRoute = clientRoute?.slug === CANTINHO_DA_RESENHA_SLUG;
   const defaultProducts = isCantinhoRoute
     ? cantinhoDaResenhaProducts
     : mockProducts;
@@ -173,8 +175,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [supabaseOnline, setSupabaseOnline] = useState(false);
 
   // ─── Supabase hooks (mesas e pedidos em tempo real) ───────────────────────
-  const tablesHook = useTables(TENANT_ID);
-  const ordersHook = useOrders(TENANT_ID);
+  const tablesHook = useTables(effectiveTenantId);
+  const ordersHook = useOrders(effectiveTenantId);
 
   // Sincroniza estado Supabase → estado local (para persistência de fallback)
   useEffect(() => {
@@ -213,10 +215,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     ? [...localOrders.filter(o => o.status === 'closed'), ...ordersHook.openOrders]
     : localOrders;
 
-  const currentTenantId = TENANT_ID || LOCAL_TENANT_ID;
+  const currentTenantId = effectiveTenantId || LOCAL_TENANT_ID;
   const currentEmpresa = {
     id: currentTenantId,
-    name: settings.establishment.name || 'Cantinho da Resenha',
+    name: settings.establishment.name || clientRoute?.displayName || 'Gestão Gastro',
     tenantId: currentTenantId
   };
 
@@ -262,12 +264,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Função para recarregar colaboradores da tabela tenant_members no Supabase
   const reloadCollaborators = async () => {
-    if (!isSupabaseConfigured || !supabase || !TENANT_ID) return;
+    if (!isSupabaseConfigured || !supabase || !effectiveTenantId) return;
     try {
       const { data, error } = await supabase
         .from('tenant_members')
         .select('user_id, role, display_name, active')
-        .eq('tenant_id', TENANT_ID);
+        .eq('tenant_id', effectiveTenantId);
 
       if (error) throw error;
 
@@ -292,7 +294,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // Carrega colaboradores da tabela tenant_members no Supabase na montagem/alteração do tenant
   useEffect(() => {
     reloadCollaborators();
-  }, [isSupabaseConfigured, TENANT_ID]);
+  }, [isSupabaseConfigured, effectiveTenantId]);
 
   // Migração e limpeza de chaves legadas para armazenamento com prefixo de tenant
   useEffect(() => {
@@ -301,7 +303,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const alreadyMigrated = localStorage.getItem(migratedKey);
       if (alreadyMigrated === 'true') return;
 
-      const isCantinho = getClientSlugFromPath(window.location.pathname) === CANTINHO_DA_RESENHA_SLUG;
+      const isCantinho = isCantinhoRoute;
 
       // Limpa as chaves legadas globais (não prefixadas) para liberar espaço e evitar vazamento
       const legacyKeys = [
@@ -328,21 +330,31 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         localStorage.setItem(getTenantKey('tables'), JSON.stringify([])); // Inicia sem mesas locais
 
         // Define configurações neutras para o Cantinho ou outro SaaS
-        const neutralSettings = {
+        const neutralSettings: AppSettings = {
           establishment: {
             name: isCantinho ? 'Cantinho da Resenha' : '',
             address: '',
             phone: '',
             document: '',
-            website: ''
+            website: '',
+            logo: '',
+            footerNotes: '',
+            operatingHours: ''
           },
           thermalPrinter: {
             enabled: false,
             autoPrint: false,
             showLogo: false,
-            paperWidth: '80mm' as const
+            paperWidth: '80mm',
+            testPrint: false,
+            device: ''
           },
-          serviceChargeRate: 0.10
+          serviceChargeRate: 0.10,
+          paymentMethods: ['pix', 'credito', 'debito', 'dinheiro'],
+          metadata: {
+            updatedAt: new Date().toISOString(),
+            source: 'system-init'
+          }
         };
         localStorage.setItem(getTenantKey('settings'), JSON.stringify(neutralSettings));
 
@@ -366,7 +378,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
 
     runMigration();
-  }, [isSupabaseConfigured, TENANT_ID, isSaaS]);
+  }, [isSupabaseConfigured, effectiveTenantId, isSaaS]);
 
   useEffect(() => {
     if (!isSupabaseConfigured || !supabase) {
@@ -392,11 +404,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // Never request tenant data before Supabase Auth restores a valid session.
   // Keep the visible catalog intact if the remote request is empty or fails.
   useEffect(() => {
-    if (!isSupabaseConfigured || !TENANT_ID || !supabaseOnline) return;
+    if (!isSupabaseConfigured || !effectiveTenantId || !supabaseOnline) return;
 
     let mounted = true;
     void import('../services/menuSupabaseService')
-      .then(({ listActiveProducts }) => listActiveProducts(TENANT_ID))
+      .then(({ listActiveProducts }) => listActiveProducts(effectiveTenantId))
       .then(activeProducts => {
         if (!mounted || activeProducts.length === 0) return;
         setProducts(activeProducts);
@@ -407,7 +419,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return () => {
       mounted = false;
     };
-  }, [supabaseOnline]);
+  }, [supabaseOnline, effectiveTenantId]);
 
   useEffect(() => {
     localStorage.setItem(getTenantKey('products'), JSON.stringify(products));
@@ -520,10 +532,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const syncProductSafely = async (product: Product) => {
-    if (!supabaseOnline || !TENANT_ID) return;
+    if (!supabaseOnline || !effectiveTenantId) return;
 
     try {
-      const remoteId = await syncProduct(TENANT_ID, product, productSyncIds[product.id]);
+      const remoteId = await syncProduct(effectiveTenantId, product, productSyncIds[product.id]);
       setProductSyncIds(prev => ({ ...prev, [product.id]: remoteId }));
       setProductSyncErrors(prev => {
         const copy = { ...prev };
@@ -558,11 +570,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const retrySyncProduct = async (product: Product) => {
-    if (!supabaseOnline || !TENANT_ID) {
+    if (!supabaseOnline || !effectiveTenantId) {
       throw new Error('Sincronização indisponível. Entre com uma conta autorizada do restaurante.');
     }
     try {
-      const remoteId = await syncProduct(TENANT_ID, product, productSyncIds[product.id]);
+      const remoteId = await syncProduct(effectiveTenantId, product, productSyncIds[product.id]);
       setProductSyncIds(prev => ({ ...prev, [product.id]: remoteId }));
       setProductSyncErrors(prev => {
         const copy = { ...prev };
@@ -622,12 +634,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return [...prev, order];
     });
     // Supabase: cria pedido e atualiza mesa se online
-    if (isSupabaseConfigured && !TENANT_ID) {
+    if (isSupabaseConfigured && !effectiveTenantId) {
       console.error('VITE_GASTRO_TENANT_ID e obrigatorio para criar pedidos online.');
       return;
     }
     if (isSupabaseConfigured && order.mode === 'mesa' && order.tableNumber) {
-      void createOrderSupabase(TENANT_ID, {
+      void createOrderSupabase(effectiveTenantId, {
         mode: order.mode,
         tableNumber: order.tableNumber,
         customerName: order.customerName,
@@ -639,7 +651,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         timestamp: order.timestamp,
       }).then(created => {
         if (created && order.tableNumber) {
-          void setTableOccupied(TENANT_ID, order.tableNumber, created.id);
+          void setTableOccupied(effectiveTenantId, order.tableNumber, created.id);
         }
       }).catch(console.error);
     } else if (order.mode === 'mesa' && order.tableNumber) {
@@ -674,16 +686,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
 
     // Fecha pedido no Supabase e libera mesa
-    if (isSupabaseConfigured && !TENANT_ID) {
+    if (isSupabaseConfigured && !effectiveTenantId) {
       console.error('VITE_GASTRO_TENANT_ID e obrigatorio para fechar pedidos online.');
     } else if (isSupabaseConfigured) {
-      void closeOrderSupabase(TENANT_ID, order.id, {
+      void closeOrderSupabase(effectiveTenantId, order.id, {
         payments,
         serviceCharge,
         total: order.subtotal + serviceCharge,
       }).catch(console.error);
       if (order.tableNumber) {
-        void clearTableSupabase(TENANT_ID, order.tableNumber).catch(console.error);
+        void clearTableSupabase(effectiveTenantId, order.tableNumber).catch(console.error);
       }
     } else if (order.tableNumber) {
       // Fallback local

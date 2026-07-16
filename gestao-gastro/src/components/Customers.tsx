@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useApp } from '../store/AppContext';
+import { HelpTooltip } from './HelpTooltip';
 import { Search, Plus, UserPlus, Mail, Phone, MapPin, Edit3, Trash2, MoreVertical, Filter, ChevronRight, User, Star, Zap, Clock, MessageCircle, X, LayoutGrid, List } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ui } from '../ui/styles';
@@ -113,7 +114,7 @@ export const Customers: React.FC = () => {
     <div className="flex flex-col min-h-full gap-8 animate-in fade-in duration-700 pb-12">
       <div className="flex flex-col lg:flex-row justify-between lg:items-end gap-6">
       <div className="space-y-1">
-          <h2 className={ui.pageTitle}>Gestão de Clientes</h2>
+          <h2 className={`${ui.pageTitle} flex items-center`}>Gestão de Clientes <HelpTooltip moduleKey="customers" /></h2>
           <p className={ui.pageSubtitle}>CRM e Fidelização de Público</p>
         </div>
 

@@ -308,7 +308,7 @@ export const AdminAuthGate: React.FC<AdminAuthGateProps> = ({ children }) => {
               {authMode === 'register' ? 'Primeiro Acesso' : 'Painel de Gestão'}
             </h2>
             <p className="text-[10px] font-bold text-[#475569] uppercase tracking-wider mt-1">
-              Cantinho da Resenha
+              {currentEmpresa.name}
             </p>
           </div>
         </div>

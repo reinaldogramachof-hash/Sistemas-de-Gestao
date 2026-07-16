@@ -1,5 +1,6 @@
 import React from 'react';
 import { useApp } from '../store/AppContext';
+import { HelpTooltip } from './HelpTooltip';
 import {
   Shield, Lock, FileText, Database,
   AlertCircle, ShieldCheck, UserCheck,
@@ -40,14 +41,14 @@ export const Security: React.FC = () => {
   ];
 
   return (
-    <div className="max-w-5xl mx-auto space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-200 pb-24">
+    <div className="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-200 pb-24">
       {/* Hero Header */}
       <div className="flex flex-col md:flex-row items-center gap-8 border-b border-dashed border-current/10 pb-12">
         <div className="w-24 h-24 rounded-lg bg-blue-500/10 flex items-center justify-center flex-shrink-0">
           <Shield className="w-12 h-12 text-blue-500" />
         </div>
         <div className="text-center md:text-left space-y-2">
-          <h1 className="text-4xl font-bold tracking-tighter uppercase ">Central de Segurança</h1>
+          <h1 className="text-4xl font-bold tracking-tighter uppercase flex items-center">Central de Segurança <HelpTooltip moduleKey="security" /></h1>
           <p className="text-sm font-bold opacity-40 uppercase tracking-wide">Transparência, Privacidade e Responsabilidade</p>
         </div>
       </div>

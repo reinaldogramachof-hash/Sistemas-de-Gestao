@@ -59,6 +59,28 @@ test('Inspect api_admin_users.php for secure actions and JWT validation', () => 
   );
 });
 
+test('Inspect api_licenca_ml.php for Gastro activation and verification contract', () => {
+  const source = read('api_licenca_ml.php');
+
+  const activateStart = source.indexOf("if ($action === 'activate')");
+  const verifyStart = source.indexOf("if ($action === 'verify')");
+  assert.notEqual(activateStart, -1, 'api_licenca_ml.php deve implementar action activate');
+  assert.notEqual(verifyStart, -1, 'api_licenca_ml.php deve implementar action verify');
+
+  const activateBlock = source.slice(activateStart, verifyStart);
+  const verifyBlock = source.slice(verifyStart, source.indexOf("if ($action === 'confirm_receipt'"));
+
+  assert.ok(
+    activateBlock.includes("'tenant_id'") && activateBlock.includes("'plan'") && activateBlock.includes("'is_master'"),
+    'activate deve devolver tenant_id, plan e is_master para o ActivationGate validar o restaurante sem revogar a licenca'
+  );
+
+  assert.ok(
+    verifyBlock.includes("'tenant_id'") && verifyBlock.includes("'plan'") && verifyBlock.includes("'is_master'"),
+    'verify deve devolver tenant_id, plan e is_master para manter a sessao licenciada no tenant correto'
+  );
+});
+
 test('Inspect AppContext.tsx for empty states, reloadCollaborators and mock clearance on first access', () => {
   const source = read('gestao-gastro/src/store/AppContext.tsx');
 

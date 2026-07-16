@@ -4,7 +4,7 @@ import {
   Settings as SettingsIcon, Store, Printer, Database, Save,
   Download, Upload, RefreshCw, Check, AlertTriangle, ShieldCheck,
   Globe, Phone, MapPin, FileText, Layout, QrCode, Copy,
-  ExternalLink, Users, KeyRound, Smartphone, UserCheck, UserPlus, X as XIcon, Lock, Loader2, Table2
+  ExternalLink, Users, KeyRound, Smartphone, UserCheck, UserPlus, X as XIcon, Lock, Loader2, Table2, Image as ImageIcon
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { AppSettings, Collaborator } from '../types';
@@ -151,6 +151,9 @@ export const Settings: React.FC = () => {
       return;
     }
 
+    const confirmMsg = "Atenção: Redefinir mesas irá adicionar novas ou remover mesas extras. Mesas com pedidos em aberto ou ocupadas NÃO poderão ser apagadas.\nDeseja continuar?";
+    if (!window.confirm(confirmMsg)) return;
+
     setIsInitializingTables(true);
     try {
       await initializeTables(initTablesCount);
@@ -164,7 +167,13 @@ export const Settings: React.FC = () => {
 
   const handleSave = () => {
     setIsSaving(true);
-    updateSettings(formData);
+    updateSettings({
+      ...formData,
+      metadata: {
+        updatedAt: new Date().toISOString(),
+        source: 'settings-panel'
+      }
+    });
     setTimeout(() => setIsSaving(false), 800);
   };
 
@@ -206,9 +215,12 @@ export const Settings: React.FC = () => {
     window.open(comandaAccessUrl, '_blank', 'noopener,noreferrer');
   };
 
+  const isAdminOrOwner = ['admin', 'owner', 'administrador', 'proprietário'].includes(currentUser.role?.toLowerCase());
+  const isCashier = ['cashier', 'caixa', 'atendente'].includes(currentUser.role?.toLowerCase());
+
   const tabs = [
     { id: 'store', label: 'Estabelecimento', icon: Store },
-    { id: 'tables', label: 'Mesas do salão', icon: Table2 },
+    ...(isAdminOrOwner ? [{ id: 'tables', label: 'Mesas do salão', icon: Table2 }] : []),
     { id: 'access', label: 'Acessos e QR Code', icon: QrCode },
     ...(checkAccess('cozinha') ? [{ id: 'kitchen', label: 'Cozinha (KDS)', icon: Layout }] : []),
     { id: 'printer', label: 'Impressão', icon: Printer },
@@ -354,6 +366,42 @@ export const Settings: React.FC = () => {
                     />
                   </div>
                 </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold uppercase tracking-wide opacity-40 ml-2">Horário de Funcionamento</label>
+                  <div className="relative group">
+                    <input
+                      value={formData.establishment.operatingHours || ''}
+                      onChange={e => setFormData({ ...formData, establishment: { ...formData.establishment, operatingHours: e.target.value } })}
+                      placeholder="Ex: Seg a Sab das 18h as 23h"
+                      className={`w-full h-14 px-6 rounded-lg border outline-none font-bold text-sm transition-all ${isDark ? 'bg-transparent border-[#2C2C2E] focus:border-[#475569]' : 'bg-gray-50 border-gray-100 focus:border-[#475569]'}`}
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold uppercase tracking-wide opacity-40 ml-2">Observações do Rodapé (Cupom)</label>
+                  <div className="relative group">
+                    <input
+                      value={formData.establishment.footerNotes || ''}
+                      onChange={e => setFormData({ ...formData, establishment: { ...formData.establishment, footerNotes: e.target.value } })}
+                      placeholder="Ex: Agradecemos a preferência!"
+                      className={`w-full h-14 px-6 rounded-lg border outline-none font-bold text-sm transition-all ${isDark ? 'bg-transparent border-[#2C2C2E] focus:border-[#475569]' : 'bg-gray-50 border-gray-100 focus:border-[#475569]'}`}
+                    />
+                  </div>
+                </div>
+
+                <div className="md:col-span-2 space-y-1">
+                  <div className={`p-4 rounded-xl border border-dashed flex flex-col md:flex-row md:items-center gap-4 ${isDark ? 'border-[#2C2C2E]' : 'border-gray-200'}`}>
+                    <div className="w-12 h-12 rounded-lg bg-gray-500/10 flex items-center justify-center shrink-0">
+                      <ImageIcon className="w-6 h-6 opacity-40" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold uppercase tracking-wide">Logo do Estabelecimento</p>
+                      <p className="text-[10px] font-semibold opacity-40 mt-1">A imagem do estabelecimento será gerenciada via galeria na nuvem em atualizações futuras.</p>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           )}
@@ -413,7 +461,7 @@ export const Settings: React.FC = () => {
                   </div>
 
                   <div className="max-w-xs space-y-3">
-                    <label className="block text-[10px] font-bold uppercase tracking-wide opacity-40">Redefinir quantidade de mesas (Quantidade Total)</label>
+                    <label className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wide opacity-40">Redefinir quantidade de mesas (Quantidade Total) <HelpTooltip content="Atenção: Redefinir a quantidade recria a grade de mesas. Mesas atualmente ocupadas ou reservadas podem ser apagadas." /></label>
                     <input
                       type="number"
                       min="1"
@@ -575,10 +623,10 @@ export const Settings: React.FC = () => {
                   <div className={`rounded-xl border overflow-hidden ${isDark ? 'bg-white/5 border-white/5' : 'bg-gray-50 border-gray-100'}`}>
                     <div className="p-5 border-b border-current/10 flex items-center justify-between gap-4">
                       <div>
-                        <p className="text-xs font-bold uppercase tracking-wide">Membros da Equipe</p>
+                        <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-wide">Membros da Equipe <HelpTooltip content="Atenção: Administradores têm acesso irrestrito ao sistema. Atendentes operam Caixa e Mesas. Garçons usam acesso móvel para comandas." /></p>
                         <p className="text-[9px] font-bold uppercase tracking-wide opacity-40">Equipe gerenciada na nuvem para este restaurante</p>
                       </div>
-                      {supabaseOnline && (
+                      {supabaseOnline && isAdminOrOwner && (
                         <button
                           type="button"
                           onClick={() => setModalOpen(true)}
@@ -602,7 +650,7 @@ export const Settings: React.FC = () => {
                             <span className={`px-3 py-1 rounded-lg text-[9px] font-bold uppercase tracking-wide ${member.status === 'active' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-gray-500/10 text-gray-500'}`}>
                               {member.status === 'active' ? 'Ativo' : 'Inativo'}
                             </span>
-                            {supabaseOnline && member.id !== currentUser.id && (
+                            {supabaseOnline && isAdminOrOwner && member.id !== currentUser.id && (
                               <button
                                 type="button"
                                 onClick={() => handleToggleStatus(member.id, member.status)}
@@ -777,7 +825,7 @@ export const Settings: React.FC = () => {
                   <select
                     value={formData.kitchenMode || 'display'}
                     onChange={e => setFormData({ ...formData, kitchenMode: e.target.value as any })}
-                    className={`w-full h-14 px-6 rounded-lg border outline-none font-bold text-sm ${isDark ? 'bg-transparent border-[#2C2C2E] text-white' : 'bg-gray-50 border-gray-100'}`}
+                    className={`w-full h-14 px-6 rounded-lg border outline-none font-bold text-sm ${isDark ? 'bg-[#121214] border-[#2C2C2E] text-white' : 'bg-gray-50 border-gray-100'}`}
                   >
                     <option value="display">Modo Visualização (Apenas Leitura)</option>
                     <option value="interactive">Modo Interativo (Alterar status pelo painel)</option>
@@ -845,12 +893,44 @@ export const Settings: React.FC = () => {
                       <select
                         value={formData.thermalPrinter.paperWidth}
                         onChange={e => setFormData({ ...formData, thermalPrinter: { ...formData.thermalPrinter, paperWidth: e.target.value as any } })}
-                        className={`w-full h-14 px-6 rounded-lg border outline-none font-bold text-sm appearance-none ${isDark ? 'bg-transparent border-[#2C2C2E]' : 'bg-gray-50 border-gray-100'}`}
+                        className={`w-full h-14 px-6 rounded-lg border outline-none font-bold text-sm appearance-none ${isDark ? 'bg-[#121214] border-[#2C2C2E] text-white' : 'bg-gray-50 border-gray-100'}`}
                       >
                         <option value="80mm">80mm (Padrão)</option>
                         <option value="58mm">58mm (Portátil)</option>
                       </select>
                    </div>
+                   <div className="space-y-1">
+                      <label className="text-[10px] font-bold uppercase tracking-wide opacity-40 ml-2">Impressora / Dispositivo (Futuro)</label>
+                      <input
+                        value={formData.thermalPrinter.device || ''}
+                        onChange={e => setFormData({ ...formData, thermalPrinter: { ...formData.thermalPrinter, device: e.target.value } })}
+                        placeholder="Nome da impressora na rede ou bluetooth"
+                        className={`w-full h-14 px-6 rounded-lg border outline-none font-bold text-sm ${isDark ? 'bg-transparent border-[#2C2C2E]' : 'bg-gray-50 border-gray-100'}`}
+                        disabled
+                      />
+                   </div>
+                </div>
+
+                <div className={`p-6 rounded-xl flex items-center justify-between transition-all ${isDark ? 'bg-white/5' : 'bg-gray-50'}`}>
+                  <div className="flex items-center gap-4">
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${formData.thermalPrinter.testPrint ? 'bg-emerald-500/10 text-emerald-500' : 'bg-gray-500/10 text-gray-500'}`}>
+                      <FileText className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-bold uppercase tracking-tight">Testar Impressão</h4>
+                      <p className="text-[9px] font-bold opacity-30 uppercase tracking-wide">Imprimir um cupom de teste para verificar a comunicação</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setFormData({ ...formData, thermalPrinter: { ...formData.thermalPrinter, testPrint: true } });
+                      alert("Testando comunicação... Em breve esta função imprimirá o cupom diretamente.");
+                      setTimeout(() => setFormData({ ...formData, thermalPrinter: { ...formData.thermalPrinter, testPrint: false } }), 1000);
+                    }}
+                    className={`px-4 h-8 rounded-lg font-bold text-[9px] uppercase tracking-wide transition-all bg-[#475569] text-white`}
+                  >
+                    Testar
+                  </button>
                 </div>
               </div>
             </div>
@@ -864,59 +944,70 @@ export const Settings: React.FC = () => {
                 </div>
                 <div>
                   <h3 className="text-xl font-bold uppercase  tracking-tighter">Dados & Segurança</h3>
-                  <p className="text-[10px] font-bold uppercase tracking-wide opacity-40">Backups e Restauração de sistema</p>
+                  <p className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wide opacity-40">Backups e Restauração de sistema <HelpTooltip content="O backup local (JSON) baixa um extrato completo do momento atual. O Gestão Gastro também sincroniza ativamente com o Supabase na nuvem se a licença estiver ativa." /></p>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className={`p-8 rounded-lg border space-y-6 flex flex-col justify-between ${isDark ? 'bg-white/5 border-white/5' : 'bg-gray-50 border-gray-100'}`}>
-                  <div className="space-y-2">
-                    <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-500 mb-2">
-                      <Download className="w-5 h-5" />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className={`p-8 rounded-lg border space-y-6 flex flex-col justify-between ${isDark ? 'bg-white/5 border-white/5' : 'bg-gray-50 border-gray-100'}`}>
+                    <div className="space-y-2">
+                      <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-500 mb-2">
+                        <Download className="w-5 h-5" />
+                      </div>
+                      <h4 className="text-sm font-bold uppercase tracking-tight">Exportar Backup Local</h4>
+                      <p className="text-[10px] font-bold opacity-30 uppercase leading-relaxed">Gera um arquivo JSON contendo os dados locais armazenados neste dispositivo (Navegador). Atenção: Dados da nuvem não são salvos aqui.</p>
                     </div>
-                    <h4 className="text-sm font-bold uppercase tracking-tight">Exportar Backup</h4>
-                    <p className="text-[10px] font-bold opacity-30 uppercase leading-relaxed">Cria um arquivo JSON com todos os dados do sistema para segurança.</p>
-                  </div>
-                  <button
-                    onClick={handleExport}
-                    className="w-full h-12 rounded-xl bg-blue-500 text-white font-bold text-[9px] uppercase tracking-wide transition-all shadow-sm"
-                  >
-                    Baixar Backup (.json)
-                  </button>
-                </div>
-
-                <div className={`p-8 rounded-lg border space-y-6 flex flex-col justify-between ${isDark ? 'bg-white/5 border-white/5' : 'bg-gray-50 border-gray-100'}`}>
-                  <div className="space-y-2">
-                    <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-500 mb-2">
-                      <Upload className="w-5 h-5" />
-                    </div>
-                    <h4 className="text-sm font-bold uppercase tracking-tight">Importar Dados</h4>
-                    <p className="text-[10px] font-bold opacity-30 uppercase leading-relaxed">Restaura o sistema a partir de um arquivo de backup anterior.</p>
-                  </div>
-                  <label className="w-full h-12 rounded-xl bg-amber-500 text-white font-bold text-[9px] uppercase tracking-wide transition-all shadow-sm flex items-center justify-center cursor-pointer">
-                    Selecionar Arquivo
-                    <input type="file" accept=".json" onChange={handleImport} className="hidden" />
-                  </label>
-                </div>
-
-                <div className="md:col-span-2 p-8 rounded-lg border border-red-500/20 bg-red-500/5 space-y-4">
-                  <div className="flex items-center gap-3 text-red-500">
-                    <AlertTriangle className="w-5 h-5" />
-                    <h4 className="text-sm font-bold uppercase tracking-tight">Zona de Perigo</h4>
-                  </div>
-                  <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-                    <p className="text-[10px] font-bold opacity-40 uppercase tracking-wide text-center md:text-left">
-                      Esta acao irá apagar todos os dados atuais e restaurar os dados de demonstracao (Mocks).
-                    </p>
                     <button
-                      onClick={resetToMocks}
-                      className="px-8 h-12 rounded-xl bg-red-500 text-white font-bold text-[9px] uppercase tracking-wide transition-all shadow-sm whitespace-nowrap"
+                      onClick={handleExport}
+                      className="w-full h-12 rounded-xl bg-blue-500 text-white font-bold text-[9px] uppercase tracking-wide transition-all shadow-sm"
                     >
-                      Reiniciar Sistema
+                      Baixar Backup (.json)
                     </button>
                   </div>
+
+                  <div className={`p-8 rounded-lg border space-y-6 flex flex-col justify-between ${isDark ? 'bg-white/5 border-white/5' : 'bg-gray-50 border-gray-100'}`}>
+                    <div className="space-y-2">
+                      <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-500 mb-2">
+                        <Upload className="w-5 h-5" />
+                      </div>
+                      <h4 className="text-sm font-bold uppercase tracking-tight">Importação Legada</h4>
+                      <p className="text-[10px] font-bold opacity-30 uppercase leading-relaxed">Restaura o ambiente a partir de um backup local anterior. Em um sistema online (Supabase), isso afeta apenas os itens locais do dispositivo.</p>
+                    </div>
+                    <label className="w-full h-12 rounded-xl bg-amber-500 text-white font-bold text-[9px] uppercase tracking-wide transition-all shadow-sm flex items-center justify-center cursor-pointer hover:opacity-90 active:scale-95">
+                      Selecionar Arquivo
+                      <input type="file" accept=".json" onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          if(window.confirm("Atenção: A importação irá sobrescrever todos os seus dados locais. Isso pode causar conflito se você estiver online.\nDeseja continuar?")) {
+                            handleImport(e);
+                          } else {
+                            e.target.value = '';
+                          }
+                        }
+                      }} className="hidden" />
+                    </label>
+                  </div>
+
+                  {isAdminOrOwner && (
+                    <div className="md:col-span-2 p-8 rounded-lg border border-red-500/20 bg-red-500/5 space-y-4">
+                      <div className="flex items-center gap-3 text-red-500">
+                        <AlertTriangle className="w-5 h-5" />
+                        <h4 className="text-sm font-bold uppercase tracking-tight">Zona de Perigo</h4>
+                      </div>
+                      <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+                        <p className="text-[10px] font-bold opacity-40 uppercase tracking-wide text-center md:text-left">
+                          Esta ação irá limpar os dados operacionais <strong>locais</strong> deste caixa (restaurar as configurações Mocks de teste).<br/>Dados centralizados na nuvem não serão apagados.
+                        </p>
+                        <button
+                          onClick={resetToMocks}
+                          className="px-8 h-12 rounded-xl bg-red-500 text-white font-bold text-[9px] uppercase tracking-wide transition-all shadow-sm whitespace-nowrap hover:opacity-90 active:scale-95"
+                        >
+                          Reiniciar Ambiente Local
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
-              </div>
             </div>
           )}
         </div>

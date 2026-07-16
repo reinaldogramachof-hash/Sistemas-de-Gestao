@@ -36,3 +36,19 @@ test('Root htaccess documents the required Gastro deployment path', () => {
     'htaccess raiz deve documentar que o conteudo de dist precisa ser publicado em /gestao-gastro/',
   );
 });
+
+test('Gestao Gastro must require a known client slug before loading tenant data', () => {
+  const mainSource = read('gestao-gastro/src/main.tsx');
+  const routeSource = read('gestao-gastro/src/config/clientRoutes.ts');
+  const contextSource = read('gestao-gastro/src/store/AppContext.tsx');
+
+  assert.match(mainSource, /isMissingClientRoute/, 'main.tsx deve bloquear /gestao-gastro/ sem slug de cliente');
+  assert.match(mainSource, /Cliente n[aã]o identificado/, 'rota sem cliente deve exibir aviso em vez de abrir o dashboard');
+  assert.match(routeSource, /displayName:\s*'Cantinho da Resenha'/, 'clientRoutes deve centralizar o nome publico do cliente');
+  assert.match(contextSource, /clientRoute\?\.tenantId/, 'AppContext deve preferir o tenant resolvido pela rota');
+  assert.equal(
+    contextSource.includes("settings.establishment.name || 'Cantinho da Resenha'"),
+    false,
+    'currentEmpresa nao deve cair em Cantinho da Resenha quando a rota nao for do cliente'
+  );
+});

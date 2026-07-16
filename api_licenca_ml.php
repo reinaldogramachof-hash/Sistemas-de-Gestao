@@ -821,7 +821,13 @@ if ($action === 'activate') {
 
         saveDB($fileLicenses, $db);
 
-        $response = ['status' => 'success', 'valid' => true, 'client' => $db[$key]['client']];
+        $response = [
+            'status' => 'success',
+            'valid' => true,
+            'client' => $db[$key]['client'],
+            'tenant_id' => $db[$key]['tenant_id'] ?? null,
+            'plan' => $db[$key]['plan_slug'] ?? $db[$key]['plan_code'] ?? 'base'
+        ];
         if (!empty($db[$key]['expiration_date'])) {
             $response['expiration_date'] = $db[$key]['expiration_date'];
             $response['is_trial'] = true;
@@ -863,7 +869,10 @@ if ($action === 'verify') {
             'license_status' => $status, // active, pending, blocked, expired
             'client' => $db[$key]['client'],
             'is_trial' => !empty($db[$key]['is_trial']),
-            'expiration_date' => $db[$key]['expiration_date'] ?? null
+            'expiration_date' => $db[$key]['expiration_date'] ?? null,
+            'tenant_id' => $db[$key]['tenant_id'] ?? null,
+            'is_master' => !empty($db[$key]['is_master']),
+            'plan' => $db[$key]['plan_slug'] ?? $db[$key]['plan_code'] ?? 'base'
         ]);
     } else {
         echo json_encode(['status' => 'error', 'message' => 'Licença não encontrada']);

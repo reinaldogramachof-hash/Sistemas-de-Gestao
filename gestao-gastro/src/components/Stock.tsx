@@ -425,7 +425,7 @@ export const Stock: React.FC = () => {
                         </div>
                         <div className="space-y-2">
                           <label className="text-[9px] font-bold uppercase tracking-wide opacity-40 ml-2">Unidade</label>
-                          <select value={formData.unit} onChange={e => setFormData({...formData, unit: e.target.value})} className={`w-full h-14 px-6 rounded-lg border outline-none font-bold text-sm appearance-none ${isDark ? 'bg-transparent border-[#2C2C2E] text-white' : 'bg-gray-50 border-gray-100'}`}>
+                          <select value={formData.unit} onChange={e => setFormData({...formData, unit: e.target.value})} className={`w-full h-14 px-6 rounded-lg border outline-none font-bold text-sm appearance-none ${isDark ? 'bg-[#121214] border-[#2C2C2E] text-white' : 'bg-gray-50 border-gray-100'}`}>
                             <option value="kg">Quilograma (kg)</option>
                             <option value="g">Grama (g)</option>
                             <option value="L">Litro (L)</option>
@@ -455,7 +455,7 @@ export const Stock: React.FC = () => {
                     <div className="space-y-5">
                       <div className="space-y-2">
                         <label className="text-[9px] font-bold uppercase tracking-wide opacity-40 ml-2">Fornecedor Preferencial</label>
-                        <select value={formData.supplierId} onChange={e => setFormData({...formData, supplierId: e.target.value})} className={`w-full h-14 px-6 rounded-lg border outline-none font-bold text-sm appearance-none ${isDark ? 'bg-transparent border-[#2C2C2E] text-white' : 'bg-gray-50 border-gray-100 text-gray-900'}`}>
+                        <select value={formData.supplierId} onChange={e => setFormData({...formData, supplierId: e.target.value})} className={`w-full h-14 px-6 rounded-lg border outline-none font-bold text-sm appearance-none ${isDark ? 'bg-[#121214] border-[#2C2C2E] text-white' : 'bg-gray-50 border-gray-100 text-gray-900'}`}>
                           <option value="">Selecione um parceiro...</option>
                           {suppliers.map(s => <option key={s.id} value={s.id}>{s.companyName}</option>)}
                         </select>

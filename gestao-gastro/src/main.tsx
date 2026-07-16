@@ -12,6 +12,11 @@ import { CANTINHO_DA_RESENHA_SLUG, getClientRouteFromPath } from './config/clien
 
 const pathname = window.location.pathname;
 const clientRoute = getClientRouteFromPath(pathname);
+const isGestaoGastroRoute =
+  pathname === '/gestao-gastro' ||
+  pathname === '/gestao-gastro/' ||
+  pathname.startsWith('/gestao-gastro/');
+const isMissingClientRoute = isGestaoGastroRoute && !clientRoute;
 
 const isStandaloneComandaRoute =
   pathname === '/comanda' ||
@@ -26,7 +31,21 @@ const isClientComandaRoute =
 
 const isComandaRoute = isStandaloneComandaRoute || isClientComandaRoute;
 
-if (isComandaRoute) {
+if (isMissingClientRoute) {
+  createRoot(document.getElementById('root')!).render(
+    <StrictMode>
+      <div className="min-h-screen bg-[#121214] text-white flex items-center justify-center p-6">
+        <div className="max-w-md text-center space-y-3">
+          <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-slate-500">Gestao Gastro</p>
+          <h1 className="text-2xl font-black tracking-tight">Cliente nao identificado</h1>
+          <p className="text-sm text-slate-400 leading-relaxed">
+            Acesse o sistema pelo caminho do cliente, como /gestao-gastro/cantinhodaresenha.
+          </p>
+        </div>
+      </div>
+    </StrictMode>,
+  );
+} else if (isComandaRoute) {
   // Importação dinâmica para não incluir o Bundle admin no chunk do garçom
   import('./components/ComandaMobileApp').then(({ ComandaMobileApp }) => {
     createRoot(document.getElementById('root')!).render(

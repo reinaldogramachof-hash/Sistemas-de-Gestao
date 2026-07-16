@@ -196,16 +196,26 @@ export interface AppSettings {
     phone: string;
     document: string;
     website?: string;
+    logo?: string;
+    footerNotes?: string;
+    operatingHours?: string;
   };
   thermalPrinter: {
     enabled: boolean;
     autoPrint: boolean;
     showLogo: boolean;
     paperWidth: '58mm' | '80mm';
+    testPrint?: boolean;
+    device?: string;
   };
+  paymentMethods?: PaymentMethod[];
   kitchenMode?: 'display' | 'interactive';
   serviceChargeRate?: number;
   localTestOrigin?: string;
+  metadata?: {
+    updatedAt: string;
+    source: string;
+  };
 }
 
 export interface Promotion {

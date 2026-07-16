@@ -4,7 +4,7 @@ import { HelpCircle, ExternalLink } from 'lucide-react';
 import { useApp } from '../store/AppContext';
 
 interface HelpTooltipProps {
-  moduleKey?: 'dashboard' | 'pdv' | 'tables' | 'waiters' | 'kitchen' | 'menu' | 'finance' | 'stock' | 'settings';
+  moduleKey?: 'dashboard' | 'pdv' | 'tables' | 'waiters' | 'kitchen' | 'menu' | 'finance' | 'stock' | 'settings' | 'customers' | 'suppliers' | 'security' | 'support' | 'evolution' | 'manual' | 'reports' | 'collaborators';
   id?: string;
   content?: string;
   anchorId?: string;
@@ -23,39 +23,79 @@ const HELP_CONTENTS: Record<string, { title: string; content: string; anchorId: 
     anchorId: "guide_pdv"
   },
   tables: {
-    title: "Mesas e Comandas",
-    content: "O painel de mesas gerencia o estado operacional do salão (mesas livres, ocupadas ou reservadas) e pedidos de comanda em tempo real.",
-    anchorId: "guide_pdv"
+    title: "Gestão de Mesas",
+    content: "O painel de mesas gerencia o estado operacional do salão (livre, ocupada, reservada) e os pedidos abertos em cada comanda.",
+    anchorId: "guide_mesas"
   },
   waiters: {
-    title: "Garçons",
-    content: "Aqui você acompanha o faturamento gerado por cada garçom e a produtividade operacional em tempo real.",
-    anchorId: "guide_pdv"
+    title: "Desempenho de Garçons",
+    content: "Acompanhe o faturamento gerado por cada garçom e a produtividade operacional.",
+    anchorId: "guide_colaboradores"
+  },
+  collaborators: {
+    title: "Equipe e Acessos",
+    content: "Cadastre garçons, atendentes e administradores. Controle quem pode acessar cada área do sistema e acompanhe status.",
+    anchorId: "guide_colaboradores"
   },
   kitchen: {
     title: "Cozinha (KDS)",
-    content: "O KDS (Kitchen Display System) exibe os pedidos em andamento na cozinha com atualização instantânea para os preparadores.",
-    anchorId: "guide_pdv"
+    content: "O KDS (Kitchen Display System) exibe pedidos para preparo. No modo interativo, clique no item para avançar seu status.",
+    anchorId: "guide_cozinha"
   },
   menu: {
-    title: "Cardápio",
-    content: "Cadastre, edite e organize os pratos, bebidas e categorias do seu cardápio que ficarão disponíveis para PDV e garçons.",
+    title: "Cardápio Digital",
+    content: "Organize seus produtos e categorias. Vincule insumos via ficha técnica para baixa automática no estoque ao realizar vendas.",
     anchorId: "guide_cardapio"
   },
   finance: {
-    title: "Financeiro",
-    content: "Módulo financeiro para acompanhamento do faturamento diário, sangrias, suprimentos de caixa e fluxo de despesas.",
-    anchorId: "guide_financeiro"
+    title: "Caixa Diário",
+    content: "Abertura e fechamento de caixa, registro de troco inicial, sangrias (retiradas) e suprimentos (reforços).",
+    anchorId: "guide_caixa"
+  },
+  reports: {
+    title: "Relatórios Financeiros",
+    content: "Histórico consolidado de faturamento, vendas por categoria e fluxo detalhado de pagamentos para conferência contábil.",
+    anchorId: "guide_caixa"
   },
   stock: {
-    title: "Estoque",
-    content: "Controle o estoque de insumos e produtos, cadastre fornecedores e configure alertas de estoque mínimo.",
-    anchorId: "guide_cardapio"
+    title: "Estoque e Insumos",
+    content: "Controle de insumos com alertas de quantidade mínima. Registre entradas e perdas, e vincule aos produtos do cardápio.",
+    anchorId: "guide_estoque"
   },
   settings: {
     title: "Configurações",
-    content: "Configurações gerais do restaurante: dados da empresa, mesas do salão, IP local de desenvolvimento e impressoras térmicas.",
+    content: "Central de ajustes: defina as mesas do salão, cadastre impressoras térmicas, acesse o link de comandas e gerencie o backup.",
     anchorId: "guide_config"
+  },
+  customers: {
+    title: "Gestão de Clientes",
+    content: "Use este módulo para cadastrar clientes fiéis, acompanhar histórico de consumo e registrar preferências para melhorar o atendimento.",
+    anchorId: "guide_clientes"
+  },
+  suppliers: {
+    title: "Parceiros e Fornecedores",
+    content: "Centralize o contato dos seus fornecedores. Acompanhe termos de pagamento e defina fornecedores preferenciais por insumo.",
+    anchorId: "guide_fornecedores"
+  },
+  security: {
+    title: "Segurança e Auditoria",
+    content: "Histórico imutável de logs. Monitore acessos, exclusões críticas e alterações de configurações para garantir a segurança da operação.",
+    anchorId: "guide_seguranca"
+  },
+  support: {
+    title: "Suporte e Relatos",
+    content: "Canal de comunicação para dúvidas e avisos de melhorias. Envie logs diretamente para a equipe técnica em caso de falha.",
+    anchorId: "guide_suporte"
+  },
+  evolution: {
+    title: "Centro de Evolução",
+    content: "Acompanhe as atualizações do Gestão Gastro. Veja as notas de versão, novos recursos lançados e o roadmap futuro do sistema.",
+    anchorId: "guide_evolucao"
+  },
+  manual: {
+    title: "Academia e Manual",
+    content: "Documentação completa de uso. Explore o Roteiro do Primeiro Dia, dicas profissionais e guias detalhados de cada módulo.",
+    anchorId: "guide_manual"
   }
 };
 

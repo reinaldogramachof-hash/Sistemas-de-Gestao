@@ -5,9 +5,11 @@ import {
   LineChart, Settings, Database, Lightbulb,
   CheckCircle2, Star, Target, TrendingUp, UserCheck,
   ChevronRight, Info, AlertTriangle, ShieldCheck,
-  Circle, CheckCircle, Award, Smartphone
+  Circle, CheckCircle, Award, Smartphone,
+  List, Box, Users, Truck, MessageCircle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { HelpTooltip } from './HelpTooltip';
 
 export const UserManual: React.FC = () => {
   const { theme, readGuides, toggleGuideRead } = useApp();
@@ -22,9 +24,9 @@ export const UserManual: React.FC = () => {
       color: 'rose',
       description: 'O coracao da sua Operação. Agilidade é a palavra-chave.',
       steps: [
-        { t: 'Abertura Rápida', d: 'Inicie vendas em segundos clicando diretamente nos itens do cardápio.' },
-        { t: 'Gestão de Pagamentos', d: 'Suporta múltiplas formas de pagamento em uma única conta (Split).' },
-        { t: 'Impressão de Comanda', d: 'Envie o pedido para a cozinha ou balcão automaticamente apos confirmar.' }
+        { t: 'Trocar Atendente', d: 'Selecione quem está operando o caixa no momento para rastrear vendas.' },
+        { t: 'Adicionar Produto ou Avulso', d: 'Clique no item do cardápio ou digite valor/descrição de um item avulso.' },
+        { t: 'Fechar Venda', d: 'Escolha a forma de pagamento (múltiplas permitidas) e confirme para gerar o cupom.' }
       ]
     },
     {
@@ -32,47 +34,150 @@ export const UserManual: React.FC = () => {
       title: 'Dashboard BI',
       icon: LayoutDashboard,
       color: 'blue',
-      description: 'Sua bússola estratégica. Decisões baseadas em dados reais.',
+      description: 'Acompanhe os principais indicadores da operacao.',
       steps: [
-        { t: 'Ticket Médio', d: 'Acompanhe quanto cada cliente gasta em média no seu estabelecimento.' },
-        { t: 'Vendas por Hora', d: 'Identifique seus horários de pico e otimize sua equipe.' },
-        { t: 'Produtos Top 10', d: 'Saiba quais itens mais saem e quais precisam de promoção.' }
+        { t: 'Ticket Medio', d: 'Veja quanto cada cliente gasta em media e use isso para melhorar combos e ofertas.' },
+        { t: 'Horarios de Pico', d: 'Identifique os momentos de maior movimento para ajustar equipe e preparo.' },
+        { t: 'Produtos Mais Vendidos', d: 'Use o ranking para saber o que manter em destaque no cardapio.' }
+      ]
+    },
+    {
+      id: 'guide_mesas',
+      title: 'Gestão de Mesas',
+      icon: LayoutDashboard,
+      color: 'blue',
+      description: 'Controle o salão com visualização instantânea de status.',
+      steps: [
+        { t: 'Status Visual', d: 'Livre (Verde), Ocupada (Laranja) ou Reservada (Azul). Saiba bater o olho e agir.' },
+        { t: 'Abrir Pedido', d: 'Clique em uma mesa livre para ocupá-la e lançar itens na comanda associada.' },
+        { t: 'Liberar Mesa', d: 'Após o pagamento ser finalizado, encerre a comanda para liberar a mesa para o próximo cliente.' }
+      ]
+    },
+    {
+      id: 'guide_cozinha',
+      title: 'Cozinha (KDS)',
+      icon: Utensils,
+      color: 'amber',
+      description: 'Onde a magia acontece. Fluxo digital sem papel.',
+      steps: [
+        { t: 'Modo de Operação', d: 'Escolha entre Modo Visualização (apenas tela) ou Interativo (clicar para dar andamento).' },
+        { t: 'Interpretar Status', d: 'Novo Pedido, Em Preparo e Pronto. Tudo sincronizado com os garçons.' },
+        { t: 'Fila de Pedidos', d: 'Os itens aparecem automaticamente assim que a comanda ou PDV confimar o pedido.' }
       ]
     },
     {
       id: 'guide_cardapio',
       title: 'Cardápio Digital',
-      icon: Utensils,
-      color: 'amber',
-      description: 'Organize sua oferta de forma atraente e lucrativa.',
+      icon: List,
+      color: 'emerald',
+      description: 'A vitrine do seu negócio.',
       steps: [
-        { t: 'Categorizacao', d: 'Separe itens por tipos (Bebidas, Pratos, Entradas) para facilitar a busca.' },
-        { t: 'Ficha Tecnica', d: 'Vincule ingredientes ao produto para controle automático de estoque.' },
-        { t: 'Precificacao', d: 'Ajuste preços rapidamente conforme a flutuacao dos custos de insumos.' }
+        { t: 'Categorização', d: 'Separe itens por tipos (Bebidas, Pratos) para facilitar a busca no PDV.' },
+        { t: 'Ficha Técnica', d: 'Vincule ingredientes ao produto para controle automático de estoque nas vendas.' },
+        { t: 'Precificação', d: 'Ajuste preços rapidamente para proteger sua margem de lucro.' }
       ]
     },
     {
-      id: 'guide_financeiro',
-      title: 'Gestão Financeira',
-      icon: LineChart,
-      color: 'emerald',
-      description: 'Saúde financeira em dia. Controle cada centavo.',
+      id: 'guide_estoque',
+      title: 'Estoque & Insumos',
+      icon: Box,
+      color: 'slate',
+      description: 'Controle rígido para evitar desperdícios.',
       steps: [
-        { t: 'Fluxo de Caixa', d: 'Registre todas as entradas e saídas (sangrias e suprimentos).' },
-        { t: 'Relatórios Mensais', d: 'Compare o desempenho de diferentes meses para prever tendências.' },
-        { t: 'Controle de Despesas', d: 'Categorize gastos fixos e variáveis para calcular o lucro líquido real.' }
+        { t: 'Cadastro de Insumo', d: 'Registre matéria-prima com unidade correta (kg, g, L, ml).' },
+        { t: 'Alerta de Faltas', d: 'Configure o estoque mínimo para ser avisado antes do produto acabar.' },
+        { t: 'Baixa Automática', d: 'Quando atrelado à ficha técnica, o insumo diminui sozinho a cada venda.' }
+      ]
+    },
+    {
+      id: 'guide_caixa',
+      title: 'Caixa & Financeiro',
+      icon: LineChart,
+      color: 'rose',
+      description: 'Fechamento sem dor de cabeça.',
+      steps: [
+        { t: 'Abertura de Caixa', d: 'Informe o troco inicial do dia em gaveta.' },
+        { t: 'Sangria e Suprimento', d: 'Registre retiradas de dinheiro ou adição de troco para bater o caixa final.' },
+        { t: 'Fechamento e Divergência', d: 'Some o dinheiro físico e lance no sistema. O sistema acusa faltas ou sobras.' }
+      ]
+    },
+    {
+      id: 'guide_colaboradores',
+      title: 'Colaboradores',
+      icon: UserCheck,
+      color: 'blue',
+      description: 'Acessos e performance da equipe.',
+      steps: [
+        { t: 'Criação de Acesso', d: 'Crie e-mail e senha e defina o papel (Admin, Caixa, Garçom).' },
+        { t: 'Ativação/Desativação', d: 'Desative ex-funcionários sem perder o histórico de vendas deles.' },
+        { t: 'Garçons', d: 'Para que eles vendam, eles devem ser cadastrados como papel Garçom.' }
+      ]
+    },
+    {
+      id: 'guide_clientes',
+      title: 'Clientes',
+      icon: Users,
+      color: 'amber',
+      description: 'CRM e histórico de vendas.',
+      steps: [
+        { t: 'Cadastro Rápido', d: 'Registre nome e contato na hora da venda.' },
+        { t: 'Preferências', d: 'Anote gostos do cliente (ex: sem cebola) para fidelizar o atendimento.' }
+      ]
+    },
+    {
+      id: 'guide_fornecedores',
+      title: 'Fornecedores',
+      icon: Truck,
+      color: 'emerald',
+      description: 'Parceiros de negócio.',
+      steps: [
+        { t: 'Contato Centralizado', d: 'Mantenha telefone e vendedor de cada fornecedor à mão.' },
+        { t: 'Insumo Preferencial', d: 'No cadastro de insumo, marque qual o fornecedor preferencial dele.' }
       ]
     },
     {
       id: 'guide_config',
-      title: 'Backup & Segurança',
+      title: 'Configurações',
       icon: Settings,
       color: 'slate',
-      description: 'Proteja o patrimônio de dados da sua empresa.',
+      description: 'O cérebro do sistema.',
       steps: [
-        { t: 'Dados do Cupom', d: 'Personalize o cabeçalho do recibo com CNPJ, Endereço e Telefone.' },
-        { t: 'Backup Semanal', d: 'Exporte o arquivo JSON toda semana e guarde em local seguro (nuvem/HD).' },
-        { t: 'Restauração', d: 'Em caso de troca de computador, importe o backup para continuar de onde parou.' }
+        { t: 'Dados do Salão', d: 'Altere nome, CNPJ (para recibos) e defina quantas mesas o salão possui.' },
+        { t: 'Link de Comanda', d: 'Descubra a URL ou IP para conectar garçons no smartphone.' },
+        { t: 'Impressão', d: 'Configure IPs de impressoras térmicas locais se utilizar.' }
+      ]
+    },
+    {
+      id: 'guide_seguranca',
+      title: 'Segurança & Backup',
+      icon: ShieldCheck,
+      color: 'rose',
+      description: 'Proteção total dos seus dados.',
+      steps: [
+        { t: 'Sincronização Nuvem', d: 'Seu sistema salva na nuvem (Supabase) e opera offline. Veja os status de sync.' },
+        { t: 'Backup JSON', d: 'Para garantir, baixe um arquivo JSON com todas as vendas localmente.' }
+      ]
+    },
+    {
+      id: 'guide_suporte',
+      title: 'Suporte Técnico',
+      icon: MessageCircle,
+      color: 'blue',
+      description: 'Nós estamos aqui por você.',
+      steps: [
+        { t: 'Acionamento Rápido', d: 'Saiba os canais de contato da Plena Informática.' },
+        { t: 'Dúvidas Frequentes', d: 'Sempre consulte este manual e os tooltips antes de abrir um chamado.' }
+      ]
+    },
+    {
+      id: 'guide_evolucao',
+      title: 'Centro de Evolução',
+      icon: Target,
+      color: 'amber',
+      description: 'O futuro do Gestão Gastro.',
+      steps: [
+        { t: 'Notas de Lançamento', d: 'Acompanhe as atualizações gratuitas do seu plano.' },
+        { t: 'Novos Módulos', d: 'Descubra integrações avançadas disponíveis no Roadmap.' }
       ]
     }
   ];
@@ -89,7 +194,7 @@ export const UserManual: React.FC = () => {
   const progressPercent = Math.round((completedItems / totalItems) * 100);
 
   return (
-    <div className="max-w-6xl mx-auto space-y-10 animate-in fade-in duration-700 pb-24">
+    <div className="space-y-10 animate-in fade-in duration-700 pb-24">
       {/* Hero Header with Progress */}
       <div className={`p-10 md:p-12 rounded-xl border relative overflow-hidden flex flex-col md:flex-row items-center justify-between gap-10
         ${isDark ? 'bg-[#1C1C1E] border-[#2C2C2E]' : 'bg-white border-gray-100 shadow-sm shadow-gray-200/20'}`}>
@@ -100,7 +205,7 @@ export const UserManual: React.FC = () => {
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#475569]/10 text-[#475569] text-[10px] font-black uppercase tracking-widest">
             <Award className="w-4 h-4" /> Academia de Gestão Gastro
           </div>
-          <h1 className="text-5xl font-black tracking-tighter uppercase italic leading-none">Manual de <span className="text-[#475569]">Alta Performance</span></h1>
+          <h1 id="guide_manual" className="text-5xl font-black tracking-tighter uppercase italic leading-none flex items-center gap-3 scroll-mt-20">Manual de <span className="text-[#475569]">Alta Performance</span> <HelpTooltip moduleKey="manual" /></h1>
           <p className="text-sm font-bold opacity-40 uppercase tracking-[0.2em] max-w-lg">
             Domine as ferramentas do Gestão Gastro e transforme sua gestão.
           </p>
@@ -300,14 +405,18 @@ export const UserManual: React.FC = () => {
               </div>
               <div className="space-y-6">
                 {[
-                  { n: 1, title: 'Atualizar Dados Administrativos', desc: 'Acesse Segurança e atualize seus dados de proprietário.' },
-                  { n: 2, title: 'Configurar Salão e Mesas', desc: 'Vá em Configurações > Salão e defina quantas mesas seu restaurante possui.' },
-                  { n: 3, title: 'Revisar Cardápio Base', desc: 'No módulo Cardápio, revise produtos pré-cadastrados, altere preços e desative itens que não vai vender.' },
-                  { n: 4, title: 'Adicionar Novos Produtos', desc: 'Cadastre os pratos ou bebidas específicos do seu estabelecimento.' },
-                  { n: 5, title: 'Cadastrar Equipe', desc: 'Crie logins para gerentes, caixas e garçons em Configurações > Colaboradores.' },
-                  { n: 6, title: 'Validar Comanda Mobile', desc: 'Peça para um garçom usar o QR Code de acesso local e testar o envio de um pedido.' },
-                  { n: 7, title: 'Organizar Impressoras (opcional)', desc: 'Caso possua impressoras térmicas na rede, cadastre seus IPs em Configurações > Impressoras.' },
-                  { n: 8, title: 'Iniciar o Caixa Diário', desc: 'Antes de abrir as portas, abra o seu caixa com o valor de troco inicial em Módulo Caixa.' },
+                  { n: 1, title: 'Conferir Rota do Cliente', desc: 'Garanta que a rota de acesso está configurada (ex: localhost/resenha).' },
+                  { n: 2, title: 'Ativar Licença', desc: 'Valide a licença do sistema usando o código fornecido pela Plena Informática.' },
+                  { n: 3, title: 'Criar Acesso Admin', desc: 'No primeiro uso, cadastre o administrador principal.' },
+                  { n: 4, title: 'Revisar Dados', desc: 'Em Configurações, preencha nome do local, telefone e CNPJ para o cupom.' },
+                  { n: 5, title: 'Configurar Mesas', desc: 'Em Configurações > Salão, defina o número total de mesas operacionais.' },
+                  { n: 6, title: 'Revisar Cardápio', desc: 'Edite produtos existentes ou adicione novos no Módulo Cardápio.' },
+                  { n: 7, title: 'Cadastrar Equipe', desc: 'Em Colaboradores, crie senhas para Garçons e Caixas.' },
+                  { n: 8, title: 'Testar Comanda Mobile', desc: 'Acesse o IP do servidor pelo celular do garçom para verificar o envio de pedidos.' },
+                  { n: 9, title: 'Abrir o Caixa', desc: 'Em Caixa, inicie o dia declarando o troco que está na gaveta.' },
+                  { n: 10, title: 'Fazer Venda Teste', desc: 'Faça um pedido no PDV ou Mesa e confirme o faturamento.' },
+                  { n: 11, title: 'Fechar Caixa Teste', desc: 'Realize o fechamento simulando o fim do dia para ver as métricas de sobra/falta.' },
+                  { n: 12, title: 'Validar Relatórios', desc: 'Confira se a venda teste apareceu no Dashboard.' },
                 ].map(step => (
                   <div key={step.n} className="flex gap-5 items-center p-4 rounded-lg bg-current/[0.02]">
                     <div className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-black flex-shrink-0 bg-accent/10 text-accent">

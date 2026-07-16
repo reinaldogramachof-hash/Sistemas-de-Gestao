@@ -89,7 +89,7 @@ export const Cashier: React.FC = () => {
   // Caixa fechado
   if (!cashierSession) {
     return (
-      <div className="max-w-5xl mx-auto space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-200">
+      <div className="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-200 pb-12">
         <div className={`flex flex-col items-center justify-center p-16 rounded-xl border shadow-sm relative overflow-hidden
           ${isDark ? 'bg-[#1C1C1E] border-[#2C2C2E]' : 'bg-white border-gray-200'}`}>
           <div className="absolute top-0 left-0 w-full h-2 bg-red-500" />
@@ -185,7 +185,7 @@ export const Cashier: React.FC = () => {
 
   // Caixa aberto
   return (
-    <div className="max-w-7xl mx-auto space-y-8 animate-in fade-in duration-200">
+    <div className="space-y-8 animate-in fade-in duration-200 pb-12">
       <div className="flex items-center gap-1.5 mb-2">
         <h2 className="text-2xl font-bold uppercase tracking-tighter">Caixa e Finanças</h2>
         <HelpTooltip moduleKey="finance" />
@@ -224,7 +224,7 @@ export const Cashier: React.FC = () => {
                <div className={`p-6 rounded-lg border ${isDark ? 'bg-[#121214] border-[#2C2C2E]' : 'bg-gray-50/50 border-gray-100'}`}><div className="flex items-center gap-3 mb-4 opacity-40"><Receipt className="w-4 h-4" /><span className="text-[10px] font-bold uppercase tracking-wide">Serviço & Taxas</span></div><p className="text-2xl font-bold tracking-tight text-emerald-500">{formatCurrency(serviceChargeToday)}</p></div>
              </div>
              <div className="pt-8 border-t border-dashed border-current/10">
-               <h3 className="text-[10px] font-bold uppercase tracking-wide opacity-40 mb-6">Suprimentos e Sangrias</h3>
+               <h3 className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wide opacity-40 mb-6">Suprimentos e Sangrias <HelpTooltip content="Use Sangria para registrar retiradas de dinheiro em espécie da gaveta (ex: pagamento de fornecedor). Use Suprimento para registrar adição de troco no meio do expediente." /></h3>
                {expenses.length === 0 ? (<div className="py-10 text-center opacity-20  text-sm">Nenhuma movimentação avulsa registrada hoje.</div>) : (
                  <div className="space-y-3">
                    {expenses.map(e => {
@@ -278,7 +278,7 @@ export const Cashier: React.FC = () => {
           <div className={`p-8 rounded-xl border shadow-sm relative overflow-hidden transition-all ${!canCloseCashier ? 'border-amber-500/30 bg-amber-500/5' : 'border-red-500/20 bg-red-500/5'}`}>
             <h3 className={`text-sm font-bold uppercase tracking-wide mb-6 ${!canCloseCashier ? 'text-amber-500' : 'text-red-500'}`}>
               Encerramento
-              <HelpTooltip id="help-fechamento-caixa" content="O fechamento de caixa encerra a sessão diária consolidando vendas, sangrias e declarando o saldo real." anchorId="fechamento-caixa" />
+              <HelpTooltip id="help-fechamento-caixa" content="Dica: Faça a contagem 'cega'. Some todo o dinheiro físico na gaveta e digite o valor real. O sistema vai comparar o esperado com o digitado e acusar sobras ou faltas." anchorId="guide_caixa" />
             </h3>
 
             {!canCloseCashier ? (

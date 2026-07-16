@@ -3,6 +3,7 @@ import { Rocket, Cloud, Users, MessageSquare, Globe, BarChart3, ShoppingBag, Shi
 import { useModules } from '../hooks/useModules';
 import { planMatrix, getCommercialModuleName, AppModule } from '../config/modulesConfig';
 import { useApp } from '../store/AppContext';
+import { HelpTooltip } from './HelpTooltip';
 
 export const EvolutionCenter: React.FC = () => {
   const { currentPlan } = useModules();
@@ -100,7 +101,7 @@ export const EvolutionCenter: React.FC = () => {
         <div>
           <h2 className="text-3xl font-black italic uppercase tracking-tighter flex items-center gap-3">
             <Rocket className="w-8 h-8 text-[#475569]" />
-            Central de Evolução
+            Central de Evolução <HelpTooltip moduleKey="evolution" />
           </h2>
           <p className="opacity-50 font-bold uppercase tracking-wide text-[10px] mt-1">Descubra novos módulos e leve seu restaurante para o Próximo Nível.</p>
         </div>

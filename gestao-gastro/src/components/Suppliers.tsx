@@ -1,5 +1,6 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { useApp } from '../store/AppContext';
+import { HelpTooltip } from './HelpTooltip';
 import { Supplier } from '../types';
 import { Search, Plus, Truck, Phone, Mail, Edit3, Trash2, Box, User, LayoutGrid, List, MapPin, CreditCard, FileText, Star, X, Check, AlertCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -78,7 +79,7 @@ export const Suppliers: React.FC = () => {
       {/* Header Section */}
       <div className="flex flex-col lg:flex-row justify-between lg:items-end gap-6">
         <div className="space-y-1">
-          <h2 className="text-3xl font-extrabold tracking-tighter uppercase leading-none">Parceiros & Supply</h2>
+          <h2 className="text-3xl font-extrabold tracking-tighter uppercase leading-none flex items-center">Parceiros & Supply <HelpTooltip moduleKey="suppliers" /></h2>
           <p className="text-[10px] font-bold uppercase tracking-widest opacity-40">Inteligência Logística e Suprimentos</p>
         </div>
 

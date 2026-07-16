@@ -5,7 +5,7 @@ import {
   Search, Plus, Edit2, Trash2, X, Filter, LayoutGrid, List,
   ChevronRight, ArrowRight, BookOpen, Package, PlusCircle, MinusCircle,
   Coffee, Utensils, Pizza, IceCream, GlassWater,
-  Cloud, CloudOff, RefreshCw, AlertCircle
+  Cloud, CloudOff, RefreshCw, AlertCircle, CheckCircle2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Product, RecipeItem } from '../types';
@@ -187,9 +187,9 @@ export const Products: React.FC = () => {
                             <span className="text-[8px] font-bold uppercase tracking-wider underline">Erro Sync</span>
                           </div>
                         ) : (
-                          <div className="flex w-fit max-w-full items-center gap-1 rounded bg-emerald-500/10 px-1.5 py-0.5 text-emerald-600" title="Sincronizado com o Supabase.">
-                            <Cloud className="w-3.5 h-3.5" />
-                            <span className="whitespace-nowrap text-[7px] font-bold uppercase tracking-tight">Sincronizado</span>
+                          <div className="flex w-fit max-w-full items-center gap-1 rounded bg-emerald-500/10 px-1.5 py-0.5 text-emerald-600">
+                            <CheckCircle2 className="h-3 w-3 flex-shrink-0" /> <span className="text-[10px] font-bold uppercase tracking-widest hidden lg:block">Sincronizado</span>
+                            <HelpTooltip content="O selo verde indica que o produto foi salvo com segurança no servidor na nuvem (Supabase)." />
                           </div>
                         )
                       )}
@@ -283,9 +283,9 @@ export const Products: React.FC = () => {
                                   <span className="text-[8px] font-bold uppercase tracking-wider">Erro Sync</span>
                                 </button>
                               ) : (
-                                <div className="flex w-fit max-w-full items-center gap-1 rounded bg-emerald-500/10 px-1.5 py-0.5 text-emerald-600" title="Sincronizado com o Supabase.">
-                                  <Cloud className="w-3.5 h-3.5" />
-                                  <span className="whitespace-nowrap text-[7px] font-bold uppercase tracking-tight">Sincronizado</span>
+                                <div className="flex w-fit max-w-full items-center gap-1 rounded bg-emerald-500/10 px-1.5 py-0.5 text-emerald-600">
+                                  <CheckCircle2 className="h-3 w-3 flex-shrink-0" /> <span className="text-[10px] font-bold uppercase tracking-widest hidden lg:block">Sincronizado</span>
+                                  <HelpTooltip content="O selo verde indica que o produto foi salvo com segurança no servidor na nuvem (Supabase)." />
                                 </div>
                               )
                             )}
@@ -389,7 +389,7 @@ export const Products: React.FC = () => {
                   <div className="flex justify-between items-center">
                     <h4 className="text-[11px] font-bold uppercase tracking-wide text-[#475569]">
                       Ficha Técnica (Ingredientes)
-                      <HelpTooltip id="help-ficha-tecnica" content="A ficha técnica associa ingredientes de estoque ao produto para debito automático de insumos nas vendas." anchorId="estoque-receitas" />
+                      <HelpTooltip id="help-ficha-tecnica" content="A ficha técnica abate automaticamente os ingredientes nas vendas. Atenção: lance o consumo na mesma unidade do estoque (ex: se cadastrou em kg, digite 0.150 para 150g)." anchorId="guide_estoque" />
                     </h4>
                     <button type="button" onClick={addRecipeItem} className="flex items-center gap-2 text-[9px] font-bold uppercase tracking-wide opacity-40 hover:opacity-100 transition-all">
                       <PlusCircle className="w-4 h-4" /> Adicionar Insumo
@@ -412,7 +412,7 @@ export const Products: React.FC = () => {
                             required
                             value={item.stockItemId}
                             onChange={e => updateRecipeItem(idx, 'stockItemId', e.target.value)}
-                            className={`w-full h-12 px-4 rounded-xl border outline-none font-bold text-xs appearance-none ${isDark ? 'bg-transparent border-[#2C2C2E] text-white' : 'bg-gray-50 border-gray-100'}`}
+                            className={`w-full h-12 px-4 rounded-xl border outline-none font-bold text-xs appearance-none ${isDark ? 'bg-[#121214] border-[#2C2C2E] text-white' : 'bg-gray-50 border-gray-100'}`}
                           >
                             <option value="">Selecione...</option>
                             {stockItems.map(si => <option key={si.id} value={si.id}>{si.name} ({si.unit})</option>)}

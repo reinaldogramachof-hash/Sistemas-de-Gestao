@@ -5,7 +5,7 @@ import type { Product } from '../types';
 import { mockProducts } from '../store/mock';
 import { listActiveProducts } from '../services/menuSupabaseService';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
-import { resolveTenant } from '../config/clientRoutes';
+import { getClientRouteFromPath, resolveTenant } from '../config/clientRoutes';
 import { validateLanOrigin } from '../utils/comandaAccess';
 
 const SESSION_KEY = 'garcom_session';
@@ -61,6 +61,29 @@ export const ComandaMobileApp: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastAccessError, setLastAccessError] = useState('');
+
+  React.useEffect(() => {
+    const route = getClientRouteFromPath(window.location.pathname);
+    const accessModeFromUrl = new URLSearchParams(window.location.search).get('access');
+    const accessMode = accessModeFromUrl === 'external' ? 'external' : 'local';
+    const manifestHref = route
+      ? `/api_comanda_manifest.php?slug=${encodeURIComponent(route.slug)}&access=${accessMode}&name=${encodeURIComponent(route.displayName)}`
+      : '/gestao-gastro/manifest.webmanifest';
+
+    let manifestLink = document.querySelector<HTMLLinkElement>('link[rel="manifest"]');
+    if (!manifestLink) {
+      manifestLink = document.createElement('link');
+      manifestLink.rel = 'manifest';
+      document.head.appendChild(manifestLink);
+    }
+    manifestLink.href = manifestHref;
+    document.title = route ? `Comanda Gastro | ${route.displayName}` : 'Comanda Gastro';
+
+    return () => {
+      manifestLink.href = '/gestao-gastro/manifest.webmanifest';
+      document.title = 'Gestao Gastro | Sistema Premium';
+    };
+  }, []);
 
   React.useEffect(() => {
     const initAuth = async () => {

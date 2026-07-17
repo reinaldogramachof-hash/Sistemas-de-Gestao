@@ -63,3 +63,15 @@ test('dynamic tenant slug uses pending local storage until license resolves tena
   assert.doesNotMatch(contextSource, /throw new Error\('Tenant ID ausente/, 'AppContext nao deve derrubar a tela antes da ativacao resolver o tenant');
   assert.match(gateSource, /if \(!resolvedTenant && data\.tenant_id\)/, 'ActivationGate deve recarregar apos persistir tenant de slug dinamico');
 });
+
+test('waiter PWA manifest opens the installed app directly on the client comanda', () => {
+  const manifestEndpoint = read('api_comanda_manifest.php');
+  const mobileApp = read('gestao-gastro/src/components/ComandaMobileApp.tsx');
+
+  assert.match(manifestEndpoint, /Content-Type.*application\/manifest\+json/, 'endpoint deve responder como manifest PWA');
+  assert.match(manifestEndpoint, /\$startUrl = "\{\$basePath\}\/comanda\?access=\{\$access\}"/, 'manifest da comanda deve iniciar diretamente na rota mobile');
+  assert.match(manifestEndpoint, /'start_url' => \$startUrl/, 'manifest deve publicar a URL inicial calculada');
+  assert.match(manifestEndpoint, /scope.*basePath/s, 'manifest deve limitar o escopo ao cliente atual');
+  assert.match(manifestEndpoint, /pwa-512x512\.png/, 'manifest deve referenciar icone instalavel');
+  assert.match(mobileApp, /api_comanda_manifest\.php\?slug=/, 'ComandaMobileApp deve carregar manifest dinamico por slug');
+});

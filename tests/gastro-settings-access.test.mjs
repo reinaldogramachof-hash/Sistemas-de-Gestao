@@ -18,6 +18,8 @@ test('Settings centralizes waiter access and QR code operations', () => {
   assert.ok(source.includes('openEditMemberModal'), 'Settings deve expor fluxo de edicao para colaboradores criados');
   assert.ok(source.includes('editMemberPassword'), 'Settings deve permitir troca de senha opcional no fluxo de edicao');
   assert.ok(source.includes('navigator.clipboard.writeText'), 'Settings deve permitir copiar o link da comanda');
+  assert.ok(source.includes('canGenerateLocalAccess'), 'Settings deve bloquear QR local sem IP LAN valido');
+  assert.ok(source.includes('Informe um IP local valido'), 'Settings deve orientar o usuario quando o QR local ainda nao pode ser gerado');
 });
 
 test('Comanda access helper preserves client slug and produces QR image URL', () => {
@@ -47,6 +49,8 @@ test('Comanda mobile trusts access mode carried by the QR link', () => {
   assert.ok(source.includes("new URLSearchParams(window.location.search).get('access')"));
   assert.ok(source.includes("accessModeFromUrl === 'external'"));
   assert.ok(source.includes("accessModeFromUrl === 'local'"));
+  assert.ok(source.includes('api_comanda_manifest.php'), 'Comanda mobile deve usar manifest PWA dinamico para instalar no caminho do cliente');
+  assert.ok(source.includes("document.querySelector<HTMLLinkElement>('link[rel=\"manifest\"]')"), 'Comanda mobile deve trocar o manifest da pagina ao abrir rota de garcom');
 });
 
 test('Dashboard reuses the shared comanda access helper', () => {

@@ -464,19 +464,37 @@ export const Settings: React.FC = () => {
     reader.readAsText(file);
   };
 
-  const comandaAccessUrl = getComandaAccessUrl(window.location.origin, window.location.pathname, formData.waiterAccessMode || 'local', formData.waiterLocalOrigin, formData.localTestOrigin);
-  const comandaQrUrl = getComandaQrImageUrl(comandaAccessUrl);
+  const isCurrentOriginLocal =
+    window.location.origin.includes('localhost') ||
+    window.location.origin.includes('127.0.0.1') ||
+    validateLanOrigin(window.location.origin).valid;
+  const configuredLanOrigin = formData.waiterLocalOrigin || formData.localTestOrigin || '';
+  const configuredLanValidation = configuredLanOrigin ? validateLanOrigin(configuredLanOrigin) : null;
+  const isLocalAccessMode = (formData.waiterAccessMode || 'local') !== 'external';
+  const canGenerateLocalAccess = !isLocalAccessMode || Boolean(configuredLanValidation?.valid) || isCurrentOriginLocal;
+  const comandaAccessUrl = canGenerateLocalAccess
+    ? getComandaAccessUrl(window.location.origin, window.location.pathname, formData.waiterAccessMode || 'local', formData.waiterLocalOrigin, formData.localTestOrigin)
+    : '';
+  const comandaQrUrl = comandaAccessUrl ? getComandaQrImageUrl(comandaAccessUrl) : '';
   const waiterMembers = collaborators.filter(member => member.permissions === 'waiter');
   const activeWaiterMembers = waiterMembers.filter(member => member.status === 'active');
   const freeTables = tables.filter(table => table.status === 'livre').length;
 
   const handleCopyAccessLink = async () => {
+    if (!comandaAccessUrl) {
+      setLanValidationMsg({ type: 'error', text: 'Informe um IP local valido antes de copiar o link da comanda.' });
+      return;
+    }
     await navigator.clipboard.writeText(comandaAccessUrl);
     setCopiedAccess(true);
     setTimeout(() => setCopiedAccess(false), 1200);
   };
 
   const handleOpenComanda = () => {
+    if (!comandaAccessUrl) {
+      setLanValidationMsg({ type: 'error', text: 'Informe um IP local valido antes de abrir a comanda pelo QR local.' });
+      return;
+    }
     window.open(comandaAccessUrl, '_blank', 'noopener,noreferrer');
   };
 
@@ -914,7 +932,9 @@ export const Settings: React.FC = () => {
                             Link da comanda mobile
                             <HelpTooltip id="help-comanda-link" content="Este link permite que os garçons façam login e acessem o fluxo de comanda mobile pelo celular." anchorId="comanda-mobile" />
                           </p>
-                          <p className="text-[11px] font-semibold opacity-50 break-all mt-1">{comandaAccessUrl}</p>
+                          <p className="text-[11px] font-semibold opacity-50 break-all mt-1">
+                            {comandaAccessUrl || 'Informe um IP local valido para gerar o link e o QR Code da comanda.'}
+                          </p>
                         </div>
                       </div>
 
@@ -922,6 +942,7 @@ export const Settings: React.FC = () => {
                         <button
                           type="button"
                           onClick={handleCopyAccessLink}
+                          disabled={!comandaAccessUrl}
                           className="h-10 px-4 rounded-lg bg-[#475569] text-white text-[9px] font-bold uppercase tracking-wide flex items-center gap-2"
                         >
                           {copiedAccess ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
@@ -930,7 +951,8 @@ export const Settings: React.FC = () => {
                         <button
                           type="button"
                           onClick={handleOpenComanda}
-                          className={`h-10 px-4 rounded-lg text-[9px] font-bold uppercase tracking-wide flex items-center gap-2 ${isDark ? 'bg-white/5 hover:bg-white/10' : 'bg-white border border-gray-200 hover:bg-gray-50'}`}
+                          disabled={!comandaAccessUrl}
+                          className={`h-10 px-4 rounded-lg text-[9px] font-bold uppercase tracking-wide flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed ${isDark ? 'bg-white/5 hover:bg-white/10' : 'bg-white border border-gray-200 hover:bg-gray-50'}`}
                         >
                           <ExternalLink className="w-4 h-4" />
                           Abrir
@@ -1043,7 +1065,13 @@ export const Settings: React.FC = () => {
 
                 <div className={`p-6 rounded-xl border flex flex-col items-center text-center gap-5 ${isDark ? 'bg-white/5 border-white/5' : 'bg-gray-50 border-gray-100'}`}>
                   <div className="w-full max-w-[240px] rounded-xl bg-white p-4 shadow-sm">
-                    <img src={comandaQrUrl} alt="QR Code da comanda mobile" className="w-full aspect-square object-contain" />
+                    {comandaQrUrl ? (
+                      <img src={comandaQrUrl} alt="QR Code da comanda mobile" className="w-full aspect-square object-contain" />
+                    ) : (
+                      <div className="w-full aspect-square rounded-lg border border-dashed border-slate-300 bg-slate-50 text-slate-500 flex items-center justify-center p-5 text-center text-xs font-bold leading-relaxed">
+                        Informe o IP local para gerar o QR.
+                      </div>
+                    )}
                   </div>
                   <div>
                     <p className="text-xs font-bold uppercase tracking-wide">QR Code da comanda</p>
@@ -1056,7 +1084,8 @@ export const Settings: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => window.open(comandaQrUrl, '_blank', 'noopener,noreferrer')}
-                    className="w-full h-11 rounded-lg bg-emerald-500 text-white text-[9px] font-bold uppercase tracking-wide flex items-center justify-center gap-2"
+                    disabled={!comandaQrUrl}
+                    className="w-full h-11 rounded-lg bg-emerald-500 text-white text-[9px] font-bold uppercase tracking-wide flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
                   >
                     <QrCode className="w-4 h-4" />
                     Gerar QR da comanda

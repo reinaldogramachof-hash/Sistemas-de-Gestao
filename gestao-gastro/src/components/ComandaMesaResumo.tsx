@@ -4,9 +4,14 @@ import type { Order, Table } from '../types';
 interface ComandaMesaResumoProps {
   table: Table;
   order?: Order;
+  tables: Table[];
+  isBusy?: boolean;
   onBack: () => void;
   onAddItems: () => void;
   onStartNewOrder: () => void;
+  onReleaseTable: () => void;
+  onTransferTable: (targetTableNumber: number) => void;
+  onUpdateCustomerName?: (value: string) => void;
 }
 
 const money = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -14,11 +19,24 @@ const money = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', curr
 export const ComandaMesaResumo: React.FC<ComandaMesaResumoProps> = React.memo(({
   table,
   order,
+  tables,
+  isBusy = false,
   onBack,
   onAddItems,
   onStartNewOrder,
+  onReleaseTable,
+  onTransferTable,
+  onUpdateCustomerName,
 }) => {
   const itemsCount = order?.items.reduce((sum, item) => sum + item.quantity, 0) ?? 0;
+  const hasConsumption = Boolean(order && (order.items.length > 0 || order.subtotal > 0 || order.total > 0));
+  const [draftCustomerName, setDraftCustomerName] = React.useState(order?.customerName || '');
+  const [showTransfer, setShowTransfer] = React.useState(false);
+  const freeTables = tables.filter(item => item.status === 'livre' && item.number !== table.number);
+
+  React.useEffect(() => {
+    setDraftCustomerName(order?.customerName || '');
+  }, [order?.customerName, order?.id]);
 
   return (
     <div className="space-y-4">
@@ -52,6 +70,11 @@ export const ComandaMesaResumo: React.FC<ComandaMesaResumoProps> = React.memo(({
                   <p className="font-semibold flex-shrink-0">{money(item.quantity * item.price)}</p>
                 </div>
               ))}
+              {order.generalObservation && (
+                <div className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:bg-amber-900/20 dark:text-amber-200">
+                  <span className="font-bold">Obs. geral:</span> {order.generalObservation}
+                </div>
+              )}
             </div>
           </div>
 
@@ -61,6 +84,62 @@ export const ComandaMesaResumo: React.FC<ComandaMesaResumoProps> = React.memo(({
           >
             Adicionar itens
           </button>
+
+          <label className="space-y-1 block rounded-xl border border-gray-100 dark:border-white/10 p-4 bg-white dark:bg-white/5">
+            <span className="text-xs text-gray-500">Nome do cliente</span>
+            <input
+              value={draftCustomerName}
+              onChange={event => setDraftCustomerName(event.target.value)}
+              onBlur={() => onUpdateCustomerName?.(draftCustomerName)}
+              className="w-full h-11 rounded-xl border border-gray-200 dark:border-white/10 bg-transparent px-3 text-sm outline-none"
+              placeholder="Ex: Cliente da mesa, Joao..."
+            />
+            <span className="block text-[10px] text-gray-400">O nome fica salvo na comanda aberta.</span>
+          </label>
+
+          <div className="rounded-xl border border-gray-100 dark:border-white/10 p-4 space-y-3 bg-white dark:bg-white/5">
+            {!hasConsumption && (
+              <button
+                type="button"
+                onClick={onReleaseTable}
+                disabled={isBusy}
+                className="w-full h-11 rounded-xl border border-emerald-300 text-emerald-700 dark:border-emerald-500/30 dark:text-emerald-200 text-sm font-semibold disabled:opacity-45"
+              >
+                Liberar mesa
+              </button>
+            )}
+
+            <button
+              type="button"
+              onClick={() => setShowTransfer(current => !current)}
+              disabled={isBusy || freeTables.length === 0}
+              className="w-full h-11 rounded-xl border border-blue-300 text-blue-700 dark:border-blue-500/30 dark:text-blue-200 text-sm font-semibold disabled:opacity-45"
+            >
+              Trocar de mesa
+            </button>
+
+            {showTransfer && (
+              <div className="grid grid-cols-4 gap-2">
+                {freeTables.map(target => (
+                  <button
+                    key={target.number}
+                    type="button"
+                    onClick={() => onTransferTable(target.number)}
+                    disabled={isBusy}
+                    className="h-11 rounded-lg border border-gray-200 dark:border-white/10 text-sm font-bold"
+                  >
+                    {target.number}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            <p className="text-[11px] leading-4 text-gray-500">
+              {hasConsumption
+                ? 'Para liberar uma mesa com itens lancados, finalize ou cancele a comanda no caixa.'
+                : 'Use liberar mesa quando o cliente desistir antes de consumir.'}
+            </p>
+          </div>
         </>
       ) : (
         <div className="rounded-xl border border-amber-200 dark:border-amber-500/20 bg-amber-50 dark:bg-amber-500/10 p-4 space-y-4">
@@ -75,6 +154,13 @@ export const ComandaMesaResumo: React.FC<ComandaMesaResumoProps> = React.memo(({
             className="w-full h-11 rounded-xl bg-slate-700 text-white text-sm font-semibold active:scale-[0.98] transition-all"
           >
             Iniciar nova comanda
+          </button>
+          <button
+            onClick={onReleaseTable}
+            disabled={isBusy}
+            className="w-full h-11 rounded-xl border border-emerald-300 text-emerald-700 dark:border-emerald-500/30 dark:text-emerald-200 text-sm font-semibold active:scale-[0.98] transition-all disabled:opacity-50"
+          >
+            Liberar mesa
           </button>
         </div>
       )}

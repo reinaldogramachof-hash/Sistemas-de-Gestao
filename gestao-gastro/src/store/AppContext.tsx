@@ -2,7 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Product, Table, Order, Waiter, Expense, CashierSession, PaymentItem, Customer, Collaborator, StockMovement, StockItem, Supplier, AppSettings, KitchenItemStatus, Promotion, Combo, Campaign, LoyaltyConfig, LoyaltyEntry, OrderCloseResult } from '../types';
 import { mockProducts, mockTables, mockWaiters, mockCustomers, mockCollaborators, mockStockItems, mockSuppliers, mockSettings } from './mock';
 import { cantinhoDaResenhaProducts } from './cantinhoDaResenhaSeed';
-import { CANTINHO_DA_RESENHA_TENANT_ID, getClientRouteFromPath, getClientSlugFromPath, resolveTenant } from '../config/clientRoutes';
+import { CANTINHO_DA_RESENHA_SLUG, CANTINHO_DA_RESENHA_SLUG_ALIAS, getClientRouteFromPath, getClientSlugFromPath, resolveTenant } from '../config/clientRoutes';
 import { useTables } from '../hooks/useTables';
 import { useOrders } from '../hooks/useOrders';
 import { isSupabaseConfigured, supabase } from '../lib/supabase';
@@ -108,14 +108,12 @@ interface AppContextType extends AppState {
 }
 
 const getTenantKey = (key: string): string => {
+  const slug = getClientSlugFromPath(window.location.pathname);
   const routeTenantId = resolveTenant(window.location.pathname);
   const configuredTenantId = import.meta.env.VITE_GASTRO_TENANT_ID as string;
-  const hasClientSlug = Boolean(getClientSlugFromPath(window.location.pathname));
-  const currentTenantId = routeTenantId || (hasClientSlug ? LOCAL_TENANT_ID : configuredTenantId) || LOCAL_TENANT_ID;
-
-  if (import.meta.env.PROD && currentTenantId === LOCAL_TENANT_ID) {
-    throw new Error('Tenant ID ausente. Operação remota bloqueada.');
-  }
+  const hasClientSlug = Boolean(slug);
+  const pendingSlugTenantId = slug ? `pending-${slug}` : LOCAL_TENANT_ID;
+  const currentTenantId = routeTenantId || (hasClientSlug ? pendingSlugTenantId : configuredTenantId) || LOCAL_TENANT_ID;
 
   return `gestao_gastro:${currentTenantId}:${key}`;
 };
@@ -139,12 +137,13 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const clientRoute = getClientRouteFromPath(window.location.pathname);
-  const hasClientSlug = Boolean(getClientSlugFromPath(window.location.pathname));
+  const clientSlug = getClientSlugFromPath(window.location.pathname);
+  const hasClientSlug = Boolean(clientSlug);
   const resolvedTenantId = resolveTenant(window.location.pathname);
   const effectiveTenantId = resolvedTenantId || (hasClientSlug ? '' : TENANT_ID);
   const isSaaS = Boolean(effectiveTenantId && effectiveTenantId !== LOCAL_TENANT_ID);
 
-  const isCantinhoRoute = clientRoute?.tenantId === CANTINHO_DA_RESENHA_TENANT_ID;
+  const isCantinhoRoute = clientSlug === CANTINHO_DA_RESENHA_SLUG || clientSlug === CANTINHO_DA_RESENHA_SLUG_ALIAS;
   const defaultProducts = isCantinhoRoute
     ? cantinhoDaResenhaProducts
     : mockProducts;
@@ -300,11 +299,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         const mapped: Collaborator[] = data.map((member: any) => ({
           id: member.user_id,
           name: member.display_name || 'Colaborador sem nome',
-          role: member.role === 'owner' ? 'Proprietário' : member.role === 'admin' ? 'Administrador' : 'Garçom',
           email: '',
+          role: member.role === 'owner' ? 'Proprietario' : member.role === 'admin' ? 'Administrador' : member.role === 'cashier' ? 'Caixa' : 'Garcom',
           status: member.active ? 'active' : 'inactive',
           joinedAt: new Date().toISOString().split('T')[0],
-          permissions: member.role === 'owner' ? 'admin' : member.role === 'admin' ? 'admin' : 'waiter'
+          permissions: member.role === 'owner' ? 'admin' : member.role === 'admin' ? 'admin' : member.role === 'cashier' ? 'staff' : 'waiter'
         }));
         setCollaborators(mapped);
         localStorage.setItem(getTenantKey('collaborators'), JSON.stringify(mapped));
@@ -940,6 +939,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (t.number === toNumber) return { ...t, status: 'ocupada', activeOrderId: orderId };
       return t;
     }));
+
+    if (isSupabaseConfigured && effectiveTenantId) {
+      void import('../services/ordersSupabaseService').then(({ updateOrderMeta }) => {
+        updateOrderMeta(effectiveTenantId, orderId, { tableNumber: toNumber }).catch(console.error);
+      });
+      void import('../services/tablesSupabaseService').then(({ clearTable, updateTable: updateTableRemote }) => {
+        clearTable(effectiveTenantId, fromNumber).catch(console.error);
+        updateTableRemote(effectiveTenantId, toNumber, {
+          status: 'ocupada',
+          activeOrderId: orderId,
+          reservationReason: null,
+        }).catch(console.error);
+      });
+    }
   };
 
   const mergeTables = (sourceNumber: number, targetNumber: number) => {
@@ -997,6 +1010,29 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const clearTable = (number: number) => {
+    const tableToClear = tables.find(t => t.number === number);
+    const activeOrder = tableToClear?.activeOrderId
+      ? orders.find(order => order.id === tableToClear.activeOrderId)
+      : undefined;
+    const hasConsumption = Boolean(
+      activeOrder &&
+      (activeOrder.items.length > 0 || activeOrder.subtotal > 0 || activeOrder.total > 0),
+    );
+
+    if (hasConsumption) {
+      console.warn('Mesa com consumo lancado nao pode ser liberada por clearTable.');
+      return;
+    }
+
+    if (activeOrder) {
+      setLocalOrders(prev => prev.filter(order => order.id !== activeOrder.id));
+      if (isSupabaseConfigured && effectiveTenantId) {
+        void import('../services/ordersSupabaseService').then(({ deleteOrder }) => {
+          deleteOrder(effectiveTenantId, activeOrder.id).catch(console.error);
+        });
+      }
+    }
+
     setLocalTables(prev => prev.map(t =>
       t.number === number
         ? { ...t, status: 'livre', activeOrderId: undefined, reservationReason: undefined }

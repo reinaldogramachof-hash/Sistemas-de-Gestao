@@ -57,8 +57,11 @@ export const AdminAuthGate: React.FC<AdminAuthGateProps> = ({ children }) => {
       }
       if (data.status === 'success') {
         setHasOwner(data.has_owner);
-        if (!data.has_owner) {
+        if (!data.has_owner || data.setup_required) {
           setAuthMode('register');
+          if (data.owner_name) {
+            setName(data.owner_name);
+          }
         }
       } else {
         throw new Error('Resposta inválida ao consultar o primeiro acesso.');
@@ -437,6 +440,16 @@ export const AdminAuthGate: React.FC<AdminAuthGateProps> = ({ children }) => {
                 <AlertCircle className="w-4 h-4 text-red-500 shrink-0" />
                 <p className="text-red-400 text-xs font-semibold leading-normal">{error}</p>
               </div>
+            )}
+
+            {error && (
+              <button
+                type="button"
+                onClick={() => setAuthMode('register')}
+                className="w-full h-11 border border-white/10 hover:border-[#475569] text-slate-300 font-bold rounded-xl transition-all flex justify-center items-center gap-2 text-[10px] uppercase tracking-wide"
+              >
+                Definir primeiro acesso
+              </button>
             )}
 
             <button

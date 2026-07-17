@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Shield, Key, Mail, Loader, CheckCircle } from 'lucide-react';
+import { Shield, Key, Mail, Loader, CheckCircle, Clipboard, X } from 'lucide-react';
 import { ReceiptConfirmation } from './ReceiptConfirmation';
 import { getClientSlugFromPath, persistTenantRoute, resolveTenant } from '../config/clientRoutes';
 import { getLicenseApiUrl } from '../services/licenseApi';
@@ -7,6 +7,34 @@ import { getLicenseApiUrl } from '../services/licenseApi';
 interface ActivationGateProps {
   children: React.ReactNode;
 }
+
+const getDeviceStorageKey = (tenantSlug: string | null, tenantId: string | null) => {
+  const tenantKey = tenantSlug || tenantId || 'default';
+  return `gestao_gastro_device_id:${tenantKey}`;
+};
+
+const getOrCreateDeviceId = (tenantSlug: string | null, tenantId: string | null) => {
+  const storageKey = getDeviceStorageKey(tenantSlug, tenantId);
+  let deviceId = localStorage.getItem(storageKey);
+
+  if (!deviceId) {
+    deviceId = localStorage.getItem('device_id');
+  }
+
+  if (!deviceId) {
+    deviceId = 'dev_' + Math.random().toString(36).substr(2, 9);
+  }
+
+  localStorage.setItem(storageKey, deviceId);
+  return deviceId;
+};
+
+const normalizeLicenseKeyInput = (value: string) => {
+  const cleaned = value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 16);
+  return cleaned.match(/.{1,4}/g)?.join('-') ?? '';
+};
+
+const normalizeEmailInput = (value: string) => value.trim().toLowerCase();
 
 export const ActivationGate: React.FC<ActivationGateProps> = ({ children }) => {
   const [isAuthorized, setIsAuthorized] = useState<boolean | null>(null);
@@ -16,12 +44,25 @@ export const ActivationGate: React.FC<ActivationGateProps> = ({ children }) => {
   const [loading, setLoading] = useState(false);
   const [needsReceipt, setNeedsReceipt] = useState(false);
 
+  const clearStoredLicense = () => {
+    const tenantSlug = getClientSlugFromPath(window.location.pathname);
+    localStorage.removeItem('plena_license');
+    localStorage.removeItem('ml_license_email');
+    localStorage.removeItem('gestao_gastro_verified_plan');
+    localStorage.removeItem('gestao_gastro_tenant_id');
+    localStorage.removeItem('gestao_gastro_tenant_slug');
+    if (tenantSlug) {
+      localStorage.removeItem(`gestao_gastro_tenant_id:${tenantSlug}`);
+    }
+  };
+
   const checkLicense = async () => {
     const savedKey = localStorage.getItem('plena_license');
     const savedEmail = localStorage.getItem('ml_license_email');
     const receiptConfirmed = localStorage.getItem('ml_receipt_confirmed');
     const resolvedTenant = resolveTenant(window.location.pathname);
     const tenantSlug = getClientSlugFromPath(window.location.pathname);
+    const deviceId = getOrCreateDeviceId(tenantSlug, resolvedTenant);
 
     if (!savedKey || !savedEmail) {
       setIsAuthorized(false);
@@ -39,7 +80,7 @@ export const ActivationGate: React.FC<ActivationGateProps> = ({ children }) => {
       const response = await fetch(getLicenseApiUrl('verify'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ license_key: savedKey, email: savedEmail, tenant_id: resolvedTenant, tenant_slug: tenantSlug })
+        body: JSON.stringify({ license_key: savedKey, email: savedEmail, device_id: deviceId, tenant_id: resolvedTenant, tenant_slug: tenantSlug })
       });
 
       if (!response.ok) {
@@ -50,10 +91,7 @@ export const ActivationGate: React.FC<ActivationGateProps> = ({ children }) => {
 
       if (data.status === 'success' && data.license_status === 'active') {
         if (resolvedTenant && !data.is_master && (!data.tenant_id || data.tenant_id !== resolvedTenant)) {
-          localStorage.removeItem('plena_license');
-          localStorage.removeItem('ml_license_email');
-          localStorage.removeItem('gestao_gastro_verified_plan');
-          localStorage.removeItem('gestao_gastro_tenant_id');
+          clearStoredLicense();
           setIsAuthorized(false);
           setError('Licenca nao pertence a este restaurante.');
           return;
@@ -67,17 +105,19 @@ export const ActivationGate: React.FC<ActivationGateProps> = ({ children }) => {
         if (data.tenant_id) {
           persistTenantRoute(tenantSlug, data.tenant_id);
         }
+        if (!resolvedTenant && data.tenant_id) {
+          window.location.reload();
+          return;
+        }
         if (receiptConfirmed !== 'true') setNeedsReceipt(true);
       } else if (data.status === 'success' && (data.license_status === 'blocked' || data.license_status === 'expired')) {
-        localStorage.removeItem('plena_license');
-        localStorage.removeItem('ml_license_email');
-        localStorage.removeItem('gestao_gastro_verified_plan');
+        clearStoredLicense();
         setIsAuthorized(false);
         setError(data.message || 'Sua licença esta bloqueada ou expirada.');
       } else {
-        // Unknown status but active locally
-        setIsAuthorized(true);
-        if (receiptConfirmed !== 'true') setNeedsReceipt(true);
+        clearStoredLicense();
+        setIsAuthorized(false);
+        setError(data.message || 'Licenca invalida ou nao encontrada. Ative novamente com a chave correta deste restaurante.');
       }
     } catch (err) {
       // Offline fallback if server is down
@@ -96,18 +136,14 @@ export const ActivationGate: React.FC<ActivationGateProps> = ({ children }) => {
     setLoading(true);
 
     try {
-      let deviceId = localStorage.getItem('device_id');
       const resolvedTenant = resolveTenant(window.location.pathname);
       const tenantSlug = getClientSlugFromPath(window.location.pathname);
-      if (!deviceId) {
-        deviceId = 'dev_' + Math.random().toString(36).substr(2, 9);
-        localStorage.setItem('device_id', deviceId);
-      }
+      const deviceId = getOrCreateDeviceId(tenantSlug, resolvedTenant);
 
       const response = await fetch(getLicenseApiUrl('activate'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ license_key: licenseKey, email, device_id: deviceId, tenant_id: resolvedTenant, tenant_slug: tenantSlug })
+        body: JSON.stringify({ license_key: licenseKey, email: normalizeEmailInput(email), device_id: deviceId, tenant_id: resolvedTenant, tenant_slug: tenantSlug })
       });
 
       const data = await response.json();
@@ -118,7 +154,7 @@ export const ActivationGate: React.FC<ActivationGateProps> = ({ children }) => {
           return;
         }
         localStorage.setItem('plena_license', licenseKey);
-        localStorage.setItem('ml_license_email', email);
+        localStorage.setItem('ml_license_email', normalizeEmailInput(email));
         if (data.plan) {
           localStorage.setItem('gestao_gastro_verified_plan', data.plan);
         } else {
@@ -145,6 +181,22 @@ export const ActivationGate: React.FC<ActivationGateProps> = ({ children }) => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handlePasteLicense = async () => {
+    try {
+      const text = await navigator.clipboard.readText();
+      setLicenseKey(normalizeLicenseKeyInput(text));
+      setError('');
+    } catch {
+      setError('Nao foi possivel ler a area de transferencia. Cole a chave manualmente.');
+    }
+  };
+
+  const clearActivationForm = () => {
+    setEmail('');
+    setLicenseKey('');
+    setError('');
   };
 
   if (isAuthorized === null) {
@@ -177,6 +229,7 @@ export const ActivationGate: React.FC<ActivationGateProps> = ({ children }) => {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
+                  onBlur={(e) => setEmail(normalizeEmailInput(e.target.value))}
                   className="w-full bg-[#2A2A2D] border border-white/10 rounded-lg pl-10 pr-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-[#475569]"
                   placeholder="seu@email.com"
                   required
@@ -191,11 +244,35 @@ export const ActivationGate: React.FC<ActivationGateProps> = ({ children }) => {
                 <input
                   type="text"
                   value={licenseKey}
-                  onChange={(e) => setLicenseKey(e.target.value)}
-                  className="w-full bg-[#2A2A2D] border border-white/10 rounded-lg pl-10 pr-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-[#475569]"
+                  onChange={(e) => setLicenseKey(normalizeLicenseKeyInput(e.target.value))}
+                  onPaste={(e) => {
+                    e.preventDefault();
+                    setLicenseKey(normalizeLicenseKeyInput(e.clipboardData.getData('text')));
+                  }}
+                  className="w-full bg-[#2A2A2D] border border-white/10 rounded-lg pl-10 pr-24 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-[#475569] font-mono tracking-wide"
                   placeholder="XXXX-XXXX-XXXX-XXXX"
                   required
                 />
+                <button
+                  type="button"
+                  onClick={handlePasteLicense}
+                  className="absolute right-11 top-1/2 -translate-y-1/2 p-2 text-gray-400 hover:text-white transition-colors"
+                  title="Colar chave"
+                  aria-label="Colar chave"
+                >
+                  <Clipboard className="w-4 h-4" />
+                </button>
+                {licenseKey && (
+                  <button
+                    type="button"
+                    onClick={() => setLicenseKey('')}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 p-2 text-gray-400 hover:text-white transition-colors"
+                    title="Limpar chave"
+                    aria-label="Limpar chave"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
               </div>
             </div>
 
@@ -212,6 +289,15 @@ export const ActivationGate: React.FC<ActivationGateProps> = ({ children }) => {
             >
               {loading ? <Loader className="w-5 h-5 animate-spin" /> : 'Ativar Sistema'}
             </button>
+            {(email || licenseKey || error) && (
+              <button
+                type="button"
+                onClick={clearActivationForm}
+                className="w-full text-sm text-gray-400 hover:text-white transition-colors"
+              >
+                Limpar dados informados
+              </button>
+            )}
           </form>
         </div>
       </div>

@@ -5,10 +5,17 @@ import type { ComandaDraftItem } from './ComandaLancamento';
 interface ComandaConfirmacaoProps {
   tableLabel: string;
   items: ComandaDraftItem[];
+  customerName: string;
+  setCustomerName: (value: string) => void;
+  adultCount: number;
+  setAdultCount: (value: number) => void;
+  childrenCount: number;
+  setChildrenCount: (value: number) => void;
   generalObservation: string;
   setGeneralObservation: (value: string) => void;
   isOnline: boolean;
   success: boolean;
+  isSubmitting?: boolean;
   onBack: () => void;
   onConfirm: () => void;
 }
@@ -18,10 +25,17 @@ const money = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', curr
 export const ComandaConfirmacao: React.FC<ComandaConfirmacaoProps> = React.memo(({
   tableLabel,
   items,
+  customerName,
+  setCustomerName,
+  adultCount,
+  setAdultCount,
+  childrenCount,
+  setChildrenCount,
   generalObservation,
   setGeneralObservation,
   isOnline,
   success,
+  isSubmitting = false,
   onBack,
   onConfirm,
 }) => {
@@ -69,6 +83,21 @@ export const ComandaConfirmacao: React.FC<ComandaConfirmacaoProps> = React.memo(
       </div>
 
       <label className="space-y-1 block">
+        <span className="text-xs text-gray-500">Nome do cliente</span>
+        <input
+          value={customerName}
+          onChange={e => setCustomerName(e.target.value)}
+          className="w-full h-11 rounded-xl border border-gray-200 dark:border-white/10 bg-transparent px-3 text-sm outline-none"
+          placeholder="Ex: Mesa do Joao, Cliente avulso..."
+        />
+      </label>
+
+      <div className="grid grid-cols-2 gap-3">
+        <CounterInput label="Adultos" value={adultCount} min={0} onChange={setAdultCount} />
+        <CounterInput label="Criancas" value={childrenCount} min={0} onChange={setChildrenCount} />
+      </div>
+
+      <label className="space-y-1 block">
         <span className="text-xs text-gray-500">Observação geral</span>
         <textarea
           value={generalObservation}
@@ -81,10 +110,55 @@ export const ComandaConfirmacao: React.FC<ComandaConfirmacaoProps> = React.memo(
 
       <button
         onClick={onConfirm}
-        className="w-full h-12 rounded-xl bg-slate-700 text-white text-sm font-semibold active:scale-[0.98] transition-all"
+        disabled={isSubmitting || items.length === 0}
+        className="w-full h-12 rounded-xl bg-slate-700 text-white text-sm font-semibold active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
       >
-        {isOnline ? 'Concluir lançamento ✓' : 'Salvar na fila offline'}
+        {isSubmitting ? 'Registrando...' : isOnline ? 'Concluir lançamento' : 'Salvar na fila offline'}
       </button>
     </div>
   );
 });
+
+interface CounterInputProps {
+  label: string;
+  value: number;
+  min: number;
+  onChange: (value: number) => void;
+}
+
+const CounterInput: React.FC<CounterInputProps> = ({ label, value, min, onChange }) => {
+  const update = (next: number) => onChange(Math.max(min, next));
+
+  return (
+    <div className="rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-white/5 p-3">
+      <p className="text-[10px] font-bold uppercase tracking-wide text-gray-500">{label}</p>
+      <div className="mt-2 flex items-center justify-between gap-2">
+        <button
+          type="button"
+          onClick={() => update(value - 1)}
+          disabled={value <= min}
+          className="h-9 w-9 rounded-lg border border-gray-200 dark:border-white/10 text-lg font-bold disabled:opacity-35"
+          aria-label={`Diminuir ${label}`}
+        >
+          -
+        </button>
+        <input
+          type="number"
+          min={min}
+          value={value}
+          onChange={e => update(Number(e.target.value || min))}
+          className="h-9 w-14 rounded-lg border border-gray-200 dark:border-white/10 bg-transparent text-center text-sm font-bold outline-none"
+          aria-label={label}
+        />
+        <button
+          type="button"
+          onClick={() => update(value + 1)}
+          className="h-9 w-9 rounded-lg bg-slate-700 text-lg font-bold text-white"
+          aria-label={`Aumentar ${label}`}
+        >
+          +
+        </button>
+      </div>
+    </div>
+  );
+};

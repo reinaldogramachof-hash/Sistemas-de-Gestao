@@ -15,7 +15,10 @@ interface TableRow {
   updated_at: string;
 }
 
-export type UpdateTableInput = Partial<Omit<Table, 'number'>>;
+export type UpdateTableInput = Partial<Omit<Table, 'number' | 'activeOrderId' | 'reservationReason'>> & {
+  activeOrderId?: string | null;
+  reservationReason?: string | null;
+};
 
 interface TableUpdatePayload {
   status?: 'livre' | 'ocupada' | 'aguardando' | 'reservada';
@@ -54,8 +57,8 @@ const toTable = (row: TableRow): Table => ({
 const toUpdatePayload = (data: UpdateTableInput): TableUpdatePayload => {
   const payload: TableUpdatePayload = { updated_at: new Date().toISOString() };
   if (data.status !== undefined) payload.status = data.status;
-  if (data.activeOrderId !== undefined) payload.active_order_id = data.activeOrderId;
-  if (data.reservationReason !== undefined) payload.reservation_reason = data.reservationReason;
+  if (Object.prototype.hasOwnProperty.call(data, 'activeOrderId')) payload.active_order_id = data.activeOrderId ?? null;
+  if (Object.prototype.hasOwnProperty.call(data, 'reservationReason')) payload.reservation_reason = data.reservationReason ?? null;
   if (data.sector !== undefined) payload.sector = data.sector;
   return payload;
 };
@@ -107,8 +110,8 @@ export async function setTableOccupied(
 export async function clearTable(tenantId: string, tableNumber: number): Promise<Table> {
   return updateTable(tenantId, tableNumber, {
     status: 'livre',
-    activeOrderId: undefined,
-    reservationReason: undefined,
+    activeOrderId: null,
+    reservationReason: null,
   });
 }
 

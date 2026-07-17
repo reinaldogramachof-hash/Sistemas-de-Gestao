@@ -9,29 +9,21 @@ test.describe('E2E: Fluxo do Garçom (Waiter)', () => {
     await page.goto(`/${TENANT_SLUG}`);
   });
 
-  test('Garçom deve acessar apenas a comanda e ter painel administrativo bloqueado', async ({ page, context }) => {
+  test('Garçom deve acessar apenas a comanda e ter painel administrativo bloqueado', async ({ page }) => {
     // 1. Validar login com usuário waiter
     await page.fill('input[type="email"]', 'garcom@cantinhodaresenha.com.br');
     await page.fill('input[type="password"]', '123456');
     await page.click('button[type="submit"]');
 
-    // Aguarda redirecionamento para o dashboard
-    await page.waitForURL(`**/${TENANT_SLUG}/dashboard`);
-
-    // Como o usuário é waiter, ele deve ver a opção de acessar a Comanda, mas não deve conseguir acessar as configurações administrativas
-    await expect(page.locator('text=Acesso Negado')).not.toBeVisible();
-    
-    // 2. Confirmar acesso apenas à rota da Comanda Mobile
-    await page.click('text=Comanda Mobile');
     await page.waitForURL(`**/${TENANT_SLUG}/comanda`);
-    await expect(page.locator('text=Mesas do Salão')).toBeVisible();
+    await expect(page.locator('text=Selecione a mesa')).toBeVisible();
 
     // 3. Confirmar bloqueio do painel administrativo
     // Tenta acessar diretamente a URL administrativa
     await page.goto(`/${TENANT_SLUG}/settings`);
     // Deve ser redirecionado ou mostrar tela de acesso negado
     const isAccessDenied = await page.locator('text=Acesso Negado').isVisible();
-    const isRedirected = page.url().includes('dashboard');
+    const isRedirected = page.url().includes('/comanda');
     expect(isAccessDenied || isRedirected).toBeTruthy();
   });
 
@@ -52,10 +44,11 @@ test.describe('E2E: Fluxo do Garçom (Waiter)', () => {
     await page.click('text=Hamburguer');
     
     // Envia o pedido
-    await page.click('button:has-text("Enviar Pedido")');
+    await page.click('button:has-text("Revisar")');
+    await page.click('button:has-text("Concluir lançamento")');
 
     // Confirma envio
-    await expect(page.locator('text=Pedido enviado com sucesso')).toBeVisible();
+    await expect(page.locator('text=Lançamento concluído')).toBeVisible();
 
     // Como não temos um segundo browser neste teste para verificar o painel em tempo real, 
     // consideramos o teste de reflexo no painel como um teste de unidade/integração separado 

@@ -104,6 +104,7 @@ export const getComandaAccessUrl = (
   localTestOrigin?: string // Fallback antigo
 ): string => {
   const isLocal = windowOrigin.includes('localhost') || windowOrigin.includes('127.0.0.1');
+  const accessParam = `?access=${waiterAccessMode}`;
 
   let baseOrigin: string = 'https://www.sistemasdegestao.tech';
 
@@ -124,10 +125,10 @@ export const getComandaAccessUrl = (
   // Extrai o slug do pathname (/gestao-gastro/<slug>/...)
   const match = pathname.match(/^\/gestao-gastro\/([^/]+)/);
   if (match) {
-    return `${baseOrigin}/gestao-gastro/${match[1]}/comanda`;
+    return `${baseOrigin}/gestao-gastro/${match[1]}/comanda${accessParam}`;
   }
 
-  return `${baseOrigin}/comanda`;
+  return `${baseOrigin}/comanda${accessParam}`;
 };
 
 export const getComandaQrImageUrl = (accessUrl: string): string => {

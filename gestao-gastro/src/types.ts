@@ -73,6 +73,7 @@ export interface Order {
   customerCount?: number;
   adultCount?: number;
   childrenCount?: number;
+  generalObservation?: string;
   items: OrderItem[];
   subtotal: number;
   serviceCharge: number;

@@ -1615,7 +1615,7 @@
                         <td class="px-6 py-4 text-right">
                             <div class="flex justify-end gap-2">
                                 ${link ? `
-                                <button onclick="copyToClip('${escapeHtml(link)}')" class="p-2 text-slate-400 hover:text-blue-600 transition-colors bg-white rounded-lg hover:bg-slate-100 border border-transparent hover:border-slate-200" title="Copiar link público">
+                                <button onclick="copyToClip('${escapeHtml(link)}', this)" class="p-2 text-slate-400 hover:text-blue-600 transition-colors bg-white rounded-lg hover:bg-slate-100 border border-transparent hover:border-slate-200" title="Copiar link público">
                                     <i data-lucide="copy" class="w-4 h-4"></i>
                                 </button>
                                 ` : ''}
@@ -1625,7 +1625,7 @@
                                 </a>
                                 ` : ''}
                                 ${licenseKey ? `
-                                <button onclick="copyToClip('${escapeHtml(licenseKey)}')" class="p-2 text-slate-400 hover:text-blue-600 transition-colors bg-white rounded-lg hover:bg-slate-100 border border-transparent hover:border-slate-200" title="Copiar chave de licença">
+                                <button onclick="copyToClip('${escapeHtml(licenseKey)}', this)" class="p-2 text-slate-400 hover:text-blue-600 transition-colors bg-white rounded-lg hover:bg-slate-100 border border-transparent hover:border-slate-200" title="Copiar chave de licença">
                                     <i data-lucide="key" class="w-4 h-4"></i>
                                 </button>
                                 ` : ''}
@@ -2350,7 +2350,7 @@
                     </td>
                     <td class="px-6 py-4">
                         <div class="flex gap-2">
-                            <button onclick="copyToClip('${l.key}')" class="p-2 bg-slate-100 text-slate-600 hover:bg-blue-600 hover:text-white rounded-lg transition-all shadow-sm" title="Copiar Chave">
+                            <button onclick="copyToClip('${l.key}', this)" class="p-2 bg-slate-100 text-slate-600 hover:bg-blue-600 hover:text-white rounded-lg transition-all shadow-sm" title="Copiar Chave">
                                 <i data-lucide="copy" class="w-4 h-4"></i>
                             </button>
                             ${showActions && (l.is_trial || l.type === 'trial') && l.status !== 'blocked' ?
@@ -3145,11 +3145,59 @@ Qualquer dúvida, estamos à disposição!`;
             }
         }
 
-        function copyDeliveryMessage() {
+        function fallbackCopyText(text) {
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            textarea.setAttribute('readonly', '');
+            textarea.style.position = 'fixed';
+            textarea.style.left = '-9999px';
+            document.body.appendChild(textarea);
+            textarea.select();
+            textarea.setSelectionRange(0, textarea.value.length);
+            const ok = document.execCommand('copy');
+            document.body.removeChild(textarea);
+            return ok;
+        }
+
+        async function copyTextToClipboard(text) {
+            const value = String(text || '').trim();
+            if (!value) return false;
+            try {
+                if (navigator.clipboard && window.isSecureContext) {
+                    await navigator.clipboard.writeText(value);
+                    return true;
+                }
+            } catch (error) {
+                console.warn('Clipboard API indisponivel, usando fallback.', error);
+            }
+            return fallbackCopyText(value);
+        }
+
+        function showCopyFeedback(button, label = 'Copiado!') {
+            if (!button) return;
+            const originalHTML = button.innerHTML;
+            const originalTitle = button.getAttribute('title') || '';
+            button.innerHTML = `<i data-lucide="check" class="w-4 h-4"></i><span class="sr-only">${label}</span>`;
+            button.setAttribute('title', label);
+            button.classList.add('text-green-600', 'border-green-200', 'bg-green-50');
+            lucide.createIcons();
+            setTimeout(() => {
+                button.innerHTML = originalHTML;
+                button.setAttribute('title', originalTitle);
+                button.classList.remove('text-green-600', 'border-green-200', 'bg-green-50');
+                lucide.createIcons();
+            }, 1600);
+        }
+
+        async function copyDeliveryMessage() {
             const copyText = document.getElementById("delivery-text");
             copyText.select();
             copyText.setSelectionRange(0, 99999);
-            navigator.clipboard.writeText(copyText.value);
+            const copied = await copyTextToClipboard(copyText.value);
+            if (!copied) {
+                alert('Nao foi possivel copiar automaticamente. Selecione o texto e copie manualmente.');
+                return;
+            }
 
             // Visual feedback
             const btn = document.querySelector('#delivery-modal button.bg-blue-600');
@@ -3169,9 +3217,13 @@ Qualquer dúvida, estamos à disposição!`;
             }
         }
 
-        function copyToClip(text) {
-            navigator.clipboard.writeText(text);
-            alert('Copiado!');
+        async function copyToClip(text, button) {
+            const copied = await copyTextToClipboard(text);
+            if (copied) {
+                showCopyFeedback(button || window.event?.currentTarget);
+            } else {
+                alert('Nao foi possivel copiar automaticamente. Tente selecionar e copiar manualmente.');
+            }
         }
 
         // --- SaaS Provisioning Functions ---
@@ -3237,15 +3289,19 @@ Qualquer dúvida, estamos à disposição!`;
             updatePlanPreview();
         }
 
-        function copyProvCredentials() {
+        async function copyProvCredentials() {
             const email = document.getElementById('res-email').innerText;
             const pass = document.getElementById('res-pass').innerText;
             const license = document.getElementById('res-license')?.innerText || '';
             const link = document.getElementById('res-link').href;
 
             const text = `Suas credenciais de acesso:\nLink: ${link}\nEmail: ${email}\nLicença: ${license}\nSenha temporária - troca obrigatória: ${pass}\n\nAltere a senha no primeiro acesso.`;
-            navigator.clipboard.writeText(text);
-            alert('Credenciais copiadas para a área de transferência!');
+            const copied = await copyTextToClipboard(text);
+            if (copied) {
+                showCopyFeedback(window.event?.currentTarget, 'Credenciais copiadas!');
+            } else {
+                alert('Nao foi possivel copiar automaticamente. Tente selecionar e copiar manualmente.');
+            }
         }
 
         async function loadProvisionedSaaSClients() {
@@ -3277,13 +3333,16 @@ Qualquer dúvida, estamos à disposição!`;
                     const slug = client.slug || '';
                     const email = client.email || 'Sem e-mail';
                     const systemName = client.system_name || client.system_slug || 'Sistema';
-                    const planName = client.plan_name || client.plan_code || 'Plano';
+                    const planName = client.plan_name || client.plan_code || 'Sem plano';
                     const license = client.license_key || '';
                     const modulesCount = client.modules_count || 0;
                     const status = client.status || client.license_status || 'active';
-                    const isActive = status === 'active';
+                    const hasActiveLicense = license && status === 'active';
                     const publicLink = client.public_link || '';
-                    const statusClass = isActive ? 'bg-green-100 text-green-700 border-green-200' : 'bg-amber-100 text-amber-700 border-amber-200';
+                    const statusLabel = !license ? 'sem licença' : status;
+                    const statusClass = hasActiveLicense
+                        ? 'bg-green-100 text-green-700 border-green-200'
+                        : (!license ? 'bg-red-100 text-red-700 border-red-200' : 'bg-amber-100 text-amber-700 border-amber-200');
 
                     return `
                         <tr class="hover:bg-slate-50/80 transition-colors">
@@ -3301,13 +3360,13 @@ Qualquer dúvida, estamos à disposição!`;
                             </td>
                             <td class="px-5 py-4 text-center font-bold text-slate-700">${modulesCount}</td>
                             <td class="px-5 py-4 text-center">
-                                <span class="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-black uppercase border ${statusClass}">${escapeHtml(status)}</span>
+                                <span class="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-black uppercase border ${statusClass}">${escapeHtml(statusLabel)}</span>
                             </td>
                             <td class="px-5 py-4">
                                 <div class="flex justify-end gap-2">
                                     ${publicLink ? `<a href="${escapeHtml(publicLink)}" target="_blank" class="p-2 text-slate-400 hover:text-blue-600 bg-white hover:bg-slate-100 border border-slate-200 rounded-lg" title="Abrir sistema"><i data-lucide="external-link" class="w-4 h-4"></i></a>` : ''}
-                                    ${publicLink ? `<button type="button" onclick="copyToClip('${escapeHtml(publicLink)}')" class="p-2 text-slate-400 hover:text-blue-600 bg-white hover:bg-slate-100 border border-slate-200 rounded-lg" title="Copiar link"><i data-lucide="copy" class="w-4 h-4"></i></button>` : ''}
-                                    ${license ? `<button type="button" onclick="copyToClip('${escapeHtml(license)}')" class="p-2 text-slate-400 hover:text-blue-600 bg-white hover:bg-slate-100 border border-slate-200 rounded-lg" title="Copiar licenca"><i data-lucide="key" class="w-4 h-4"></i></button>` : ''}
+                                    ${publicLink ? `<button type="button" onclick="copyToClip('${escapeHtml(publicLink)}', this)" class="p-2 text-slate-400 hover:text-blue-600 bg-white hover:bg-slate-100 border border-slate-200 rounded-lg" title="Copiar link"><i data-lucide="copy" class="w-4 h-4"></i></button>` : ''}
+                                    ${license ? `<button type="button" onclick="copyToClip('${escapeHtml(license)}', this)" class="p-2 text-slate-400 hover:text-blue-600 bg-white hover:bg-slate-100 border border-slate-200 rounded-lg" title="Copiar licenca"><i data-lucide="key" class="w-4 h-4"></i></button>` : ''}
                                 </div>
                             </td>
                         </tr>

@@ -55,13 +55,25 @@ export const Tables: React.FC = () => {
 
   const closedOrders = orders.filter(o => o.status === 'closed');
   const salesToday = closedOrders.reduce((acc, o) => acc + o.total, 0);
-  const occupiedCount = tables.filter(t => t.status === 'ocupada').length;
-  const waitingCount = tables.filter(t => t.status === 'aguardando').length;
-  const reservedCount = tables.filter(t => t.status === 'reservada').length;
 
-  const filteredTables = tables.filter(t => {
+  const computedTables = tables.map(t => {
+    let visualStatus = t.status;
+    if (visualStatus === 'ocupada' && t.activeOrderId) {
+      const activeOrder = orders.find(o => o.id === t.activeOrderId);
+      if (activeOrder && activeOrder.items.some(item => item.kitchenStatus === 'aguardando' || item.kitchenStatus === 'preparo')) {
+        visualStatus = 'aguardando';
+      }
+    }
+    return { ...t, visualStatus };
+  });
+
+  const occupiedCount = computedTables.filter(t => t.visualStatus === 'ocupada').length;
+  const waitingCount = computedTables.filter(t => t.visualStatus === 'aguardando').length;
+  const reservedCount = computedTables.filter(t => t.visualStatus === 'reservada').length;
+
+  const filteredTables = computedTables.filter(t => {
     const matchesSearch = t.number.toString().includes(searchTerm);
-    const matchesFilter = filter === 'todos' || t.status === filter;
+    const matchesFilter = filter === 'todos' || t.visualStatus === filter;
     const matchesSector = sectorFilter === 'todos' || t.sector === sectorFilter;
     return matchesSearch && matchesFilter && matchesSector;
   });
@@ -136,10 +148,10 @@ export const Tables: React.FC = () => {
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6">
         <AnimatePresence mode="popLayout">
           {filteredTables.map(table => {
-            const isLivre = table.status === 'livre';
-            const isOcupada = table.status === 'ocupada';
-            const isAguardando = table.status === 'aguardando';
-            const isReservada = table.status === 'reservada';
+            const isLivre = table.visualStatus === 'livre';
+            const isOcupada = table.visualStatus === 'ocupada';
+            const isAguardando = table.visualStatus === 'aguardando';
+            const isReservada = table.visualStatus === 'reservada';
             const isSelected = selectedForReservation.includes(table.number);
 
             let orderTimestamp = '';
@@ -178,7 +190,7 @@ export const Tables: React.FC = () => {
 
                   {(isOcupada || isAguardando) && orderTimestamp && (
                     <div className="flex flex-col items-center gap-1">
-                      <TableTimer timestamp={orderTimestamp} isDark={isDark} status={table.status} />
+                      <TableTimer timestamp={orderTimestamp} isDark={isDark} status={table.visualStatus} />
                       <span className={`text-[10px] font-bold ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`}>
                         {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(orderSubtotal)}
                       </span>

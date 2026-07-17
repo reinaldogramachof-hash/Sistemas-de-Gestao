@@ -7,6 +7,33 @@ interface GarcomLoginProps {
   onLogin: (waiterId: string, waiterName: string) => void | Promise<void>;
 }
 
+const getFriendlyAuthError = (message?: string) => {
+  const rawMessage = message || '';
+  const normalized = rawMessage.toLowerCase();
+  if (normalized.includes('invalid login credentials')) {
+    return 'E-mail ou senha invalidos. Confira os dados e tente novamente.';
+  }
+  if (normalized.includes('email not confirmed') || normalized.includes('not confirmed')) {
+    return 'Este acesso ainda nao foi confirmado. Peca para a administradora redefinir a senha.';
+  }
+  if (normalized.includes('network') || normalized.includes('failed to fetch')) {
+    return 'Nao foi possivel conectar. Verifique a internet ou a rede Wi-Fi.';
+  }
+  if (normalized.includes('acesso negado')) {
+    return 'Seu usuario nao esta liberado como garcom ativo neste restaurante.';
+  }
+  if (normalized.includes('usuario nao esta ativo') || normalized.includes('garcom ativo')) {
+    return 'Seu usuario nao esta liberado como garcom ativo neste restaurante.';
+  }
+  if (normalized.includes('permissao') || normalized.includes('exclusiva para garcons')) {
+    return rawMessage;
+  }
+  if (normalized.includes('api_admin_users.php') || normalized.includes('tenant id') || normalized.includes('resposta invalida')) {
+    return rawMessage;
+  }
+  return rawMessage || 'Nao foi possivel autenticar este acesso. Confira os dados e tente novamente.';
+};
+
 export const GarcomLogin: React.FC<GarcomLoginProps> = ({ onLogin }) => {
   const [email, setEmail] = React.useState('');
   const [password, setPassword] = React.useState('');
@@ -47,7 +74,7 @@ export const GarcomLogin: React.FC<GarcomLoginProps> = ({ onLogin }) => {
           await onLogin(data.user.id, name);
         }
       } catch (err: any) {
-        setError(err.message || 'Não foi possível autenticar este acesso.');
+        setError(getFriendlyAuthError(err.message));
         setLoading(false);
       }
       return;

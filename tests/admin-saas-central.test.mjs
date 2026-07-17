@@ -55,7 +55,8 @@ test('provisioning backend validates catalog and avoids user_metadata authorizat
   assert.match(source, /hash_equals/);
   assert.match(source, /random_int/);
   assert.match(source, /'app_metadata' =>/);
-  assert.doesNotMatch(source, /'user_metadata' =>/);
+  assert.match(source, /'user_metadata' => \$existingUserMetadata/);
+  assert.doesNotMatch(source, /'user_metadata'\s*=>\s*\[[\s\S]*?'role'/);
   assert.match(source, /p_modules/);
   assert.match(source, /p_license_type/);
 });
@@ -130,6 +131,26 @@ test('admin license generation captures system segment modules and tenant contex
   assert.match(php, /'max_devices' => \$maxDevices/);
   assert.match(php, /'tenant_slug' => \$tenantSlug/);
   assert.match(php, /'operation_mode' => \$operationMode/);
+});
+
+test('SaaS licenses persist and verify device binding in Supabase', () => {
+  const php = read('api_licenca_ml.php');
+  const activationGate = read('gestao-gastro/src/components/ActivationGate.tsx');
+
+  assert.match(php, /device_id,activated_at,last_verified_at/);
+  assert.match(php, /function registerSaasLicenseDevice/);
+  assert.match(php, /function touchSaasLicenseVerification/);
+  assert.match(php, /function resetSaasLicenseDevice/);
+  assert.match(php, /supabaseLicenseRequest\('PATCH', '\/rest\/v1\/licenses\?license_key=eq\.'/);
+  assert.match(php, /'device_id' => \$device/);
+  assert.match(php, /'last_verified_at' => \$now/);
+  assert.match(php, /Licenca ja usada em outro aparelho/);
+  assert.match(php, /\$deviceRegistration = registerSaasLicenseDevice\(\$saasLicense, \$device\)/);
+  assert.match(php, /\$verification = touchSaasLicenseVerification\(\$saasLicense, \$device\)/);
+
+  assert.match(activationGate, /getOrCreateDeviceId\(tenantSlug, resolvedTenant\)/);
+  assert.match(activationGate, /gestao_gastro_device_id:/);
+  assert.match(activationGate, /device_id: deviceId/);
 });
 
 test('README and roadmap point to the official commercial policy', () => {
@@ -217,6 +238,27 @@ test('provisioning backend separates public URL, preflights slug, and times out 
   assert.ok(linkPosition > -1);
   assert.doesNotMatch(source.slice(linkPosition, linkPosition + 180), /ALLOWED_ORIGIN_ENV/);
   assert.match(source.slice(linkPosition, linkPosition + 180), /PUBLIC_BASE_URL/);
+});
+
+test('SaaS provisioning can recover an orphan tenant without masking it as active', () => {
+  const php = read('api_provisioning.php');
+  const html = read('admin/index.html');
+
+  assert.match(php, /function recoverExistingTenantProvisioning/);
+  assert.match(php, /function cleanupOrphanTenantForProvisioning/);
+  assert.match(php, /function tenantHasActiveLicense/);
+  assert.match(php, /function findAuthUserByEmail/);
+  assert.match(php, /admin\/users\?page=1&per_page=1000/);
+  assert.match(php, /function authUserCanBeReusedForTenant/);
+  assert.match(php, /tenant_members\?tenant_id=eq\./);
+  assert.match(php, /supabase_request\('PUT', '\/auth\/v1\/admin\/users\/'/);
+  assert.match(php, /supabase_request\('DELETE', '\/auth\/v1\/admin\/users\/'/);
+  assert.match(php, /'status' => \$operationalStatus/);
+  assert.match(php, /'tenant_status' => \$tenant\['status'\]/);
+  assert.match(php, /sem_licenca/);
+  assert.match(php, /Cliente recuperado e provisionado com sucesso/);
+  assert.match(html, /statusLabel = !license \? 'sem licença' : status/);
+  assert.match(html, /bg-red-100 text-red-700 border-red-200/);
 });
 
 test('provisioning migration records trial expiration in licenses', () => {

@@ -11,7 +11,7 @@ test('frontend .env.example is documented correctly without inline comments on a
   const envExample = read('gestao-gastro/.env.example');
   assert.match(envExample, /VITE_SUPABASE_URL=/);
   assert.match(envExample, /VITE_SUPABASE_ANON_KEY=\n/);
-  assert.match(envExample, /VITE_GASTRO_TENANT_ID=cd8f21f4-73a1-4c87-a385-9b6deacaeae7/);
+  assert.match(envExample, /VITE_GASTRO_TENANT_ID=\n/);
 });
 
 test('readiness document exists and contains real supabase state without generic table names', () => {
@@ -35,10 +35,13 @@ test('htaccess contains SPA fallback', () => {
   assert.match(htaccess, /RewriteRule \. index\.html \[L\]/);
 });
 
-test('client routes maintains slug and tenant', () => {
+test('client routes maintains slug with active tenant and legacy cleanup', () => {
   const clientRoutes = read('gestao-gastro/src/config/clientRoutes.ts');
   assert.match(clientRoutes, /cantinhodaresenha/);
-  assert.match(clientRoutes, /cd8f21f4-73a1-4c87-a385-9b6deacaeae7/);
+  assert.match(clientRoutes, /cantinho-da-resenha/);
+  assert.match(clientRoutes, /4c628b1b-a1ce-498e-b302-0344a81de4cb/);
+  assert.match(clientRoutes, /RETIRED_TENANT_IDS/);
+  assert.match(clientRoutes, /getStoredTenantIdForSlug/);
 });
 
 test('no service_role key leaks in frontend code', () => {

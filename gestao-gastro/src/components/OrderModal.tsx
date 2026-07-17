@@ -43,6 +43,10 @@ export const OrderModal: React.FC<OrderModalProps> = ({ tableNumber, mode, onClo
   const [category, setCategory] = useState('Todos');
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [showFeedback, setShowFeedback] = useState(false);
+  const activeOrderHasConsumption = Boolean(
+    activeOrder &&
+    (activeOrder.items.length > 0 || activeOrder.subtotal > 0 || activeOrder.total > 0),
+  );
 
   const triggerFeedback = () => {
     setShowFeedback(true);
@@ -79,6 +83,17 @@ export const OrderModal: React.FC<OrderModalProps> = ({ tableNumber, mode, onClo
       timestamp: new Date().toISOString(),
     };
     try {
+      if (isSupabaseConfigured && mode === 'mesa' && tableNumber) {
+        const { listTables } = await import('../services/tablesSupabaseService');
+        const freshTables = await listTables(import.meta.env.VITE_GASTRO_TENANT_ID as string || 'default-empresa');
+        const currentTable = freshTables.find(t => t.number === tableNumber);
+        if (currentTable && currentTable.activeOrderId) {
+          alert('Esta mesa acabou de ser aberta por outro dispositivo. A tela será atualizada.');
+          onClose();
+          return;
+        }
+      }
+
       const created = await addOrder(newOrder);
       setActiveOrder(created);
       setIsOpening(false);
@@ -100,6 +115,13 @@ export const OrderModal: React.FC<OrderModalProps> = ({ tableNumber, mode, onClo
       updateOrder(updated);
       triggerFeedback();
     }
+  };
+
+  const handleReleaseEmptyTable = () => {
+    if (!tableNumber || activeOrderHasConsumption) return;
+    clearTable(tableNumber);
+    setActiveOrder(null);
+    onClose();
   };
 
   const addItemToOrder = (product: Product) => {
@@ -206,15 +228,9 @@ export const OrderModal: React.FC<OrderModalProps> = ({ tableNumber, mode, onClo
                         <div><h4 className="text-xs font-bold uppercase tracking-wider mb-6 opacity-40 flex items-center gap-3"><Users className="w-5 h-5" /> Pessoas na Mesa</h4><div className="grid grid-cols-2 gap-6"><CountInput label="Adultos" value={adultCount} onChange={(v:number) => { setAdultCount(v); handleUpdateCounts(v, childrenCount); }} isDark={isDark} min={1} /><CountInput label="Crianças" value={childrenCount} onChange={(v:number) => { setChildrenCount(v); handleUpdateCounts(adultCount, v); }} isDark={isDark} min={0} /></div></div>
                         <div>
                           <h4 className="text-xs font-bold uppercase tracking-wider mb-6 flex items-center gap-3 text-[#475569]"><MoveRight className="w-5 h-5" /> Transferir Mesa</h4>
-                          {isSupabaseConfigured ? (
-                            <div className="p-4 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-500 text-xs font-semibold">
-                              Transferência de mesas na versão em nuvem estará disponível na próxima atualização.
-                            </div>
-                          ) : (
-                            <div className="grid grid-cols-6 gap-3">
-                              {tables.filter(t => t.status === 'livre' && t.number !== tableNumber).map(t => (<button key={t.number} onClick={() => { transferTable(tableNumber!, t.number); onClose(); }} className={`aspect-square rounded-lg border flex items-center justify-center text-sm font-bold transition-all hover:bg-[#475569] hover:text-white hover:border-[#475569] ${isDark ? 'bg-[#121214] border-[#2C2C2E]' : 'bg-gray-50 border-gray-100'}`}>{t.number}</button>))}
-                            </div>
-                          )}
+                          <div className="grid grid-cols-6 gap-3">
+                            {tables.filter(t => t.status === 'livre' && t.number !== tableNumber).map(t => (<button key={t.number} onClick={() => { transferTable(tableNumber!, t.number); onClose(); }} className={`aspect-square rounded-lg border flex items-center justify-center text-sm font-bold transition-all hover:bg-[#475569] hover:text-white hover:border-[#475569] ${isDark ? 'bg-[#121214] border-[#2C2C2E]' : 'bg-gray-50 border-gray-100'}`}>{t.number}</button>))}
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -322,6 +338,15 @@ export const OrderModal: React.FC<OrderModalProps> = ({ tableNumber, mode, onClo
                         <button onClick={onClose} className={`min-h-[64px] px-4 py-4 rounded-lg font-bold uppercase tracking-wide text-[11px] border transition-all ${isDark ? 'bg-transparent border-white/10 text-white hover:bg-white/5' : 'bg-transparent border-[#475569]/20 text-[#475569] hover:bg-[#475569]/5'}`}>Concluir Lançamento</button>
                         <button disabled={activeOrder.items.length === 0} onClick={() => setCheckoutOpen(true)} className="min-h-[64px] px-4 py-4 bg-[#475569] text-white rounded-lg font-bold uppercase tracking-wide text-[11px] shadow-sm disabled:opacity-30 disabled:scale-100 disabled:shadow-none transition-all">Pagar Conta</button>
                       </div>
+                      {!activeOrderHasConsumption && mode === 'mesa' && (
+                        <button
+                          type="button"
+                          onClick={handleReleaseEmptyTable}
+                          className="w-full min-h-[52px] px-4 py-3 rounded-lg border border-emerald-500/30 text-emerald-500 font-bold uppercase tracking-wide text-[11px] hover:bg-emerald-500/10 transition-all"
+                        >
+                          Liberar mesa sem consumo
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>

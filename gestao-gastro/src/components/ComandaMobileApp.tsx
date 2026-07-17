@@ -16,6 +16,16 @@ interface WaiterSession {
   waiterName: string;
 }
 
+interface MemberAccessResponse {
+  status: 'success' | 'error';
+  message?: string;
+  member?: {
+    role?: string;
+    active?: boolean;
+    display_name?: string;
+  };
+}
+
 const loadSession = (): WaiterSession | null => {
   try {
     const raw = sessionStorage.getItem(SESSION_KEY);
@@ -50,6 +60,7 @@ export const ComandaMobileApp: React.FC = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [lastAccessError, setLastAccessError] = useState('');
 
   React.useEffect(() => {
     const initAuth = async () => {
@@ -61,10 +72,15 @@ export const ComandaMobileApp: React.FC = () => {
         try {
           const tenantKey = `gestao_gastro:${tenant}:settings`;
           const savedSettings = localStorage.getItem(tenantKey);
-          let accessMode = 'local';
+          const accessModeFromUrl = new URLSearchParams(window.location.search).get('access');
+          let accessMode = accessModeFromUrl === 'external' || accessModeFromUrl === 'local'
+            ? accessModeFromUrl
+            : 'local';
           if (savedSettings) {
             const parsedSettings = JSON.parse(savedSettings);
-            accessMode = parsedSettings.waiterAccessMode || 'local';
+            accessMode = accessModeFromUrl === 'external' || accessModeFromUrl === 'local'
+              ? accessMode
+              : parsedSettings.waiterAccessMode || 'local';
           }
           const isLocalOrigin = window.location.origin.includes('localhost') ||
                                 window.location.origin.includes('127.0.0.1') ||
@@ -89,7 +105,13 @@ export const ComandaMobileApp: React.FC = () => {
 
         const { data } = await supabase.auth.getSession();
         if (data.session?.user) {
-          await verifyAccessAndSetSession(data.session.user.id, data.session.user.email || '', tenant);
+          try {
+            await verifyAccessAndSetSession(data.session.user.id, data.session.user.email || '', tenant);
+          } catch (err) {
+            clearSession();
+            setSession(null);
+            setError(err instanceof Error ? err.message : 'Acesso negado na comanda.');
+          }
         } else {
           clearSession();
           setSession(null);
@@ -153,31 +175,56 @@ export const ComandaMobileApp: React.FC = () => {
     overrideTenant?: string,
   ): Promise<boolean> => {
     let verifiedDisplayName = '';
+    setLastAccessError('');
 
     if (isSupabaseConfigured) {
       const tenant = overrideTenant || resolvedTenantId || resolveTenant(window.location.pathname);
       if (!tenant) {
-        setError('Restaurante não configurado ou rota inválida.');
-        return false;
+        const message = 'Restaurante não configurado ou rota inválida.';
+        setError(message);
+        throw new Error(message);
       }
 
-      const { data: member, error: memberError } = await supabase
-        .from('tenant_members')
-        .select('role, active, display_name')
-        .eq('tenant_id', tenant)
-        .eq('user_id', userId)
-        .single();
-
-      if (memberError || !member || !member.active) {
-        setError('Acesso negado. Usuário não é membro ativo deste restaurante.');
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        const message = 'Sessao expirada. Entre novamente na comanda.';
+        setError(message);
         await supabase.auth.signOut();
-        return false;
+        throw new Error(message);
+      }
+
+      const response = await fetch('/api_admin_users.php', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          action: 'validate_member_access',
+          tenant_id: tenant,
+          required_role: 'waiter',
+        }),
+      });
+      const data: MemberAccessResponse = await response.json().catch(() => ({
+        status: 'error',
+        message: 'Resposta invalida da API de usuarios. Verifique se o api_admin_users.php foi atualizado no servidor.',
+      }));
+      const member = data.member;
+
+      if (!response.ok || data.status !== 'success' || !member?.active) {
+        const message = data.message || 'Usuario nao esta ativo neste restaurante.';
+        setLastAccessError(message);
+        setError(message);
+        await supabase.auth.signOut();
+        throw new Error(message);
       }
 
       if (member.role !== 'waiter') {
-        setError('Acesso negado. Esta área é exclusiva para garçons.');
+        const message = 'Esta area e exclusiva para garcons.';
+        setLastAccessError(message);
+        setError(message);
         await supabase.auth.signOut();
-        return false;
+        throw new Error(message);
       }
 
       sessionStorage.setItem(USER_ROLE_KEY, member.role);
@@ -201,7 +248,7 @@ export const ComandaMobileApp: React.FC = () => {
   const handleLogin = async (waiterId: string, waiterName: string) => {
     const authorized = await verifyAccessAndSetSession(waiterId, waiterName);
     if (!authorized) {
-      throw new Error('Acesso negado. Verifique se seu usuário é garçom ativo deste restaurante.');
+      throw new Error(lastAccessError || 'Acesso negado. Verifique se seu usuario e garcom ativo deste restaurante.');
     }
   };
 

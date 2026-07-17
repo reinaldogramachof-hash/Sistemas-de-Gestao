@@ -70,6 +70,10 @@ describe('Garçom Permissions — gestao-gastro', () => {
       content.includes('offlineQueue'),
       'ComandaMobile deve gerenciar offlineQueue',
     );
+    assert.ok(
+      content.includes('getOfflineQueueKey') && content.includes('waiterSession.waiterId'),
+      'fila offline deve ser isolada por tenant e garcom',
+    );
   });
 
   test('ComandaMobile NÃO deve referenciar módulos administrativos (dashboard, estoque, caixa)', () => {
@@ -107,13 +111,17 @@ describe('Garçom Permissions — gestao-gastro', () => {
     );
   });
 
-  test('clientRoutes deve mapear cantinhodaresenha para o tenant correto e priorizar slug', () => {
+  test('clientRoutes deve mapear Cantinho para tenant ativo e limpar tenant legado', () => {
     const content = readSrc('config/clientRoutes.ts');
     assert.ok(content.includes('cantinhodaresenha'), 'clientRoutes deve conter o slug publico do cliente');
     assert.ok(content.includes('cantinho-da-resenha'), 'clientRoutes deve aceitar o slug gerado pelo painel admin');
     assert.ok(
-      content.includes('cd8f21f4-73a1-4c87-a385-9b6deacaeae7'),
-      'clientRoutes deve conter o tenant UUID do Cantinho',
+      content.includes('4c628b1b-a1ce-498e-b302-0344a81de4cb'),
+      'clientRoutes deve resolver o Cantinho para o tenant SaaS ativo',
+    );
+    assert.ok(
+      content.includes('RETIRED_TENANT_IDS') && content.includes('removeItem'),
+      'clientRoutes deve descartar tenant antigo salvo no navegador',
     );
     assert.ok(
       content.includes('getClientRouteFromPath'),
@@ -156,10 +164,11 @@ describe('Garçom Permissions — gestao-gastro', () => {
 
   test('ComandaMobileApp deve liberar somente garcom ativo para acesso externo', () => {
     const content = readSrc('components/ComandaMobileApp.tsx');
+    const api = readFileSync(join(process.cwd(), 'api_admin_users.php'), 'utf-8');
 
     assert.ok(
-      content.includes("member.role !== 'waiter'"),
-      'rota externa deve bloquear usuarios que nao possuem papel waiter',
+      content.includes("action: 'validate_member_access'") && content.includes("required_role: 'waiter'"),
+      'rota externa deve validar permissao por endpoint protegido em vez de depender de leitura direta por RLS',
     );
     assert.ok(
       content.includes('display_name'),
@@ -168,6 +177,10 @@ describe('Garçom Permissions — gestao-gastro', () => {
     assert.ok(
       content.includes('Promise<boolean>') && content.includes('throw new Error'),
       'falha de permissao deve voltar para o login sem deixar spinner travado',
+    );
+    assert.ok(
+      api.includes("if ($action === 'validate_member_access')") && api.includes('get_member_role($adminUserId, $tenantId)'),
+      'api_admin_users deve validar o proprio membro autenticado pelo JWT antes de liberar a comanda',
     );
   });
 
@@ -216,6 +229,23 @@ describe('Garçom Permissions — gestao-gastro', () => {
       content.includes('waiterName'),
       'ComandaMobile deve incluir waiterName no pedido',
     );
+  });
+
+  test('ComandaMobile deve persistir observacao geral e prevenir duplo envio', () => {
+    const content = readSrc('components/ComandaMobile.tsx');
+    const confirmacao = readSrc('components/ComandaConfirmacao.tsx');
+    const ordersService = readSrc('services/ordersSupabaseService.ts');
+    const migration = readFileSync(join(process.cwd(), 'gestao-gastro', 'supabase', 'migrations', '20260717_restaurant_orders_general_observation.sql'), 'utf-8');
+
+    assert.ok(content.includes('generalObservation'), 'fluxo do garcom deve carregar observacao geral');
+    assert.ok(content.includes('isSubmitting'), 'confirmacao deve bloquear duplo envio');
+    assert.ok(content.includes('updateOrderMeta'), 'observacao geral deve ser atualizada ao adicionar itens em comanda existente');
+    assert.ok(content.includes('customerName') && content.includes('adultCount') && content.includes('childrenCount'), 'fluxo do garcom deve coletar cliente, adultos e criancas');
+    assert.ok(content.includes('customerCount: adultCount + childrenCount'), 'pedido do garcom deve gravar total de pessoas');
+    assert.ok(confirmacao.includes('Nome do cliente') && confirmacao.includes('Adultos') && confirmacao.includes('Criancas'), 'confirmacao deve exibir dados do cliente e pessoas');
+    assert.ok(ordersService.includes('customer_name') && ordersService.includes('adult_count') && ordersService.includes('children_count'), 'servico de pedidos deve mapear cliente e contagem de pessoas');
+    assert.ok(ordersService.includes('general_observation'), 'servico de pedidos deve mapear coluna general_observation');
+    assert.ok(migration.includes('ADD COLUMN IF NOT EXISTS general_observation'), 'schema deve adicionar coluna de observacao geral');
   });
 
   test('ComandaMobile deve somar itens em mesa ocupada sem criar pedido duplicado', () => {
@@ -296,6 +326,28 @@ describe('Garçom Permissions — gestao-gastro', () => {
       !content.includes('Pedido ativo da mesa nao encontrado'),
       'garcom nao deve ser bloqueado por activeOrderId antigo de mesa livre',
     );
+  });
+
+  test('ComandaMobile deve permitir liberar mesa orfa e transferir comanda para mesa livre', () => {
+    const content = readSrc('components/ComandaMobile.tsx');
+    const resumo = readSrc('components/ComandaMesaResumo.tsx');
+    const orderModal = readSrc('components/OrderModal.tsx');
+    const tableService = readSrc('services/tablesSupabaseService.ts');
+    const orderService = readSrc('services/ordersSupabaseService.ts');
+
+    assert.ok(content.includes('handleReleaseSelectedTable') && content.includes('clearTable(tenantId, selectedTable.number)'), 'garcom deve conseguir liberar mesa sem comanda aberta');
+    assert.ok(content.includes('const [freshTables, freshOrders] = await Promise.all'), 'liberacao e transferencia devem revalidar mesas e pedidos antes de agir');
+    assert.ok(content.includes('deleteOrder(tenantId, activeOrder.id)'), 'comanda vazia deve ser removida ao liberar mesa sem consumo');
+    assert.ok(content.includes('Esta mesa possui consumo lancado'), 'mesa com consumo lancado nao deve ser liberada pelo garcom');
+    assert.ok(content.includes('handleTransferSelectedTable') && content.includes('updateTable(tenantId, targetTableNumber'), 'garcom deve conseguir transferir comanda para mesa livre');
+    assert.ok(content.includes("targetTable.status !== 'livre'") && content.includes('targetTable.activeOrderId'), 'transferencia deve revalidar que a mesa destino segue livre');
+    assert.ok(content.includes('updateOrderMeta(tenantId, activeOrder.id, { tableNumber: targetTableNumber })'), 'transferencia deve atualizar tableNumber do pedido');
+    assert.ok(resumo.includes('Liberar mesa') && resumo.includes('Trocar de mesa'), 'resumo da mesa deve exibir acoes operacionais esperadas');
+    assert.ok(resumo.includes('Nome do cliente') && resumo.includes('onUpdateCustomerName'), 'resumo mobile deve permitir nomear cliente antes de lancar itens');
+    assert.ok(orderModal.includes('Liberar mesa sem consumo') && orderModal.includes('activeOrderHasConsumption'), 'desktop deve liberar mesa vazia sem expor risco para mesa com consumo');
+    assert.ok(tableService.includes('activeOrderId?: string | null') && tableService.includes('active_order_id = data.activeOrderId ?? null'), 'clearTable deve conseguir gravar null em active_order_id');
+    assert.ok(orderService.includes('payload.table_number = data.tableNumber'), 'orders service deve permitir atualizar table_number na troca de mesa');
+    assert.ok(orderService.includes('export async function deleteOrder'), 'orders service deve permitir remover comanda vazia ao liberar mesa sem consumo');
   });
 
   test('Confirmacao da comanda nao deve citar cozinha no plano base', () => {

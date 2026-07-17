@@ -4,7 +4,7 @@ import {
   Settings as SettingsIcon, Store, Printer, Database, Save,
   Download, Upload, RefreshCw, Check, AlertTriangle, ShieldCheck,
   Globe, Phone, MapPin, FileText, Layout, QrCode, Copy,
-  ExternalLink, Users, KeyRound, Smartphone, UserCheck, UserPlus, X as XIcon, Lock, Loader2, Table2, Image as ImageIcon
+  ExternalLink, Users, KeyRound, Smartphone, UserCheck, UserPlus, X as XIcon, Lock, Loader2, Table2, Image as ImageIcon, Pencil
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { AppSettings, Collaborator } from '../types';
@@ -12,6 +12,8 @@ import { getComandaAccessUrl, getComandaQrImageUrl, validateLanOrigin } from '..
 import { supabase } from '../lib/supabase';
 import { HelpTooltip } from './HelpTooltip';
 import { useModules } from '../hooks/useModules';
+
+type EditableMemberRole = 'waiter' | 'cashier' | 'admin';
 
 export const Settings: React.FC = () => {
   const { settings, updateSettings, exportData, importData, resetToMocks, theme, collaborators, tables, currentEmpresa, supabaseOnline, reloadCollaborators, initializeTables, currentUser } = useApp();
@@ -27,9 +29,21 @@ export const Settings: React.FC = () => {
   const [newUserName, setNewUserName] = useState('');
   const [newUserEmail, setNewUserEmail] = useState('');
   const [newUserPassword, setNewUserPassword] = useState('');
-  const [newUserRole, setNewUserRole] = useState<'waiter' | 'cashier' | 'admin'>('waiter');
+  const [newUserRole, setNewUserRole] = useState<EditableMemberRole>('waiter');
   const [newMemberError, setNewMemberError] = useState('');
   const [newMemberLoading, setNewMemberLoading] = useState(false);
+  const [editingMember, setEditingMember] = useState<Collaborator | null>(null);
+  const [editMemberName, setEditMemberName] = useState('');
+  const [editMemberRole, setEditMemberRole] = useState<EditableMemberRole>('waiter');
+  const [editMemberActive, setEditMemberActive] = useState(true);
+  const [editMemberPassword, setEditMemberPassword] = useState('');
+  const [editMemberError, setEditMemberError] = useState('');
+  const [editMemberLoading, setEditMemberLoading] = useState(false);
+  const [adminProfileName, setAdminProfileName] = useState(currentUser.name || '');
+  const [adminProfileEmail, setAdminProfileEmail] = useState('');
+  const [adminProfilePhone, setAdminProfilePhone] = useState('');
+  const [adminProfileMessage, setAdminProfileMessage] = useState<{ type: 'error' | 'ok'; text: string } | null>(null);
+  const [adminProfileLoading, setAdminProfileLoading] = useState(false);
 
   const [initTablesCount, setInitTablesCount] = useState<number>(12);
   const [isInitializingTables, setIsInitializingTables] = useState<boolean>(false);
@@ -54,6 +68,59 @@ export const Settings: React.FC = () => {
       setInitTablesCount(tables.length);
     }
   }, [tables.length]);
+
+  React.useEffect(() => {
+    let isActive = true;
+    const loadAdminProfile = async () => {
+      if (!supabaseOnline || !supabase) {
+        setAdminProfileName(currentUser.name || '');
+        return;
+      }
+
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!isActive || !session?.user) return;
+
+      setAdminProfileEmail(session.user.email || '');
+      setAdminProfileName(
+        localStorage.getItem('gestao_gastro_user_name') ||
+        session.user.user_metadata?.display_name ||
+        currentUser.name ||
+        ''
+      );
+      setAdminProfilePhone(session.user.user_metadata?.phone || '');
+    };
+
+    void loadAdminProfile();
+    return () => {
+      isActive = false;
+    };
+  }, [currentUser.name, supabaseOnline]);
+
+  const getEditableRoleFromMember = (member: Collaborator): EditableMemberRole => {
+    const normalizedRole = `${member.role || ''} ${member.permissions || ''}`.toLowerCase();
+    if (normalizedRole.includes('admin') || normalizedRole.includes('propriet')) return 'admin';
+    if (normalizedRole.includes('caixa') || normalizedRole.includes('cashier') || normalizedRole.includes('atendente') || member.permissions === 'staff') return 'cashier';
+    return 'waiter';
+  };
+
+  const openEditMemberModal = (member: Collaborator) => {
+    setEditingMember(member);
+    setEditMemberName(member.name || '');
+    setEditMemberRole(getEditableRoleFromMember(member));
+    setEditMemberActive(member.status === 'active');
+    setEditMemberPassword('');
+    setEditMemberError('');
+  };
+
+  const closeEditMemberModal = (force = false) => {
+    if (editMemberLoading && !force) return;
+    setEditingMember(null);
+    setEditMemberName('');
+    setEditMemberRole('waiter');
+    setEditMemberActive(true);
+    setEditMemberPassword('');
+    setEditMemberError('');
+  };
 
   const handleToggleStatus = async (collabId: string, currentStatus: string) => {
     if (!supabaseOnline || !currentEmpresa.tenantId) {
@@ -92,6 +159,70 @@ export const Settings: React.FC = () => {
       }
     } catch (err) {
       alert('Erro de conexão ao servidor.');
+    }
+  };
+
+  const handleUpdateMember = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setEditMemberError('');
+
+    if (!editingMember) return;
+
+    const trimmedName = editMemberName.trim();
+    const trimmedPassword = editMemberPassword.trim();
+
+    if (!trimmedName) {
+      setEditMemberError('Informe o nome do colaborador.');
+      return;
+    }
+
+    if (trimmedPassword && trimmedPassword.length < 6) {
+      setEditMemberError('A nova senha deve ter pelo menos 6 caracteres.');
+      return;
+    }
+
+    if (!supabaseOnline || !currentEmpresa.tenantId || !supabase) {
+      setEditMemberError('Operacao remota indisponivel no momento.');
+      return;
+    }
+
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      setEditMemberError('Sessao expirada. Faca login novamente.');
+      return;
+    }
+
+    setEditMemberLoading(true);
+
+    try {
+      const response = await fetch('/api_admin_users.php', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({
+          action: 'update_member',
+          tenant_id: currentEmpresa.tenantId,
+          user_id: editingMember.id,
+          name: trimmedName,
+          role: editMemberRole,
+          active: editMemberActive,
+          password: trimmedPassword || undefined
+        })
+      });
+
+      const data = await response.json();
+      if (response.ok && data.status === 'success') {
+        closeEditMemberModal(true);
+        await reloadCollaborators();
+      } else {
+        setEditMemberError(data.message || 'Erro ao atualizar colaborador.');
+      }
+    } catch (err) {
+      setEditMemberError('Erro ao comunicar com o servidor.');
+    } finally {
+      setEditMemberLoading(false);
     }
   };
 
@@ -153,6 +284,56 @@ export const Settings: React.FC = () => {
     }
   };
 
+  const handleUpdateAdminProfile = async () => {
+    setAdminProfileMessage(null);
+
+    if (!adminProfileName.trim()) {
+      setAdminProfileMessage({ type: 'error', text: 'Informe o nome do administrador.' });
+      return;
+    }
+
+    if (!supabaseOnline || !currentEmpresa.tenantId || !supabase) {
+      setAdminProfileMessage({ type: 'error', text: 'Operacao remota indisponivel no momento.' });
+      return;
+    }
+
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      setAdminProfileMessage({ type: 'error', text: 'Sessao expirada. Faca login novamente.' });
+      return;
+    }
+
+    setAdminProfileLoading(true);
+    try {
+      const response = await fetch('/api_admin_users.php', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({
+          action: 'update_my_profile',
+          tenant_id: currentEmpresa.tenantId,
+          name: adminProfileName.trim(),
+          phone: adminProfilePhone.trim()
+        })
+      });
+
+      const data = await response.json();
+      if (response.ok && data.status === 'success') {
+        localStorage.setItem('gestao_gastro_user_name', adminProfileName.trim());
+        setAdminProfileMessage({ type: 'ok', text: 'Dados do administrador atualizados.' });
+        await reloadCollaborators();
+      } else {
+        setAdminProfileMessage({ type: 'error', text: data.message || 'Erro ao atualizar administrador.' });
+      }
+    } catch {
+      setAdminProfileMessage({ type: 'error', text: 'Erro de conexao ao servidor.' });
+    } finally {
+      setAdminProfileLoading(false);
+    }
+  };
+
   const handleInitializeTables = async () => {
     const userRole = currentUser.role ? currentUser.role.toLowerCase() : '';
     if (userRole !== 'owner' && userRole !== 'admin' && userRole !== 'proprietário' && userRole !== 'administrador') {
@@ -183,16 +364,82 @@ export const Settings: React.FC = () => {
     }
   };
 
-  const handleSave = () => {
+  const persistSettings = (nextSettings: AppSettings) => {
     setIsSaving(true);
     updateSettings({
-      ...formData,
+      ...nextSettings,
       metadata: {
         updatedAt: new Date().toISOString(),
         source: 'settings-panel'
       }
     });
     setTimeout(() => setIsSaving(false), 800);
+  };
+
+  const handleSave = () => {
+    persistSettings(formData);
+  };
+
+  const handleWaiterAccessModeChange = (mode: 'local' | 'external') => {
+    const updated = mode === 'external'
+      ? { ...formData, waiterAccessMode: mode }
+      : { ...formData, waiterAccessMode: mode };
+    setFormData(updated);
+    persistSettings(updated);
+    setLanValidationMsg(
+      mode === 'external'
+        ? { type: 'warn', text: 'Acesso externo salvo. O QR Code abrira a comanda pela internet para garcons autenticados.' }
+        : null
+    );
+  };
+
+  const handleLanOriginInput = (value: string) => {
+    const updated = { ...formData, waiterAccessMode: 'local' as const, waiterLocalOrigin: value, localTestOrigin: '' };
+    setFormData(updated);
+
+    if (!value.trim()) {
+      setLanValidationMsg(null);
+      return;
+    }
+
+    const result = validateLanOrigin(value);
+    setLanValidationMsg({
+      type: result.valid ? 'ok' : 'error',
+      text: result.message || (result.valid ? 'Endereco de rede local valido.' : 'Endereco de rede local invalido.')
+    });
+  };
+
+  const handleLanOriginBlur = () => {
+    const result = validateLanOrigin(formData.waiterLocalOrigin || formData.localTestOrigin || '');
+    if (!result.valid || !result.origin) return;
+
+    const updated = { ...formData, waiterAccessMode: 'local' as const, waiterLocalOrigin: result.origin, localTestOrigin: '' };
+    setFormData(updated);
+    persistSettings(updated);
+    setLanValidationMsg({ type: 'ok', text: result.message || 'Endereco de rede local salvo.' });
+  };
+
+  const handleUseCurrentLanOrigin = () => {
+    const hostname = window.location.hostname;
+    const isLoopbackOrigin = hostname === 'localhost' || hostname.startsWith('127.');
+    const result = validateLanOrigin(window.location.origin);
+
+    if (result.valid && result.origin) {
+      const updated = { ...formData, waiterAccessMode: 'local' as const, waiterLocalOrigin: result.origin, localTestOrigin: '' };
+      setFormData(updated);
+      persistSettings(updated);
+      setLanValidationMsg({ type: 'ok', text: 'Endereco atual salvo para o QR Code local.' });
+    } else if (!isLoopbackOrigin) {
+      const updated = { ...formData, waiterAccessMode: 'external' as const, waiterLocalOrigin: '', localTestOrigin: '' };
+      setFormData(updated);
+      persistSettings(updated);
+      setLanValidationMsg({
+        type: 'warn',
+        text: 'Ambiente online detectado. O QR Code foi configurado para acesso externo seguro. Para rede local, informe o IP privado do computador.'
+      });
+    } else {
+      setLanValidationMsg({ type: 'error', text: 'Abra este painel pelo IP da maquina na rede Wi-Fi ou digite o endereco manualmente, como http://192.168.0.10:3000.' });
+    }
   };
 
   const handleExport = () => {
@@ -521,6 +768,68 @@ export const Settings: React.FC = () => {
                 </div>
               </div>
 
+              {isAdminOrOwner && (
+                <div className={`p-6 rounded-xl border mb-6 ${isDark ? 'bg-white/5 border-white/5' : 'bg-gray-50 border-gray-100'}`}>
+                  <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-5 mb-5">
+                    <div className="flex items-start gap-4">
+                      <div className="w-11 h-11 rounded-xl bg-[#475569]/10 text-[#475569] flex items-center justify-center shrink-0">
+                        <UserCheck className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <p className="text-xs font-bold uppercase tracking-wide">Administrador principal</p>
+                        <p className="text-[9px] font-bold uppercase tracking-wide opacity-40">Dados usados no acesso, equipe e identificacao interna</p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleUpdateAdminProfile}
+                      disabled={adminProfileLoading}
+                      className="h-10 px-5 rounded-lg bg-[#475569] text-white text-[9px] font-bold uppercase tracking-wide flex items-center justify-center gap-2 disabled:opacity-60"
+                    >
+                      {adminProfileLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                      Salvar admin
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-bold uppercase tracking-wide opacity-40 ml-1">Nome do administrador</label>
+                      <input
+                        type="text"
+                        value={adminProfileName}
+                        onChange={e => setAdminProfileName(e.target.value)}
+                        className={`w-full h-12 px-4 rounded-xl border outline-none text-sm font-semibold ${isDark ? 'bg-transparent border-[#2C2C2E] focus:border-[#475569]' : 'bg-white border-gray-100 focus:border-[#475569]'}`}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-bold uppercase tracking-wide opacity-40 ml-1">E-mail de login</label>
+                      <input
+                        type="email"
+                        value={adminProfileEmail}
+                        readOnly
+                        className={`w-full h-12 px-4 rounded-xl border outline-none text-sm font-semibold opacity-70 ${isDark ? 'bg-black/20 border-[#2C2C2E]' : 'bg-white border-gray-100'}`}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-bold uppercase tracking-wide opacity-40 ml-1">Telefone</label>
+                      <input
+                        type="tel"
+                        value={adminProfilePhone}
+                        onChange={e => setAdminProfilePhone(e.target.value)}
+                        placeholder="(00) 00000-0000"
+                        className={`w-full h-12 px-4 rounded-xl border outline-none text-sm font-semibold ${isDark ? 'bg-transparent border-[#2C2C2E] focus:border-[#475569]' : 'bg-white border-gray-100 focus:border-[#475569]'}`}
+                      />
+                    </div>
+                  </div>
+
+                  {adminProfileMessage && (
+                    <p className={`mt-3 text-[10px] font-bold uppercase tracking-wide ${adminProfileMessage.type === 'ok' ? 'text-emerald-500' : 'text-red-500'}`}>
+                      {adminProfileMessage.text}
+                    </p>
+                  )}
+                </div>
+              )}
+
               {/* Controle de Modo de Acesso */}
               <div className={`p-6 rounded-xl border mb-6 ${isDark ? 'bg-white/5 border-white/5' : 'bg-gray-50 border-gray-100'}`}>
                 <p className="text-xs font-bold uppercase tracking-wide mb-4">Modo de acesso da comanda</p>
@@ -531,7 +840,7 @@ export const Settings: React.FC = () => {
                       name="waiterAccessMode"
                       value="local"
                       checked={formData.waiterAccessMode !== 'external'}
-                      onChange={() => setFormData({ ...formData, waiterAccessMode: 'local' })}
+                      onChange={() => handleWaiterAccessModeChange('local')}
                       className="accent-emerald-500 w-4 h-4"
                     />
                     <span className="text-sm font-semibold">Rede local do restaurante (mais seguro)</span>
@@ -542,7 +851,7 @@ export const Settings: React.FC = () => {
                       name="waiterAccessMode"
                       value="external"
                       checked={formData.waiterAccessMode === 'external'}
-                      onChange={() => setFormData({ ...formData, waiterAccessMode: 'external' })}
+                      onChange={() => handleWaiterAccessModeChange('external')}
                       className="accent-emerald-500 w-4 h-4"
                     />
                     <span className="text-sm font-semibold">Internet / acesso externo</span>
@@ -551,51 +860,34 @@ export const Settings: React.FC = () => {
 
                 {formData.waiterAccessMode !== 'external' && (
                   <div className="mt-4 p-5 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
-                    <p className="text-xs font-bold text-emerald-600 dark:text-emerald-400 mb-3">Para funcionar, precisamos detectar sua rede Wi-Fi local.</p>
+                    <p className="text-xs font-bold text-emerald-600 dark:text-emerald-400 mb-3">Informe o endereco deste computador na rede Wi-Fi do restaurante.</p>
                     <div className="flex flex-col sm:flex-row gap-3">
                       <input
                         type="text"
                         value={formData.waiterLocalOrigin || formData.localTestOrigin || ''}
-                        readOnly
-                        placeholder="Clique em Detectar rede local..."
+                        onChange={e => handleLanOriginInput(e.target.value)}
+                        onBlur={handleLanOriginBlur}
+                        placeholder="http://192.168.0.10:3000"
                         className={`flex-1 h-11 px-4 rounded-lg border outline-none text-sm font-mono opacity-70 ${
                           isDark ? 'bg-black/20 border-[#2C2C2E]' : 'bg-white border-gray-200'
                         }`}
                       />
                       <button
                         type="button"
-                        onClick={() => {
-                          const hostname = window.location.hostname;
-                          const isLoopbackOrigin = hostname === 'localhost' || hostname.startsWith('127.');
-                          const result = validateLanOrigin(window.location.origin);
-                          if (result.valid && result.origin) {
-                             const updated = { ...formData, waiterLocalOrigin: result.origin };
-                             setFormData(updated);
-                             setLanValidationMsg({ type: 'ok', text: 'Rede local detectada com sucesso!' });
-                          } else if (!isLoopbackOrigin) {
-                             const updated = { ...formData, waiterAccessMode: 'external' as const, waiterLocalOrigin: '', localTestOrigin: '' };
-                             setFormData(updated);
-                             setLanValidationMsg({
-                               type: 'warn',
-                               text: 'Ambiente online detectado. O QR Code usara o acesso externo seguro. Para usar rede local, abra o painel pelo IP privado do computador do restaurante, como http://192.168.0.10:3000.'
-                             });
-                          } else {
-                             setLanValidationMsg({ type: 'error', text: 'Você precisa acessar este painel usando o IP da máquina na rede Wi-Fi, como http://192.168.0.10:3000, e não localhost.' });
-                          }
-                        }}
+                        onClick={handleUseCurrentLanOrigin}
                         className="h-11 px-6 rounded-lg bg-emerald-500 text-white text-[10px] font-bold uppercase tracking-wide hover:opacity-90 active:scale-95 transition-all"
                       >
-                        Detectar rede local
+                        Usar endereco atual
                       </button>
                     </div>
                     {lanValidationMsg && (
-                      <p className={`text-[10px] font-semibold mt-3 ${lanValidationMsg.type === 'error' ? 'text-red-500' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                      <p className={`text-[10px] font-semibold mt-3 ${lanValidationMsg.type === 'error' ? 'text-red-500' : lanValidationMsg.type === 'warn' ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
                         {lanValidationMsg.text}
                       </p>
                     )}
                     {(!formData.waiterLocalOrigin && !formData.localTestOrigin && !lanValidationMsg) && (
                       <p className="text-[10px] font-semibold opacity-80 mt-3 text-emerald-600 dark:text-emerald-400">
-                         Conecte este computador à mesma rede Wi-Fi dos garçons e clique em Detectar rede local.
+                         Use o endereco atual se o painel ja abriu pelo IP da rede, ou digite o IP manualmente.
                       </p>
                     )}
                   </div>
@@ -697,18 +989,28 @@ export const Settings: React.FC = () => {
                               {member.status === 'active' ? 'Ativo' : 'Inativo'}
                             </span>
                             {supabaseOnline && isAdminOrOwner && member.id !== currentUser.id && (
-                              <button
-                                type="button"
-                                onClick={() => handleToggleStatus(member.id, member.status)}
-                                className={`px-3 py-1 rounded-lg border text-[9px] font-bold uppercase tracking-wide transition-all active:scale-95
-                                  ${member.status === 'active'
-                                    ? 'bg-red-500/10 border-red-500/20 text-red-500 hover:bg-red-500/20'
-                                    : 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500 hover:bg-emerald-500/20'
-                                  }
-                                `}
-                              >
-                                {member.status === 'active' ? 'Desativar' : 'Ativar'}
-                              </button>
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() => openEditMemberModal(member)}
+                                  className="px-3 py-1 rounded-lg border bg-blue-500/10 border-blue-500/20 text-blue-500 hover:bg-blue-500/20 text-[9px] font-bold uppercase tracking-wide transition-all active:scale-95 flex items-center gap-1.5"
+                                >
+                                  <Pencil className="w-3 h-3" />
+                                  Editar
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleToggleStatus(member.id, member.status)}
+                                  className={`px-3 py-1 rounded-lg border text-[9px] font-bold uppercase tracking-wide transition-all active:scale-95
+                                    ${member.status === 'active'
+                                      ? 'bg-red-500/10 border-red-500/20 text-red-500 hover:bg-red-500/20'
+                                      : 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500 hover:bg-emerald-500/20'
+                                    }
+                                  `}
+                                >
+                                  {member.status === 'active' ? 'Desativar' : 'Ativar'}
+                                </button>
+                              </>
                             )}
                           </div>
                         </div>
@@ -848,6 +1150,100 @@ export const Settings: React.FC = () => {
                           className="w-full h-12 bg-emerald-500 text-white font-bold rounded-xl text-xs uppercase tracking-wide hover:opacity-90 active:scale-95 transition-all flex justify-center items-center gap-2"
                         >
                           {newMemberLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Criar Colaborador'}
+                        </button>
+                      </form>
+                    </motion.div>
+                  </div>
+                )}
+              </AnimatePresence>
+
+              {/* Modal de Edicao de Colaboradores */}
+              <AnimatePresence>
+                {editingMember && (
+                  <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-200">
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.95 }}
+                      className={`w-full max-w-md rounded-2xl border p-8 space-y-6 shadow-2xl relative
+                        ${isDark ? 'bg-[#1C1C1E] border-[#2C2C2E]' : 'bg-white border-gray-100'}
+                      `}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => closeEditMemberModal()}
+                        className="absolute right-4 top-4 p-2 rounded-lg hover:bg-current/10 text-muted"
+                      >
+                        <XIcon className="w-5 h-5" />
+                      </button>
+
+                      <div className="space-y-1">
+                        <h4 className="text-xl font-bold uppercase tracking-tight">Editar Colaborador</h4>
+                        <p className="text-[9px] opacity-40 font-bold uppercase tracking-wide">Atualize acesso, funcao, status ou senha</p>
+                      </div>
+
+                      <form onSubmit={handleUpdateMember} className="space-y-4">
+                        <div className="space-y-1">
+                          <label className="text-[9px] font-bold text-gray-400 uppercase tracking-wide">Nome do Colaborador</label>
+                          <input
+                            type="text"
+                            value={editMemberName}
+                            onChange={e => setEditMemberName(e.target.value)}
+                            placeholder="Nome de exibicao"
+                            required
+                            className={`w-full h-12 px-4 rounded-xl border outline-none text-sm ${isDark ? 'bg-transparent border-[#2C2C2E] focus:border-[#475569]' : 'bg-gray-50 border-gray-100 focus:border-[#475569]'}`}
+                          />
+                        </div>
+
+                        <div className="space-y-1">
+                          <label className="text-[9px] font-bold text-gray-400 uppercase tracking-wide">Funcao / Nivel de Acesso</label>
+                          <select
+                            value={editMemberRole}
+                            onChange={e => setEditMemberRole(e.target.value as EditableMemberRole)}
+                            className={`w-full h-12 px-4 rounded-xl border outline-none text-sm ${isDark ? 'bg-[#1C1C1E] border-[#2C2C2E]' : 'bg-gray-50 border-gray-100'}`}
+                          >
+                            <option value="waiter">Garcom (Apenas Comanda Mobile)</option>
+                            <option value="cashier">Atendente/Caixa (Acesso ao PDV/Caixa)</option>
+                            <option value="admin">Administrador (Acesso Geral)</option>
+                          </select>
+                        </div>
+
+                        <label className={`flex items-center justify-between gap-4 p-4 rounded-xl border cursor-pointer ${isDark ? 'border-[#2C2C2E] bg-black/20' : 'border-gray-100 bg-gray-50'}`}>
+                          <span>
+                            <span className="block text-[10px] font-bold uppercase tracking-wide">Acesso ativo</span>
+                            <span className="block text-[9px] font-semibold opacity-50 mt-1">Desative temporariamente sem excluir o login.</span>
+                          </span>
+                          <input
+                            type="checkbox"
+                            checked={editMemberActive}
+                            onChange={e => setEditMemberActive(e.target.checked)}
+                            className="w-5 h-5 accent-emerald-500"
+                          />
+                        </label>
+
+                        <div className="space-y-1">
+                          <label className="text-[9px] font-bold text-gray-400 uppercase tracking-wide">Nova senha</label>
+                          <input
+                            type="password"
+                            value={editMemberPassword}
+                            onChange={e => setEditMemberPassword(e.target.value)}
+                            placeholder="Deixe em branco para manter"
+                            className={`w-full h-12 px-4 rounded-xl border outline-none text-sm ${isDark ? 'bg-transparent border-[#2C2C2E] focus:border-[#475569]' : 'bg-gray-50 border-gray-100 focus:border-[#475569]'}`}
+                          />
+                        </div>
+
+                        {editMemberError && (
+                          <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl">
+                            <p className="text-red-400 text-xs text-center font-semibold">{editMemberError}</p>
+                          </div>
+                        )}
+
+                        <button
+                          type="submit"
+                          disabled={editMemberLoading}
+                          className="w-full h-12 bg-blue-500 text-white font-bold rounded-xl text-xs uppercase tracking-wide hover:opacity-90 active:scale-95 transition-all flex justify-center items-center gap-2"
+                        >
+                          {editMemberLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Salvar Alteracoes'}
                         </button>
                       </form>
                     </motion.div>

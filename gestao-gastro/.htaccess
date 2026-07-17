@@ -1,0 +1,14 @@
+Options -Indexes
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /gestao-gastro/
+
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_FILENAME} !-d
+  RewriteRule . index.html [L]
+</IfModule>
+
+<IfModule mod_headers.c>
+  Header always set Cache-Control "no-cache, no-store, must-revalidate" "expr=%{REQUEST_URI} =~ m#^/gestao-gastro/(index\.html)?$#"
+</IfModule>

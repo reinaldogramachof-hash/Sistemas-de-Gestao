@@ -12,6 +12,7 @@ interface OrderRow {
   customer_count: number | null;
   adult_count: number | null;
   children_count: number | null;
+  general_observation: string | null;
   partial_payments: any | null;
   loyalty_discount: number | null;
   loyalty_points_earned: number | null;
@@ -36,6 +37,7 @@ export interface CreateOrderInput {
   customerCount?: number;
   adultCount?: number;
   childrenCount?: number;
+  generalObservation?: string;
   partialPayments?: any[];
   loyaltyDiscount?: number;
   loyaltyPointsEarned?: number;
@@ -63,6 +65,7 @@ interface OrderInsertRow {
   customer_count: number | null;
   adult_count: number | null;
   children_count: number | null;
+  general_observation: string | null;
   partial_payments: any | null;
   loyalty_discount: number | null;
   loyalty_points_earned: number | null;
@@ -95,6 +98,7 @@ const toOrder = (row: OrderRow): Order => ({
   customerCount: row.customer_count ?? undefined,
   adultCount: row.adult_count ?? undefined,
   childrenCount: row.children_count ?? undefined,
+  generalObservation: row.general_observation ?? undefined,
   partialPayments: row.partial_payments ?? undefined,
   loyaltyDiscount: row.loyalty_discount ?? undefined,
   loyaltyPointsEarned: row.loyalty_points_earned ?? undefined,
@@ -140,6 +144,7 @@ export async function createOrder(
     customer_count: data.customerCount ?? null,
     adult_count: data.adultCount ?? null,
     children_count: data.childrenCount ?? null,
+    general_observation: data.generalObservation?.trim() || null,
     partial_payments: data.partialPayments ?? [],
     loyalty_discount: data.loyaltyDiscount ?? 0,
     loyalty_points_earned: data.loyaltyPointsEarned ?? 0,
@@ -196,9 +201,12 @@ export async function updateOrderMeta(
   if (!supabase) throw new Error('Supabase não configurado');
 
   const payload: Partial<OrderRow> = { updated_at: new Date().toISOString() };
+  if (data.tableNumber !== undefined) payload.table_number = data.tableNumber;
+  if (data.customerName !== undefined) payload.customer_name = data.customerName;
   if (data.customerCount !== undefined) payload.customer_count = data.customerCount;
   if (data.adultCount !== undefined) payload.adult_count = data.adultCount;
   if (data.childrenCount !== undefined) payload.children_count = data.childrenCount;
+  if (data.generalObservation !== undefined) payload.general_observation = data.generalObservation;
   if (data.partialPayments !== undefined) payload.partial_payments = data.partialPayments;
   if (data.loyaltyDiscount !== undefined) payload.loyalty_discount = data.loyaltyDiscount;
   if (data.loyaltyPointsEarned !== undefined) payload.loyalty_points_earned = data.loyaltyPointsEarned;

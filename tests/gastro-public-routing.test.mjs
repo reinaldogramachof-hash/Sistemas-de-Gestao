@@ -47,10 +47,19 @@ test('Gestao Gastro must require a known client slug before loading tenant data'
   assert.match(routeSource, /displayName:\s*'Cantinho da Resenha'/, 'clientRoutes deve centralizar o nome publico do cliente');
   assert.match(routeSource, /CANTINHO_DA_RESENHA_SLUG_ALIAS\s*=\s*'cantinho-da-resenha'/, 'clientRoutes deve aceitar o slug com hifen gerado pelo painel admin');
   assert.match(routeSource, /\[CANTINHO_DA_RESENHA_SLUG_ALIAS\]/, 'clientRoutes deve mapear o alias com hifen para o mesmo tenant');
-  assert.match(contextSource, /clientRoute\?\.tenantId/, 'AppContext deve preferir o tenant resolvido pela rota');
+  assert.match(contextSource, /resolveTenant\(window\.location\.pathname\)/, 'AppContext deve preferir o tenant resolvido dinamicamente pela rota/licenca');
   assert.equal(
     contextSource.includes("settings.establishment.name || 'Cantinho da Resenha'"),
     false,
     'currentEmpresa nao deve cair em Cantinho da Resenha quando a rota nao for do cliente'
   );
+});
+
+test('dynamic tenant slug uses pending local storage until license resolves tenant', () => {
+  const contextSource = read('gestao-gastro/src/store/AppContext.tsx');
+  const gateSource = read('gestao-gastro/src/components/ActivationGate.tsx');
+
+  assert.match(contextSource, /pending-\$\{slug\}/, 'AppContext deve usar chave local provisoria para slug ainda nao resolvido');
+  assert.doesNotMatch(contextSource, /throw new Error\('Tenant ID ausente/, 'AppContext nao deve derrubar a tela antes da ativacao resolver o tenant');
+  assert.match(gateSource, /if \(!resolvedTenant && data\.tenant_id\)/, 'ActivationGate deve recarregar apos persistir tenant de slug dinamico');
 });

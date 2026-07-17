@@ -9,10 +9,13 @@ const source = readFileSync(
 
 test('waiter login identifies the client and keeps an accessible, high-contrast form', () => {
   assert.match(source, /Comanda do Garçom/);
-  assert.match(source, /Cantinho da Resenha/);
+  assert.match(source, /establishmentName/);
+  assert.match(source, /getClientRouteFromPath/);
   assert.match(source, /htmlFor="garcom-email"/);
   assert.match(source, /htmlFor="garcom-password"/);
   assert.match(source, /Mostrar senha/);
   assert.match(source, /role="alert"/);
   assert.match(source, /text-white/);
+  assert.match(source, /getFriendlyAuthError/);
+  assert.match(source, /E-mail ou senha invalidos/);
 });

@@ -1,7 +1,10 @@
 export const CANTINHO_DA_RESENHA_SLUG = 'cantinhodaresenha';
 export const CANTINHO_DA_RESENHA_SLUG_ALIAS = 'cantinho-da-resenha';
-export const CANTINHO_DA_RESENHA_TENANT_ID = 'cd8f21f4-73a1-4c87-a385-9b6deacaeae7';
+export const CANTINHO_DA_RESENHA_TENANT_ID = '4c628b1b-a1ce-498e-b302-0344a81de4cb';
 const TENANT_SLUG_KEY_PREFIX = 'gestao_gastro_tenant_id:';
+const RETIRED_TENANT_IDS = new Set([
+  'cd8f21f4-73a1-4c87-a385-9b6deacaeae7',
+]);
 
 export interface ClientRouteConfig {
   slug: string;
@@ -48,7 +51,16 @@ const formatDynamicClientName = (slug: string): string =>
 
 export const getStoredTenantIdForSlug = (slug: string | null): string | null => {
   if (!slug || typeof window === 'undefined') return null;
-  return localStorage.getItem(`${TENANT_SLUG_KEY_PREFIX}${slug}`);
+  const key = `${TENANT_SLUG_KEY_PREFIX}${slug}`;
+  const storedTenantId = localStorage.getItem(key);
+  if (storedTenantId && RETIRED_TENANT_IDS.has(storedTenantId)) {
+    localStorage.removeItem(key);
+    if (localStorage.getItem('gestao_gastro_tenant_id') === storedTenantId) {
+      localStorage.removeItem('gestao_gastro_tenant_id');
+    }
+    return null;
+  }
+  return storedTenantId;
 };
 
 export const persistTenantRoute = (slug: string | null, tenantId: string | null): void => {

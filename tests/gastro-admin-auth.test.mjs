@@ -57,6 +57,16 @@ test('Inspect api_admin_users.php for secure actions and JWT validation', () => 
     source.includes("'active' => true,\n        'display_name' => $name"),
     'api_admin_users.php deve gravar display_name no vinculo tenant_members'
   );
+  assert.equal(
+    source.includes("'cantinho-da-resenha' => 'cd8f21f4-73a1-4c87-a385-9b6deacaeae7'"),
+    false,
+    'api_admin_users.php nao deve manter fallback do Cantinho para tenant legado'
+  );
+  assert.equal(
+    source.includes("'cantinhodaresenha' => 'cd8f21f4-73a1-4c87-a385-9b6deacaeae7'"),
+    false,
+    'api_admin_users.php nao deve manter alias do Cantinho apontando para tenant legado'
+  );
 });
 
 test('Inspect api_licenca_ml.php for Gastro activation and verification contract', () => {
@@ -78,6 +88,11 @@ test('Inspect api_licenca_ml.php for Gastro activation and verification contract
   assert.ok(
     verifyBlock.includes("'tenant_id'") && verifyBlock.includes("'plan'") && verifyBlock.includes("'is_master'"),
     'verify deve devolver tenant_id, plan e is_master para manter a sessao licenciada no tenant correto'
+  );
+  assert.equal(
+    source.includes("'cantinho-da-resenha' => 'cd8f21f4-73a1-4c87-a385-9b6deacaeae7'"),
+    false,
+    'api_licenca_ml.php nao deve manter fallback do Cantinho para tenant legado'
   );
 });
 
@@ -239,17 +254,17 @@ test('HTTP Contract - license proof rejects tenant and email mismatch using an i
   assert.equal(validProof.status, 200, `A licença isolada válida deve passar pela validação do endpoint: ${validProofBody}`);
   assert.deepEqual(JSON.parse(validProofBody), { status: 'success', has_owner: false });
 
-  const validCantinhoSlugOnly = await post({
+  const retiredCantinhoSlugOnly = await post({
     action: 'get_owner_status',
     tenant_id: 'cd8f21f4-73a1-4c87-a385-9b6deacaeae7',
     license_key: 'CANTINHO-SLUG-ONLY',
     email: 'cantinho.owner@example.test'
   });
-  const validCantinhoSlugOnlyBody = await validCantinhoSlugOnly.text();
+  const retiredCantinhoSlugOnlyBody = await retiredCantinhoSlugOnly.text();
   assert.equal(
-    validCantinhoSlugOnly.status,
-    200,
-    `Licenca antiga do Cantinho com tenant_slug e sem tenant_id deve passar: ${validCantinhoSlugOnlyBody}`
+    retiredCantinhoSlugOnly.status,
+    403,
+    `Licenca antiga do Cantinho sem tenant_id nao deve mapear o tenant legado: ${retiredCantinhoSlugOnlyBody}`
   );
 });
 

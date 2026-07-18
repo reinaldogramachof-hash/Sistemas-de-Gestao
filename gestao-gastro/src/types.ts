@@ -69,6 +69,8 @@ export interface Order {
   empresaId?: string;
   mode: OrderMode;
   tableNumber?: number;
+  comandaLabel?: string;
+  offlineIdKey?: string;
   customerName?: string;
   customerCount?: number;
   adultCount?: number;

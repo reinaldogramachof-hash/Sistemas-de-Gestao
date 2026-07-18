@@ -12,6 +12,15 @@ const migrationPath = join(
   '20260718201532_gastro_multiple_comandas.sql',
 );
 const migration = readFileSync(migrationPath, 'utf8');
+const orderTypes = readFileSync(join(root, 'gestao-gastro', 'src', 'types.ts'), 'utf8');
+const orderService = readFileSync(
+  join(root, 'gestao-gastro', 'src', 'services', 'ordersSupabaseService.ts'),
+  'utf8',
+);
+const tableService = readFileSync(
+  join(root, 'gestao-gastro', 'src', 'services', 'tablesSupabaseService.ts'),
+  'utf8',
+);
 
 const functionBody = (name) => {
   const match = migration.match(
@@ -121,4 +130,24 @@ test('all public RPCs are restricted to authenticated callers and service role',
       new RegExp(`GRANT EXECUTE ON FUNCTION public\\.${name}\\([\\s\\S]*?TO authenticated, service_role;`, 'i'),
     );
   }
+});
+
+test('frontend order contract exposes check label and offline idempotency key', () => {
+  assert.match(orderTypes, /comandaLabel\?: string;/);
+  assert.match(orderTypes, /offlineIdKey\?: string;/);
+  assert.match(orderService, /comanda_label: string \| null;/);
+  assert.match(orderService, /offline_id_key: string \| null;/);
+  assert.match(orderService, /comandaLabel: row\.comanda_label \?\? undefined/);
+  assert.match(orderService, /offlineIdKey: row\.offline_id_key \?\? undefined/);
+});
+
+test('frontend services expose atomic RPC operations without security definer shortcuts', () => {
+  assert.match(orderService, /export async function createComanda\(/);
+  assert.match(orderService, /\.rpc\('gastro_create_comanda_rpc'/);
+  assert.match(orderService, /export async function closeComanda\(/);
+  assert.match(orderService, /\.rpc\('gastro_close_comanda_rpc'/);
+  assert.match(orderService, /export async function transferComanda\(/);
+  assert.match(orderService, /\.rpc\('gastro_transfer_comanda_rpc'/);
+  assert.match(tableService, /export async function releaseTableSafely\(/);
+  assert.match(tableService, /\.rpc\('gastro_release_table_rpc'/);
 });

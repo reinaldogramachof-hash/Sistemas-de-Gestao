@@ -8,6 +8,8 @@ interface OrderRow {
   tenant_id: string;
   mode: 'mesa' | 'balcao';
   table_number: number | null;
+  comanda_label: string | null;
+  offline_id_key: string | null;
   customer_name: string | null;
   customer_count: number | null;
   adult_count: number | null;
@@ -33,6 +35,8 @@ interface OrderRow {
 export interface CreateOrderInput {
   mode: 'mesa' | 'balcao';
   tableNumber?: number;
+  comandaLabel?: string;
+  offlineIdKey?: string;
   customerName?: string;
   customerCount?: number;
   adultCount?: number;
@@ -57,10 +61,17 @@ export interface CloseOrderInput {
   total: number;
 }
 
+export interface CreateComandaInput extends Omit<CreateOrderInput, 'mode' | 'tableNumber'> {
+  tableNumber: number;
+  comandaLabel: string;
+}
+
 interface OrderInsertRow {
   tenant_id: string;
   mode: 'mesa' | 'balcao';
   table_number: number | null;
+  comanda_label: string | null;
+  offline_id_key: string | null;
   customer_name: string | null;
   customer_count: number | null;
   adult_count: number | null;
@@ -94,6 +105,8 @@ const toOrder = (row: OrderRow): Order => ({
   id: row.id,
   mode: row.mode,
   tableNumber: row.table_number ?? undefined,
+  comandaLabel: row.comanda_label ?? undefined,
+  offlineIdKey: row.offline_id_key ?? undefined,
   customerName: row.customer_name ?? undefined,
   customerCount: row.customer_count ?? undefined,
   adultCount: row.adult_count ?? undefined,
@@ -140,6 +153,8 @@ export async function createOrder(
     tenant_id: tenantId,
     mode: data.mode,
     table_number: data.tableNumber ?? null,
+    comanda_label: data.comandaLabel?.trim() || null,
+    offline_id_key: data.offlineIdKey?.trim() || null,
     customer_name: data.customerName ?? null,
     customer_count: data.customerCount ?? null,
     adult_count: data.adultCount ?? null,
@@ -168,6 +183,38 @@ export async function createOrder(
 
   throwIfError('Erro ao criar pedido', error);
   if (!created) throw new Error('Resposta vazia do Supabase ao criar pedido.');
+  return toOrder(created);
+}
+
+export async function createComanda(
+  tenantId: string,
+  data: CreateComandaInput,
+): Promise<Order> {
+  if (!supabase) throw new Error('Supabase nÃ£o configurado');
+
+  const { data: created, error } = await supabase
+    .rpc('gastro_create_comanda_rpc', {
+      p_tenant_id: tenantId,
+      p_table_number: data.tableNumber,
+      p_comanda_label: data.comandaLabel,
+      p_offline_id_key: data.offlineIdKey?.trim() || null,
+      p_customer_name: data.customerName?.trim() || null,
+      p_customer_count: data.customerCount ?? null,
+      p_adult_count: data.adultCount ?? null,
+      p_children_count: data.childrenCount ?? null,
+      p_general_observation: data.generalObservation?.trim() || null,
+      p_items: data.items,
+      p_subtotal: data.subtotal,
+      p_service_charge: data.serviceCharge,
+      p_total: data.total,
+      p_waiter_id: data.waiterId,
+      p_waiter_name: data.waiterName?.trim() || null,
+      p_timestamp: data.timestamp,
+    })
+    .single<OrderRow>();
+
+  throwIfError('Erro ao criar comanda', error);
+  if (!created) throw new Error('Resposta vazia do Supabase ao criar comanda.');
   return toOrder(created);
 }
 
@@ -202,6 +249,7 @@ export async function updateOrderMeta(
 
   const payload: Partial<OrderRow> = { updated_at: new Date().toISOString() };
   if (data.tableNumber !== undefined) payload.table_number = data.tableNumber;
+  if (data.comandaLabel !== undefined) payload.comanda_label = data.comandaLabel.trim();
   if (data.customerName !== undefined) payload.customer_name = data.customerName;
   if (data.customerCount !== undefined) payload.customer_count = data.customerCount;
   if (data.adultCount !== undefined) payload.adult_count = data.adultCount;
@@ -249,6 +297,48 @@ export async function closeOrder(
   throwIfError('Erro ao fechar pedido', error);
   if (!closed) throw new Error('Pedido não encontrado.');
   return toOrder(closed);
+}
+
+export async function closeComanda(
+  tenantId: string,
+  orderId: string,
+  data: CloseOrderInput,
+): Promise<Order> {
+  if (!supabase) throw new Error('Supabase nÃ£o configurado');
+
+  const { data: closed, error } = await supabase
+    .rpc('gastro_close_comanda_rpc', {
+      p_tenant_id: tenantId,
+      p_order_id: orderId,
+      p_payments: data.payments,
+      p_service_charge: data.serviceCharge,
+      p_total: data.total,
+    })
+    .single<OrderRow>();
+
+  throwIfError('Erro ao fechar comanda', error);
+  if (!closed) throw new Error('Comanda nÃ£o encontrada.');
+  return toOrder(closed);
+}
+
+export async function transferComanda(
+  tenantId: string,
+  orderId: string,
+  targetTableNumber: number,
+): Promise<Order> {
+  if (!supabase) throw new Error('Supabase nÃ£o configurado');
+
+  const { data: transferred, error } = await supabase
+    .rpc('gastro_transfer_comanda_rpc', {
+      p_tenant_id: tenantId,
+      p_order_id: orderId,
+      p_target_table_number: targetTableNumber,
+    })
+    .single<OrderRow>();
+
+  throwIfError('Erro ao transferir comanda', error);
+  if (!transferred) throw new Error('Comanda nÃ£o encontrada.');
+  return toOrder(transferred);
 }
 
 export async function deleteOrder(tenantId: string, orderId: string): Promise<void> {

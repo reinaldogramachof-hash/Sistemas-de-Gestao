@@ -115,6 +115,24 @@ export async function clearTable(tenantId: string, tableNumber: number): Promise
   });
 }
 
+export async function releaseTableSafely(
+  tenantId: string,
+  tableNumber: number,
+): Promise<Table> {
+  if (!supabase) throw new Error('Supabase nÃ£o configurado');
+
+  const { data: released, error } = await supabase
+    .rpc('gastro_release_table_rpc', {
+      p_tenant_id: tenantId,
+      p_table_number: tableNumber,
+    })
+    .single<TableRow>();
+
+  throwIfError('Erro ao liberar mesa', error);
+  if (!released) throw new Error('Mesa nÃ£o encontrada.');
+  return toTable(released);
+}
+
 export async function reserveTables(
   tenantId: string,
   tableNumbers: number[],

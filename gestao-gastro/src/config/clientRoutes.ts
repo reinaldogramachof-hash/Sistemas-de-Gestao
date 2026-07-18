@@ -70,6 +70,12 @@ export const persistTenantRoute = (slug: string | null, tenantId: string | null)
   localStorage.setItem('gestao_gastro_tenant_id', tenantId);
 };
 
+export const getStoredClientSlug = (): string | null => {
+  if (typeof window === 'undefined') return null;
+  const storedSlug = localStorage.getItem('gestao_gastro_tenant_slug')?.trim().toLowerCase() ?? '';
+  return /^[a-z0-9-]+$/.test(storedSlug) ? storedSlug : null;
+};
+
 export const getClientRouteFromPath = (path: string): ClientRouteConfig | null => {
   const slug = getClientSlugFromPath(path);
   if (!slug) return null;

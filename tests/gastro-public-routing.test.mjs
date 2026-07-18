@@ -70,6 +70,28 @@ test('Gestao Gastro must require a known client slug before loading tenant data'
   );
 });
 
+test('installed PWA returns to the last validated client without weakening the root guard', () => {
+  const mainSource = read('gestao-gastro/src/main.tsx');
+  const routeSource = read('gestao-gastro/src/config/clientRoutes.ts');
+
+  assert.match(routeSource, /getStoredClientSlug/, 'rotas devem expor o ultimo slug validado para o PWA instalado');
+  assert.match(
+    routeSource,
+    /\^\[a-z0-9-\]\+\$\/\.test\(storedSlug\)/,
+    'slug persistido deve ser validado antes de formar uma URL',
+  );
+  assert.match(
+    mainSource,
+    /isMissingClientRoute && storedClientSlug[\s\S]*?window\.location\.replace\(`\/gestao-gastro\/\$\{storedClientSlug\}`\)/,
+    'raiz do PWA deve redirecionar apenas quando houver cliente previamente validado',
+  );
+  assert.match(
+    mainSource,
+    /else if \(isMissingClientRoute\)[\s\S]*?Cliente nao identificado/,
+    'acesso sem slug persistido deve continuar bloqueado',
+  );
+});
+
 test('dynamic tenant slug uses pending local storage until license resolves tenant', () => {
   const contextSource = read('gestao-gastro/src/store/AppContext.tsx');
   const gateSource = read('gestao-gastro/src/components/ActivationGate.tsx');

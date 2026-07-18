@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client';
 import App from './App.tsx';
 import './index.css';
 
-import { getClientRouteFromPath, getClientSlugFromPath } from './config/clientRoutes';
+import { getClientRouteFromPath, getClientSlugFromPath, getStoredClientSlug } from './config/clientRoutes';
 
 const pathname = window.location.pathname;
 const clientRoute = getClientRouteFromPath(pathname);
@@ -13,6 +13,7 @@ const isGestaoGastroRoute =
   pathname === '/gestao-gastro/' ||
   pathname.startsWith('/gestao-gastro/');
 const isMissingClientRoute = isGestaoGastroRoute && !clientSlug;
+const storedClientSlug = isMissingClientRoute ? getStoredClientSlug() : null;
 
 const isStandaloneComandaRoute =
   pathname === '/comanda' ||
@@ -41,7 +42,9 @@ const renderRoot = (children: ReactNode) => {
   );
 };
 
-if (isMissingClientRoute) {
+if (isMissingClientRoute && storedClientSlug) {
+  window.location.replace(`/gestao-gastro/${storedClientSlug}`);
+} else if (isMissingClientRoute) {
   renderRoot(
     <div className="min-h-screen bg-[#121214] text-white flex items-center justify-center p-6">
       <div className="max-w-md text-center space-y-3">

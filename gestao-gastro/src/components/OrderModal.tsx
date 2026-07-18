@@ -7,6 +7,7 @@ import { CheckoutModal } from './CheckoutModal';
 import { motion, AnimatePresence } from 'motion/react';
 import { validateStock } from '../services/stockGuard';
 import { isSupabaseConfigured } from '../lib/supabase';
+import { OperationFeedback, OperationFeedbackMessage } from './OperationFeedback';
 
 interface OrderModalProps {
   tableNumber: number | null;
@@ -43,6 +44,7 @@ export const OrderModal: React.FC<OrderModalProps> = ({ tableNumber, mode, onClo
   const [category, setCategory] = useState('Todos');
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [showFeedback, setShowFeedback] = useState(false);
+  const [operationFeedback, setOperationFeedback] = useState<OperationFeedbackMessage | null>(null);
   const activeOrderHasConsumption = Boolean(
     activeOrder &&
     (activeOrder.items.length > 0 || activeOrder.subtotal > 0 || activeOrder.total > 0),
@@ -62,6 +64,13 @@ export const OrderModal: React.FC<OrderModalProps> = ({ tableNumber, mode, onClo
       setIsOpening(false);
     }
   }, [initialOrder]);
+
+  useEffect(() => {
+    if (operationFeedback?.title !== 'Mesa atualizada por outro dispositivo') return;
+
+    const closeTimer = window.setTimeout(onClose, 2500);
+    return () => window.clearTimeout(closeTimer);
+  }, [operationFeedback?.title, onClose]);
 
   const handleOpenTable = async () => {
     setIsCreating(true);
@@ -88,8 +97,11 @@ export const OrderModal: React.FC<OrderModalProps> = ({ tableNumber, mode, onClo
         const freshTables = await listTables(import.meta.env.VITE_GASTRO_TENANT_ID as string || 'default-empresa');
         const currentTable = freshTables.find(t => t.number === tableNumber);
         if (currentTable && currentTable.activeOrderId) {
-          alert('Esta mesa acabou de ser aberta por outro dispositivo. A tela será atualizada.');
-          onClose();
+          setOperationFeedback({
+            tone: 'warning',
+            title: 'Mesa atualizada por outro dispositivo',
+            description: 'Outra comanda foi aberta nesta mesa. Esta janela será fechada para carregar os dados atuais.',
+          });
           return;
         }
       }
@@ -131,7 +143,11 @@ export const OrderModal: React.FC<OrderModalProps> = ({ tableNumber, mode, onClo
 
     const validation = validateStock(product, stockItems, currentQty, 1);
     if (!validation.available) {
-      alert(`Estoque insuficiente para ${product.name}`);
+      setOperationFeedback({
+        tone: 'warning',
+        title: 'Estoque insuficiente',
+        description: `${product.name} não possui saldo suficiente para adicionar outra unidade. Revise o estoque ou escolha outro item.`,
+      });
       return;
     }
 
@@ -145,6 +161,7 @@ export const OrderModal: React.FC<OrderModalProps> = ({ tableNumber, mode, onClo
     const subtotal = updatedItems.reduce((acc, i) => acc + i.price * i.quantity, 0);
     const updated = { ...activeOrder, items: updatedItems, subtotal, total: subtotal };
     setActiveOrder(updated);
+    setOperationFeedback(null);
     if (mode === 'mesa') {
       updateOrder(updated);
       triggerFeedback();
@@ -172,6 +189,14 @@ export const OrderModal: React.FC<OrderModalProps> = ({ tableNumber, mode, onClo
       className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/90 backdrop-blur-xl animate-in fade-in duration-200"
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
+      <OperationFeedback
+        feedback={operationFeedback}
+        onDismiss={() => {
+          const shouldClose = operationFeedback?.title === 'Mesa atualizada por outro dispositivo';
+          setOperationFeedback(null);
+          if (shouldClose) onClose();
+        }}
+      />
       <motion.div
         initial={{ opacity: 0, scale: 0.98, y: 10 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}

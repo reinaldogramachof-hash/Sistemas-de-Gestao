@@ -117,6 +117,17 @@ test('Checkout uses accessible non-blocking validation feedback', () => {
   assert.ok(checkout.includes("title: 'Pagamento parcial acima do saldo'"), 'Checkout deve explicar limite do pagamento parcial');
 });
 
+test('Table order flow reports stock and device conflicts without blocking alerts', () => {
+  const orderModal = read('gestao-gastro/src/components/OrderModal.tsx');
+
+  assert.ok(orderModal.includes("import { OperationFeedback"), 'Mesa deve importar o feedback operacional compartilhado');
+  assert.ok(orderModal.includes('<OperationFeedback'), 'Mesa deve renderizar o feedback operacional');
+  assert.doesNotMatch(orderModal, /\b(?:window\.)?alert\s*\(/, 'Mesa nao deve interromper o atendimento com alert()');
+  assert.ok(orderModal.includes("title: 'Mesa atualizada por outro dispositivo'"), 'Conflito concorrente deve explicar o ocorrido');
+  assert.ok(orderModal.includes("title: 'Estoque insuficiente'"), 'Bloqueio de estoque deve explicar o ocorrido');
+  assert.ok(orderModal.includes('Revise o estoque ou escolha outro item.'), 'Bloqueio deve orientar a proxima acao');
+});
+
 test('PDV cart supports touch targets and keyboard product search', () => {
   const pdv = read('gestao-gastro/src/components/PDV.tsx');
 

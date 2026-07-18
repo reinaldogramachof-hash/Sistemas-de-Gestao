@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useApp } from '../store/AppContext';
 import { Product, Order } from '../types';
 import { formatCurrency } from '../utils/format';
@@ -35,6 +35,19 @@ export const PDV: React.FC = () => {
   const [manualName, setManualName] = useState('');
   const [manualPrice, setManualPrice] = useState('');
   const [feedback, setFeedback] = useState<OperationFeedbackMessage | null>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const focusProductSearch = (event: KeyboardEvent) => {
+      if (!(event.ctrlKey || event.metaKey) || event.key.toLowerCase() !== 'k') return;
+      event.preventDefault();
+      searchInputRef.current?.focus();
+      searchInputRef.current?.select();
+    };
+
+    window.addEventListener('keydown', focusProductSearch);
+    return () => window.removeEventListener('keydown', focusProductSearch);
+  }, []);
 
   const createOrder = (waiterId = selectedOperatorId): Order => ({
     id: Date.now().toString(),
@@ -264,9 +277,12 @@ export const PDV: React.FC = () => {
             <div className={`flex items-center px-3 h-10 rounded-control border w-full md:w-80 transition-all focus-within:ring-2 focus-within:ring-accent/20 ${fieldClass}`}>
               <Search className="w-4 h-4 mr-3 text-muted" />
               <input
+                ref={searchInputRef}
                 value={searchTerm}
                 onChange={event => setSearchTerm(event.target.value)}
                 placeholder="Pesquisar produto..."
+                aria-label="Pesquisar produto"
+                aria-keyshortcuts="Control+K Meta+K"
                 className="bg-transparent border-none outline-none w-full text-sm font-medium placeholder:text-muted"
               />
             </div>
@@ -427,21 +443,29 @@ export const PDV: React.FC = () => {
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   <button
+                    type="button"
                     onClick={() => changeItemQty(item.id, -1)}
-                    className={`w-8 h-8 rounded-control flex items-center justify-center border transition-all active:scale-95 ${
+                    className={`w-11 h-11 rounded-control flex items-center justify-center border transition-all active:scale-95 ${
                       item.quantity === 1 ? 'border-danger/20 text-danger hover:bg-danger/10' : isDark ? 'border-border hover:bg-surface' : 'border-border-light hover:bg-surface-light'
                     }`}
-                    aria-label="Reduzir quantidade"
+                    aria-label={item.quantity === 1 ? `Remover ${item.product.name} do carrinho` : `Diminuir quantidade de ${item.product.name}`}
                   >
-                    {item.quantity === 1 ? <Trash2 className="w-3 h-3" /> : <Minus className="w-3 h-3" />}
+                    {item.quantity === 1 ? <Trash2 className="w-4 h-4" /> : <Minus className="w-4 h-4" />}
                   </button>
-                  <span className="w-5 text-center text-sm font-semibold">{item.quantity}</span>
-                  <button
-                    onClick={() => addItemToOrder(item.product)}
-                    className={`w-8 h-8 rounded-control flex items-center justify-center border transition-all active:scale-95 ${isDark ? 'border-border hover:bg-accent/10 hover:text-accent' : 'border-border-light hover:bg-surface-light hover:text-accent'}`}
-                    aria-label="Aumentar quantidade"
+                  <span
+                    className="w-5 text-center text-sm font-semibold"
+                    aria-live="polite"
+                    aria-label={`Quantidade de ${item.product.name}`}
                   >
-                    <Plus className="w-3 h-3" />
+                    {item.quantity}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => addItemToOrder(item.product)}
+                    className={`w-11 h-11 rounded-control flex items-center justify-center border transition-all active:scale-95 ${isDark ? 'border-border hover:bg-accent/10 hover:text-accent' : 'border-border-light hover:bg-surface-light hover:text-accent'}`}
+                    aria-label={`Aumentar quantidade de ${item.product.name}`}
+                  >
+                    <Plus className="w-4 h-4" />
                   </button>
                 </div>
               </motion.div>

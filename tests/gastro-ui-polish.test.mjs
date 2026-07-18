@@ -107,6 +107,20 @@ test('PDV uses accessible non-blocking operational feedback', () => {
   assert.ok(feedback.includes('aria-label="Fechar mensagem"'), 'feedback deve oferecer fechamento acessível');
 });
 
+test('PDV cart supports touch targets and keyboard product search', () => {
+  const pdv = read('gestao-gastro/src/components/PDV.tsx');
+
+  assert.ok(pdv.includes('useRef<HTMLInputElement>(null)'), 'PDV deve manter referência para a busca');
+  assert.ok(pdv.includes("event.key.toLowerCase() !== 'k'"), 'PDV deve reconhecer Ctrl ou Command + K');
+  assert.ok(pdv.includes("window.addEventListener('keydown', focusProductSearch)"), 'PDV deve registrar o atalho de busca');
+  assert.ok(pdv.includes("window.removeEventListener('keydown', focusProductSearch)"), 'PDV deve limpar o listener ao desmontar');
+  assert.ok(pdv.includes('aria-keyshortcuts="Control+K Meta+K"'), 'busca deve anunciar o atalho para tecnologia assistiva');
+  assert.ok(pdv.includes('w-11 h-11 rounded-control'), 'controles do carrinho devem ter alvo de toque de 44px');
+  assert.ok(pdv.includes('`Remover ${item.product.name} do carrinho`'), 'remoção deve identificar o produto');
+  assert.ok(pdv.includes('`Aumentar quantidade de ${item.product.name}`'), 'incremento deve identificar o produto');
+  assert.ok(pdv.includes('aria-live="polite"'), 'quantidade deve anunciar alterações sem interromper a operação');
+});
+
 test('Cardápio and Estoque use shared non-blocking feedback', () => {
   const products = read('gestao-gastro/src/components/Products.tsx');
   const stock = read('gestao-gastro/src/components/Stock.tsx');

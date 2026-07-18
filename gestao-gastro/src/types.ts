@@ -122,6 +122,8 @@ export interface Expense {
 export interface CashierSession {
   id: string;
   openedAt: string;
+  openedByUserId?: string;
+  openedByName?: string;
   closedAt?: string;
   initialBalance: number;
   salesTotal: number;

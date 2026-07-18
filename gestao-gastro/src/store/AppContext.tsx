@@ -82,7 +82,7 @@ interface AppContextType extends AppState {
   addExpense: (expense: Expense) => void;
   updateExpense: (expense: Expense) => void;
   deleteExpense: (id: string) => void;
-  openCashier: (initialBalance?: number) => void;
+  openCashier: (initialBalance?: number, operator?: { id: string; name: string }) => void;
   closeCashier: (tipsTotal: number, countedCash?: number) => void;
   transferTable: (from: number, to: number) => void;
   mergeTables: (source: number, target: number) => void;
@@ -878,10 +878,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setExpenses(prev => prev.filter(e => e.id !== id));
   };
 
-  const openCashier = (initialBalance = 0) => {
+  const openCashier = (initialBalance = 0, operator?: { id: string; name: string }) => {
     const newSession: CashierSession = {
       id: Date.now().toString(),
       openedAt: new Date().toISOString(),
+      openedByUserId: operator?.id,
+      openedByName: operator?.name,
       initialBalance,
       salesTotal: 0,
       serviceTaxTotal: 0,

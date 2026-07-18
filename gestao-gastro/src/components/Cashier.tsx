@@ -29,7 +29,7 @@ import { ui } from '../ui/styles';
 import { OperationalState } from './OperationalState';
 
 export const Cashier: React.FC = () => {
-  const { cashierSession, cashierHistory, expenses, orders, tables, theme, openCashier, closeCashier, addExpense, updateExpense, deleteExpense, settings, supabaseOnline } = useApp();
+  const { cashierSession, cashierHistory, expenses, orders, tables, theme, currentUser, openCashier, closeCashier, addExpense, updateExpense, deleteExpense, settings, supabaseOnline } = useApp();
   const { log } = useAudit();
   const isDark = theme === 'dark';
 
@@ -45,6 +45,8 @@ export const Cashier: React.FC = () => {
   const [countedCash, setCountedCash] = useState('');
 
   const [initialBalanceInput, setInitialBalanceInput] = useState('');
+  const [openingError, setOpeningError] = useState('');
+  const [openingPreviewAt] = useState(() => new Date());
 
   const closedOrders = orders.filter(o => o.status === 'closed');
   const activeOrdersCount = orders.filter(o => o.status === 'open').length;
@@ -77,10 +79,17 @@ export const Cashier: React.FC = () => {
   const canCloseCashier = activeOrdersCount === 0 && occupiedTablesCount === 0;
 
   const handleOpenCashier = () => {
-    const val = parseFloat(initialBalanceInput.replace(',', '.')) || 0;
-    openCashier(val);
+    const normalizedValue = initialBalanceInput.trim().replace(',', '.');
+    const val = normalizedValue === '' ? 0 : Number(normalizedValue);
+    if (!Number.isFinite(val) || val < 0) {
+      setOpeningError('Informe um fundo inicial válido, igual ou maior que zero.');
+      return;
+    }
+
+    openCashier(val, { id: currentUser.id, name: currentUser.name });
     setInitialBalanceInput('');
-    log('Caixa', 'abertura', { initialBalance: val });
+    setOpeningError('');
+    log('Caixa', 'abertura', { initialBalance: val, operatorId: currentUser.id });
   };
 
   const handleAddExpense = () => {
@@ -144,6 +153,7 @@ export const Cashier: React.FC = () => {
     if(!cashierSession) return;
     const report = `*Fechamento de Caixa*
 Restaurante: ${settings.establishment.name || 'Gestão Gastro'}
+Operador: ${cashierSession.openedByName || 'Não identificado'}
 Abertura: ${new Date(cashierSession.openedAt).toLocaleString('pt-BR')}
 Agora: ${new Date().toLocaleString('pt-BR')}
 
@@ -199,18 +209,50 @@ ${Object.entries(paymentTotals).map(([method, amount]) => `${method}: ${formatCu
             <p className={`text-sm font-medium uppercase tracking-wide opacity-40`}>Aguardando abertura do próximo turno</p>
           </div>
 
-          <div className="flex flex-col sm:flex-row items-center gap-4 w-full max-w-sm mx-auto">
-            <div className="relative w-full">
-              <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-sm opacity-30">R$</span>
-              <input
-                type="text"
-                placeholder="Fundo Inicial (0,00)"
-                value={initialBalanceInput}
-                onChange={e => setInitialBalanceInput(e.target.value)}
-                className={`w-full pl-10 pr-4 py-4 rounded-lg border outline-none font-bold text-sm ${isDark ? 'bg-[#121214] border-[#2C2C2E]' : 'bg-gray-50 border-gray-200'}`}
-              />
+          <div className="w-full max-w-2xl space-y-5" aria-label="Abertura guiada do caixa">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className={`rounded-xl border p-4 text-left ${isDark ? 'bg-[#121214] border-[#2C2C2E]' : 'bg-gray-50 border-gray-200'}`}>
+                <p className="text-[10px] font-bold uppercase tracking-wide opacity-40">1. Operador responsável</p>
+                <p className="mt-2 text-sm font-bold">{currentUser.name}</p>
+              </div>
+              <div className={`rounded-xl border p-4 text-left ${isDark ? 'bg-[#121214] border-[#2C2C2E]' : 'bg-gray-50 border-gray-200'}`}>
+                <p className="text-[10px] font-bold uppercase tracking-wide opacity-40">2. Data e hora do turno</p>
+                <p className="mt-2 text-sm font-bold">{openingPreviewAt.toLocaleString('pt-BR')}</p>
+              </div>
             </div>
-            <button onClick={handleOpenCashier} className="shrink-0 w-full sm:w-auto flex items-center justify-center gap-3 px-8 py-4 bg-[#475569] text-white rounded-lg font-bold uppercase tracking-wide text-[11px] shadow-sm transition-all whitespace-nowrap"><Unlock className="w-4 h-4" /> Abrir caixa</button>
+
+            <div className={`rounded-xl border p-5 text-left ${isDark ? 'bg-[#121214] border-[#2C2C2E]' : 'bg-gray-50 border-gray-200'}`}>
+              <label htmlFor="cashier-initial-balance" className="text-[10px] font-bold uppercase tracking-wide opacity-50">
+                3. Fundo inicial da gaveta
+              </label>
+              <div className="relative mt-3">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-sm opacity-30">R$</span>
+                <input
+                  id="cashier-initial-balance"
+                  type="text"
+                  inputMode="decimal"
+                  placeholder="0,00"
+                  value={initialBalanceInput}
+                  onChange={event => {
+                    setInitialBalanceInput(event.target.value);
+                    if (openingError) setOpeningError('');
+                  }}
+                  aria-invalid={Boolean(openingError)}
+                  aria-describedby="cashier-opening-help cashier-opening-error"
+                  className={`min-h-12 w-full rounded-lg border py-3 pl-10 pr-4 outline-none font-bold text-sm ${openingError ? 'border-red-400' : isDark ? 'bg-[#121214] border-[#2C2C2E]' : 'bg-white border-gray-200'}`}
+                />
+              </div>
+              <p id="cashier-opening-help" className="mt-2 text-xs leading-5 opacity-60">
+                Informe apenas o dinheiro disponível para troco. Esse valor compõe o saldo esperado, mas não é receita de venda.
+              </p>
+              {openingError && (
+                <p id="cashier-opening-error" role="alert" className="mt-2 text-xs font-semibold text-red-500">
+                  {openingError}
+                </p>
+              )}
+            </div>
+
+            <button onClick={handleOpenCashier} className="flex min-h-12 w-full items-center justify-center gap-3 rounded-lg bg-[#475569] px-8 py-4 text-[11px] font-bold uppercase tracking-wide text-white shadow-sm transition-all"><Unlock className="w-4 h-4" /> Abrir caixa e iniciar turno</button>
           </div>
         </div>
 
@@ -297,9 +339,15 @@ ${Object.entries(paymentTotals).map(([method, amount]) => `${method}: ${formatCu
           compact
         />
       )}
-      <div className="flex items-center gap-1.5 mb-2">
-        <h2 className="text-2xl font-bold uppercase tracking-tighter">Caixa</h2>
-        <HelpTooltip moduleKey="finance" />
+      <div className="mb-2">
+        <div className="flex items-center gap-1.5">
+          <h2 className="text-2xl font-bold uppercase tracking-tighter">Caixa</h2>
+          <HelpTooltip moduleKey="finance" />
+        </div>
+        <p className="mt-1 text-xs opacity-60">
+          Turno aberto por <strong>{cashierSession.openedByName || 'operador não identificado'}</strong> em{' '}
+          {new Date(cashierSession.openedAt).toLocaleString('pt-BR')}.
+        </p>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">

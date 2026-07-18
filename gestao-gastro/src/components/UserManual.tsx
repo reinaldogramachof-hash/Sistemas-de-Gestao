@@ -6,16 +6,81 @@ import {
   CheckCircle2, Star, Target, TrendingUp, UserCheck,
   ChevronRight, Info, AlertTriangle, ShieldCheck,
   Circle, CheckCircle, Award, Smartphone,
-  List, Box, Users, Truck, MessageCircle
+  List, Box, Users, Truck, MessageCircle, ShoppingCart, WifiOff
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { HelpTooltip } from './HelpTooltip';
-import { AppModule } from '../config/modulesConfig';
+import { AppModule, UserRole } from '../config/modulesConfig';
 import { useModules } from '../hooks/useModules';
+
+interface DailyRoutine {
+  id: string;
+  title: string;
+  description: string;
+  module: AppModule;
+  roles: UserRole[];
+  icon: React.ElementType;
+  steps: string[];
+}
+
+const dailyRoutines: DailyRoutine[] = [
+  {
+    id: 'routine_open_operation',
+    title: 'Abrir a operação',
+    description: 'Prepare o caixa antes do primeiro atendimento.',
+    module: 'caixa',
+    roles: ['owner', 'admin', 'cashier'],
+    icon: CheckCircle2,
+    steps: ['Acesse Caixa', 'Informe operador e fundo inicial', 'Confirme a abertura'],
+  },
+  {
+    id: 'routine_table_service',
+    title: 'Atender uma mesa',
+    description: 'Abra uma comanda e registre o consumo com segurança.',
+    module: 'mesas',
+    roles: ['owner', 'admin', 'cashier', 'waiter'],
+    icon: Smartphone,
+    steps: ['Selecione a mesa', 'Escolha ou crie a comanda', 'Lance e confirme os itens'],
+  },
+  {
+    id: 'routine_counter_sale',
+    title: 'Vender no balcão',
+    description: 'Conclua uma venda rápida diretamente no PDV.',
+    module: 'pdv',
+    roles: ['owner', 'admin', 'cashier'],
+    icon: ShoppingCart,
+    steps: ['Acesse PDV', 'Adicione os itens', 'Confira e finalize o pagamento'],
+  },
+  {
+    id: 'routine_close_cashier',
+    title: 'Fechar o caixa',
+    description: 'Confira formas de pagamento e registre diferenças.',
+    module: 'caixa',
+    roles: ['owner', 'admin', 'cashier'],
+    icon: LineChart,
+    steps: ['Revise pedidos pendentes', 'Informe o valor contado', 'Confira a diferença e feche'],
+  },
+  {
+    id: 'routine_sync_recovery',
+    title: 'Corrigir falha de sincronização',
+    description: 'Identifique o estado e envie informações úteis ao suporte.',
+    module: 'suporte',
+    roles: ['owner', 'admin', 'cashier'],
+    icon: WifiOff,
+    steps: ['Confirme a conexão', 'Tente sincronizar novamente', 'Copie o diagnóstico em Suporte'],
+  },
+];
+
+const roleLabels: Record<UserRole, string> = {
+  owner: 'Proprietário',
+  admin: 'Administrador',
+  cashier: 'Caixa',
+  waiter: 'Garçom',
+};
 
 export const UserManual: React.FC = () => {
   const { theme, readGuides, toggleGuideRead } = useApp();
-  const { checkAccess } = useModules();
+  const { checkAccess, currentRole } = useModules();
   const isDark = theme === 'dark';
   const [activeTab, setActiveTab] = useState<'guides' | 'tips'>('guides');
 
@@ -222,6 +287,9 @@ export const UserManual: React.FC = () => {
 
   const visibleModuleGuides = moduleGuides.filter((guide) => checkAccess(guide.module));
   const visibleProTips = proTips.filter((tip) => checkAccess(tip.module));
+  const visibleDailyRoutines = dailyRoutines.filter((routine) => (
+    routine.roles.includes(currentRole) && checkAccess(routine.module)
+  ));
   const visibleGuideIds = new Set([
     ...visibleModuleGuides.map((guide) => guide.id),
     ...visibleProTips.map((tip) => tip.id),
@@ -265,6 +333,47 @@ export const UserManual: React.FC = () => {
           </p>
         </div>
       </div>
+
+      <section aria-labelledby="daily-routines-title" className="space-y-5">
+        <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
+          <div>
+            <h2 id="daily-routines-title" className="text-3xl font-black uppercase italic tracking-tighter">Rotinas do seu perfil</h2>
+            <p className="mt-2 text-xs font-bold opacity-50 uppercase tracking-wider">
+              Passos curtos disponíveis para {roleLabels[currentRole]}.
+            </p>
+          </div>
+          <span className="self-start sm:self-auto px-3 py-2 rounded-lg bg-[#475569]/10 text-[#475569] text-[10px] font-black uppercase tracking-widest">
+            {visibleDailyRoutines.length} rotina(s)
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+          {visibleDailyRoutines.map((routine) => (
+            <article
+              key={routine.id}
+              className={`p-6 rounded-xl border ${isDark ? 'bg-[#1C1C1E] border-[#2C2C2E]' : 'bg-white border-gray-100 shadow-sm shadow-gray-200/10'}`}
+            >
+              <div className="flex items-start gap-4 mb-5">
+                <div className="w-11 h-11 rounded-lg bg-[#475569]/10 text-[#475569] flex items-center justify-center flex-shrink-0">
+                  <routine.icon className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-black uppercase tracking-tight">{routine.title}</h3>
+                  <p className="mt-1 text-xs font-semibold opacity-55 leading-relaxed">{routine.description}</p>
+                </div>
+              </div>
+              <ol className="space-y-3">
+                {routine.steps.map((step, index) => (
+                  <li key={step} className="flex items-center gap-3 text-xs font-bold">
+                    <span className="w-6 h-6 rounded-full bg-[#475569]/10 text-[#475569] flex items-center justify-center flex-shrink-0 text-[10px]">{index + 1}</span>
+                    {step}
+                  </li>
+                ))}
+              </ol>
+            </article>
+          ))}
+        </div>
+      </section>
 
       {/* Tab Switcher */}
       <div className="flex justify-center">
@@ -418,7 +527,7 @@ export const UserManual: React.FC = () => {
         <div className="grid grid-cols-1 gap-6">
 
           {/* Seção Comanda Mobile */}
-          <div id="comanda-mobile" className={`p-8 rounded-xl border ${isDark ? 'bg-[#1C1C1E] border-[#2C2C2E]' : 'bg-white border-gray-100 shadow-sm shadow-gray-200/10'} scroll-mt-20`}>
+          {checkAccess('configuracoes') && <div id="comanda-mobile" className={`p-8 rounded-xl border ${isDark ? 'bg-[#1C1C1E] border-[#2C2C2E]' : 'bg-white border-gray-100 shadow-sm shadow-gray-200/10'} scroll-mt-20`}>
             <div className="flex items-center gap-3 mb-4">
               <Smartphone className="w-6 h-6 text-accent" />
               <h3 className="text-xl font-bold uppercase tracking-tight">Como acessar a Comanda via Celular do Garçom</h3>
@@ -429,10 +538,10 @@ export const UserManual: React.FC = () => {
               3. Faça o garçom apontar a câmera do celular para o QR Code gerado, ou envie o link gerado diretamente para o dispositivo dele.<br/>
               4. O garçom deverá fazer login com o e-mail e senha criados por você na aba de equipe em Configurações.
             </p>
-          </div>
+          </div>}
 
           {/* Seção Fechamento de Caixa */}
-          <div id="fechamento-caixa" className={`p-8 rounded-xl border ${isDark ? 'bg-[#1C1C1E] border-[#2C2C2E]' : 'bg-white border-gray-100 shadow-sm shadow-gray-200/10'} scroll-mt-20`}>
+          {checkAccess('caixa') && <div id="fechamento-caixa" className={`p-8 rounded-xl border ${isDark ? 'bg-[#1C1C1E] border-[#2C2C2E]' : 'bg-white border-gray-100 shadow-sm shadow-gray-200/10'} scroll-mt-20`}>
             <div className="flex items-center gap-3 mb-4">
               <TrendingUp className="w-6 h-6 text-emerald-500" />
               <h3 className="text-xl font-bold uppercase tracking-tight">Fluxo de Fechamento e Caixa Diário</h3>
@@ -443,10 +552,10 @@ export const UserManual: React.FC = () => {
               3. Sangrias (retirada de dinheiro para segurança) e suprimentos (adição de troco) devem ser registrados imediatamente.<br/>
               4. Ao final do expediente, clique em <strong>Fechar Caixa</strong>, confira os valores em dinheiro, cartão e PIX calculados pelo sistema, informe o valor real e confirme o encerramento da sessão diária.
             </p>
-          </div>
+          </div>}
 
           {/* Seção Estoque e Receitas */}
-          <div id="estoque-receitas" className={`p-8 rounded-xl border ${isDark ? 'bg-[#1C1C1E] border-[#2C2C2E]' : 'bg-white border-gray-100 shadow-sm shadow-gray-200/10'} scroll-mt-20`}>
+          {checkAccess('estoque') && <div id="estoque-receitas" className={`p-8 rounded-xl border ${isDark ? 'bg-[#1C1C1E] border-[#2C2C2E]' : 'bg-white border-gray-100 shadow-sm shadow-gray-200/10'} scroll-mt-20`}>
             <div className="flex items-center gap-3 mb-4">
               <Utensils className="w-6 h-6 text-amber-500" />
               <h3 className="text-xl font-bold uppercase tracking-tight">Regras de Validação de Estoque e Receitas</h3>
@@ -456,7 +565,7 @@ export const UserManual: React.FC = () => {
               2. <strong>Ficha Técnica/Receitas</strong>: No cardápio, associe os insumos a cada produto informando a quantidade consumida por venda (ex: 0.150kg de carne para o hambúrguer).<br/>
               3. <strong>Validação</strong>: O sistema debita insumos automaticamente a cada venda no PDV ou comanda faturada. Se algum insumo da receita estiver zerado, o sistema alertará sobre o estoque insuficiente.
             </p>
-          </div>
+          </div>}
 
         </div>
       </div>

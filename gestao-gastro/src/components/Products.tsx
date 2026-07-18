@@ -15,12 +15,24 @@ import { formatStockQuantity } from '../utils/format';
 import { OperationFeedback, type OperationFeedbackMessage } from './OperationFeedback';
 import { OperationalState } from './OperationalState';
 
+type ProductStatusFilter = 'todos' | 'ativos' | 'inativos' | 'ficha_pendente' | 'sync_pendente';
+
+const productStatusLabels: Record<ProductStatusFilter, string> = {
+  todos: 'Todos',
+  ativos: 'Ativos',
+  inativos: 'Inativos',
+  ficha_pendente: 'Ficha pendente',
+  sync_pendente: 'Erro de sincronização',
+};
+
 export const Products: React.FC = () => {
   const { products, stockItems, updateProduct, addProduct, deleteProduct, theme, productSyncErrors, retrySyncProduct, clearSyncError, supabaseOnline } = useApp();
   const isDark = theme === 'dark';
 
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('Todas');
+  const [statusFilter, setStatusFilter] = useState<ProductStatusFilter>('todos');
+  const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>(() => (localStorage.getItem('viewMode_products') as any) || 'grid');
 
   // Modal State
@@ -31,14 +43,31 @@ export const Products: React.FC = () => {
 
   const categories = ['Todas', ...Array.from(new Set(products.map(p => p.category)))];
   const syncErrorCount = Object.keys(productSyncErrors).length;
+  const hasIncompleteRecipe = React.useCallback((product: Product) => !product.recipe?.length
+    || product.recipe.some(item => !stockItems.some(stockItem => stockItem.id === item.stockItemId)), [stockItems]);
 
   const filteredProducts = useMemo(() => {
     return products.filter(p => {
       const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesCategory = selectedCategory === 'Todas' || p.category === selectedCategory;
-      return matchesSearch && matchesCategory;
+      const matchesStatus = statusFilter === 'todos'
+        || (statusFilter === 'ativos' && p.active !== false)
+        || (statusFilter === 'inativos' && p.active === false)
+        || (statusFilter === 'ficha_pendente' && hasIncompleteRecipe(p))
+        || (statusFilter === 'sync_pendente' && Boolean(productSyncErrors[p.id]));
+      return matchesSearch && matchesCategory && matchesStatus;
     });
-  }, [products, searchTerm, selectedCategory]);
+  }, [products, searchTerm, selectedCategory, statusFilter, productSyncErrors, hasIncompleteRecipe]);
+
+  const selectedProducts = products.filter(product => selectedProductIds.includes(product.id));
+  const allVisibleSelected = filteredProducts.length > 0 && filteredProducts.every(product => selectedProductIds.includes(product.id));
+  const productStatusCounts: Record<ProductStatusFilter, number> = {
+    todos: products.length,
+    ativos: products.filter(product => product.active !== false).length,
+    inativos: products.filter(product => product.active === false).length,
+    ficha_pendente: products.filter(hasIncompleteRecipe).length,
+    sync_pendente: syncErrorCount,
+  };
 
   const toggleViewMode = (mode: 'grid' | 'list') => {
     setViewMode(mode);
@@ -119,6 +148,51 @@ export const Products: React.FC = () => {
         description: `${product.name} continua salvo neste dispositivo. Verifique a conexão e tente novamente. Detalhe: ${message}`,
       });
     }
+  };
+
+  const toggleProductSelection = (productId: string) => {
+    setSelectedProductIds(current => current.includes(productId)
+      ? current.filter(id => id !== productId)
+      : [...current, productId]);
+  };
+
+  const toggleAllVisibleProducts = () => {
+    const visibleIds = filteredProducts.map(product => product.id);
+    setSelectedProductIds(current => allVisibleSelected
+      ? current.filter(id => !visibleIds.includes(id))
+      : Array.from(new Set([...current, ...visibleIds])));
+  };
+
+  const handleBulkAvailability = (active: boolean) => {
+    if (selectedProducts.length === 0) return;
+    if (!active && !window.confirm(`Desativar ${selectedProducts.length} produto(s) selecionado(s) no Cardápio?`)) return;
+
+    selectedProducts.forEach(product => updateProduct({ ...product, active }));
+    setFeedback({
+      tone: 'success',
+      title: active ? 'Produtos ativados' : 'Produtos desativados',
+      description: `${selectedProducts.length} produto(s) foram atualizados${supabaseOnline ? ' e serão sincronizados com a nuvem.' : ' neste dispositivo.'}`,
+    });
+    setSelectedProductIds([]);
+  };
+
+  const handleBulkRetrySync = async () => {
+    const pendingProducts = selectedProducts.filter(product => productSyncErrors[product.id]);
+    if (pendingProducts.length === 0) {
+      setFeedback({ tone: 'warning', title: 'Nenhuma pendência selecionada', description: 'Selecione produtos com erro de sincronização para reenviá-los.' });
+      return;
+    }
+
+    const results = await Promise.allSettled(pendingProducts.map(product => retrySyncProduct(product)));
+    const successCount = results.filter(result => result.status === 'fulfilled').length;
+    pendingProducts.forEach((product, index) => {
+      if (results[index].status === 'fulfilled') clearSyncError(product.id);
+    });
+    setFeedback({
+      tone: successCount === pendingProducts.length ? 'success' : 'warning',
+      title: successCount === pendingProducts.length ? 'Sincronização concluída' : 'Sincronização parcial',
+      description: `${successCount} de ${pendingProducts.length} produto(s) foram enviados. As falhas continuam identificadas para uma nova tentativa.`,
+    });
   };
 
   const handleDeleteProduct = (product: Product) => {
@@ -209,6 +283,21 @@ export const Products: React.FC = () => {
         </div>
       </div>
 
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-5" aria-label="Diagnóstico do Cardápio">
+        {(Object.keys(productStatusLabels) as ProductStatusFilter[]).map(filter => (
+          <button
+            key={filter}
+            type="button"
+            aria-pressed={statusFilter === filter}
+            onClick={() => setStatusFilter(filter)}
+            className={`min-h-16 rounded-lg border px-4 py-3 text-left transition-colors ${statusFilter === filter ? 'border-[#475569] bg-[#475569]/10' : isDark ? 'border-[#2C2C2E] bg-[#1C1C1E]' : 'border-gray-100 bg-white'}`}
+          >
+            <span className="block text-lg font-bold">{productStatusCounts[filter]}</span>
+            <span className="text-[9px] font-bold uppercase tracking-wide opacity-50">{productStatusLabels[filter]}</span>
+          </button>
+        ))}
+      </div>
+
       {!supabaseOnline && (
         <OperationalState
           variant="offline"
@@ -227,6 +316,24 @@ export const Products: React.FC = () => {
         />
       )}
 
+      {filteredProducts.length > 0 && (
+        <div className={`flex flex-col gap-3 rounded-lg border p-4 sm:flex-row sm:items-center sm:justify-between ${isDark ? 'border-[#2C2C2E] bg-[#1C1C1E]' : 'border-gray-100 bg-white'}`}>
+          <label className="flex min-h-11 cursor-pointer items-center gap-3 text-xs font-bold">
+            <input type="checkbox" checked={allVisibleSelected} onChange={toggleAllVisibleProducts} className="h-5 w-5 accent-[#475569]" />
+            Selecionar resultados visíveis ({filteredProducts.length})
+          </label>
+          {selectedProducts.length > 0 && (
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="mr-1 text-[10px] font-bold uppercase opacity-50">{selectedProducts.length} selecionado(s)</span>
+              <button type="button" onClick={() => handleBulkAvailability(true)} className="min-h-10 rounded-lg bg-emerald-500/10 px-4 text-[9px] font-bold uppercase text-emerald-600">Ativar</button>
+              <button type="button" onClick={() => handleBulkAvailability(false)} className="min-h-10 rounded-lg bg-red-500/10 px-4 text-[9px] font-bold uppercase text-red-500">Desativar</button>
+              {supabaseOnline && <button type="button" onClick={handleBulkRetrySync} className="min-h-10 rounded-lg bg-blue-500/10 px-4 text-[9px] font-bold uppercase text-blue-600">Reenviar pendências</button>}
+              <button type="button" onClick={() => setSelectedProductIds([])} className="min-h-10 rounded-lg px-3 text-[9px] font-bold uppercase opacity-50">Limpar seleção</button>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Product List */}
       {filteredProducts.length === 0 ? (
         <OperationalState
@@ -241,6 +348,7 @@ export const Products: React.FC = () => {
             else {
               setSearchTerm('');
               setSelectedCategory('Todas');
+              setStatusFilter('todos');
             }
           }}
         />
@@ -263,6 +371,13 @@ export const Products: React.FC = () => {
               >
                 <div className="flex justify-between items-start mb-6">
                   <div className="flex min-w-0 items-center gap-3">
+                    <input
+                      type="checkbox"
+                      checked={selectedProductIds.includes(p.id)}
+                      onChange={() => toggleProductSelection(p.id)}
+                      aria-label={`Selecionar ${p.name}`}
+                      className="h-5 w-5 flex-shrink-0 accent-[#475569]"
+                    />
                     <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${isDark ? 'bg-white/5' : 'bg-gray-50'}`}>
                       {getIcon(p.category, p.name)}
                     </div>
@@ -358,6 +473,13 @@ export const Products: React.FC = () => {
                   <tr key={p.id} className="group hover:bg-current/[0.01] transition-all">
                     <td className="px-8 py-5">
                       <div className="flex items-center gap-4">
+                        <input
+                          type="checkbox"
+                          checked={selectedProductIds.includes(p.id)}
+                          onChange={() => toggleProductSelection(p.id)}
+                          aria-label={`Selecionar ${p.name}`}
+                          className="h-5 w-5 flex-shrink-0 accent-[#475569]"
+                        />
                         <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${isDark ? 'bg-white/5' : 'bg-gray-50'}`}>{getIcon(p.category, p.name)}</div>
                         <div>
                           <div className="flex items-center gap-2">

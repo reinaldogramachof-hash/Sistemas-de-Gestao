@@ -311,6 +311,28 @@ describe('Garçom Permissions — gestao-gastro', () => {
     );
   });
 
+  test('ComandaMobile deve retomar sincronizacao offline sem duplicar comandas', () => {
+    const content = readSrc('components/ComandaMobile.tsx');
+
+    assert.ok(
+      content.includes("syncStage?: 'items' | 'metadata' | 'table'") && content.includes('remoteOrderId?: string'),
+      'fila deve persistir a etapa concluida e o pedido remoto criado',
+    );
+    assert.match(
+      content,
+      /pendingItem = \{ \.\.\.pendingItem, remoteOrderId: createdOrder\.id, syncStage: 'table' \}[\s\S]*setTableOccupied/,
+      'pedido criado deve ser preservado antes de tentar vincular a mesa',
+    );
+    assert.ok(
+      content.includes('lastError: getOfflineSyncError(error)') && content.includes('formatLastSync(lastSyncAt)'),
+      'falha e ultima sincronizacao devem ficar visiveis ao garcom',
+    );
+    assert.ok(
+      content.includes('autoSyncAttemptedRef.current') && content.includes('if (!isOnline)'),
+      'reconexao deve tentar automaticamente uma vez sem entrar em loop de reenvio',
+    );
+  });
+
   test('ComandaMobile deve recuperar mesa com activeOrderId orfao criando nova comanda', () => {
     const content = readSrc('components/ComandaMobile.tsx');
 

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import type { Order, OrderItem, Product, Table } from '../types';
 import { ComandaMesaGrid } from './ComandaMesaGrid';
 import { ComandaMesaResumo } from './ComandaMesaResumo';
@@ -30,11 +30,18 @@ interface OfflineQueueItem {
   timestamp: string;
   waiterId: string;
   waiterName: string;
+  syncStage?: 'items' | 'metadata' | 'table';
+  remoteOrderId?: string;
+  attempts?: number;
+  lastAttemptAt?: string;
+  lastError?: string;
 }
 
 const OFFLINE_QUEUE_KEY = 'garcom_offline_queue';
 const getOfflineQueueKey = (tenantId: string, waiterId: string) =>
   `${OFFLINE_QUEUE_KEY}:${tenantId || 'local'}:${waiterId || 'anonymous'}`;
+const getLastSyncKey = (tenantId: string, waiterId: string) =>
+  `garcom_last_sync:${tenantId || 'local'}:${waiterId || 'anonymous'}`;
 
 // ─── Utils ────────────────────────────────────────────────────────────────────
 
@@ -60,6 +67,27 @@ const loadOfflineQueue = (queueKey: string): OfflineQueueItem[] => {
 
 const saveOfflineQueue = (queueKey: string, queue: OfflineQueueItem[]) => {
   localStorage.setItem(queueKey, JSON.stringify(queue));
+};
+
+const getOfflineSyncError = (error: unknown) => {
+  const message = error instanceof Error ? error.message : '';
+  if (message.includes('Pedido ativo nao encontrado')) {
+    return 'Conflito: a comanda foi fechada ou alterada em outro dispositivo.';
+  }
+  if (message.includes('Tenant nao configurado')) {
+    return 'Identificacao do restaurante ausente. Entre novamente pela URL do cliente.';
+  }
+  return 'Falha ao enviar. Verifique a conexao e tente novamente.';
+};
+
+const formatLastSync = (value: string | null) => {
+  if (!value) return 'Nenhuma sincronizacao concluida';
+  return `Ultima sincronizacao: ${new Date(value).toLocaleString('pt-BR', {
+    day: '2-digit',
+    month: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  })}`;
 };
 
 const mergeGeneralObservation = (current?: string, next?: string) =>
@@ -137,6 +165,8 @@ export const ComandaMobile: React.FC<ComandaMobileProps> = ({
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [offlineQueue, setOfflineQueue] = useState<OfflineQueueItem[]>(() => loadOfflineQueue(offlineQueueKey));
   const [syncing, setSyncing] = useState(false);
+  const [lastSyncAt, setLastSyncAt] = useState<string | null>(() => localStorage.getItem(getLastSyncKey(tenantId, waiterSession.waiterId)));
+  const autoSyncAttemptedRef = useRef(false);
 
   // ─── Network detection ────────────────────────────────────────────────────
 
@@ -194,7 +224,8 @@ export const ComandaMobile: React.FC<ComandaMobileProps> = ({
 
   useEffect(() => {
     setOfflineQueue(loadOfflineQueue(offlineQueueKey));
-  }, [offlineQueueKey]);
+    setLastSyncAt(localStorage.getItem(getLastSyncKey(tenantId, waiterSession.waiterId)));
+  }, [offlineQueueKey, tenantId, waiterSession.waiterId]);
 
   // ─── Sync da fila offline ─────────────────────────────────────────────────
 
@@ -203,7 +234,9 @@ export const ComandaMobile: React.FC<ComandaMobileProps> = ({
     setSyncing(true);
 
     const remaining: OfflineQueueItem[] = [];
+    let syncedCount = 0;
     for (const item of offlineQueue) {
+      let pendingItem = item;
       try {
         const orderItems = buildOrderItems(item.items);
         const subtotal = orderItems.reduce((s, i) => s + i.price * i.quantity, 0);
@@ -211,12 +244,29 @@ export const ComandaMobile: React.FC<ComandaMobileProps> = ({
           throw new Error('Tenant nao configurado para sincronizar fila offline.');
         }
 
+        if (item.remoteOrderId) {
+          const freshOrders = await listOpenOrders(tenantId);
+          if (!freshOrders.some(order => order.id === item.remoteOrderId)) {
+            throw new Error('Pedido ativo nao encontrado para sincronizar fila offline.');
+          }
+          if (item.mode === 'mesa' && item.tableNumber) {
+            await setTableOccupied(tenantId, item.tableNumber, item.remoteOrderId);
+          }
+          syncedCount += 1;
+          continue;
+        }
+
         if (item.existingOrderId) {
           const freshOrders = await listOpenOrders(tenantId);
           const existingOrder = freshOrders.find(order => order.id === item.existingOrderId);
           if (!existingOrder) throw new Error('Pedido ativo nao encontrado para sincronizar fila offline.');
-          await updateOrderItems(tenantId, item.existingOrderId, mergeOrderItems(existingOrder.items, orderItems));
-          if (item.generalObservation.trim() || item.customerName.trim() || item.adultCount !== existingOrder.adultCount || item.childrenCount !== existingOrder.childrenCount) {
+
+          const syncStage = item.syncStage ?? 'items';
+          if (syncStage === 'items') {
+            await updateOrderItems(tenantId, item.existingOrderId, mergeOrderItems(existingOrder.items, orderItems));
+            pendingItem = { ...pendingItem, syncStage: 'metadata' };
+          }
+          if (syncStage !== 'table' && (item.generalObservation.trim() || item.customerName.trim() || item.adultCount !== existingOrder.adultCount || item.childrenCount !== existingOrder.childrenCount)) {
             await updateOrderMeta(tenantId, item.existingOrderId, {
               customerName: item.customerName.trim() || existingOrder.customerName,
               customerCount: item.adultCount + item.childrenCount,
@@ -225,6 +275,11 @@ export const ComandaMobile: React.FC<ComandaMobileProps> = ({
               generalObservation: mergeGeneralObservation(existingOrder.generalObservation, item.generalObservation),
             });
           }
+          pendingItem = { ...pendingItem, syncStage: 'table' };
+          if (item.mode === 'mesa' && item.tableNumber) {
+            await setTableOccupied(tenantId, item.tableNumber, item.existingOrderId);
+          }
+          syncedCount += 1;
           continue;
         }
 
@@ -244,29 +299,46 @@ export const ComandaMobile: React.FC<ComandaMobileProps> = ({
           waiterName: item.waiterName,
           timestamp: item.timestamp,
         });
+        pendingItem = { ...pendingItem, remoteOrderId: createdOrder.id, syncStage: 'table' };
         if (item.mode === 'mesa' && item.tableNumber) {
           await setTableOccupied(tenantId, item.tableNumber, createdOrder.id);
         }
-      } catch {
-        remaining.push(item);
+        syncedCount += 1;
+      } catch (error) {
+        remaining.push({
+          ...pendingItem,
+          attempts: (item.attempts ?? 0) + 1,
+          lastAttemptAt: new Date().toISOString(),
+          lastError: getOfflineSyncError(error),
+        });
       }
     }
 
     setOfflineQueue(remaining);
     saveOfflineQueue(offlineQueueKey, remaining);
+    if (syncedCount > 0) {
+      const syncedAt = new Date().toISOString();
+      localStorage.setItem(getLastSyncKey(tenantId, waiterSession.waiterId), syncedAt);
+      setLastSyncAt(syncedAt);
+    }
     setSyncing(false);
     setUiMessage(
       remaining.length === 0
         ? { type: 'ok', text: 'Fila offline sincronizada com sucesso.' }
         : { type: 'warn', text: `${remaining.length} pedido(s) ainda aguardam sincronizacao.` },
     );
-  }, [isOnline, offlineQueue, tenantId, offlineQueueKey]);
+  }, [isOnline, offlineQueue, tenantId, offlineQueueKey, waiterSession.waiterId]);
 
   useEffect(() => {
-    if (isOnline && offlineQueue.length > 0) {
+    if (!isOnline) {
+      autoSyncAttemptedRef.current = false;
+      return;
+    }
+    if (offlineQueue.length > 0 && !autoSyncAttemptedRef.current) {
+      autoSyncAttemptedRef.current = true;
       void syncOfflineQueue();
     }
-  }, [isOnline, syncOfflineQueue]);
+  }, [isOnline, offlineQueue.length, syncOfflineQueue]);
 
   const handleRemoveOfflineItem = (itemId: string) => {
     const nextQueue = offlineQueue.filter(item => item.id !== itemId);
@@ -665,6 +737,7 @@ export const ComandaMobile: React.FC<ComandaMobileProps> = ({
               <div>
                 <p className="text-xs font-bold uppercase tracking-wide">Fila offline</p>
                 <p className="text-[11px] opacity-80">{offlineQueue.length} pedido(s) aguardando envio.</p>
+                <p className="text-[10px] opacity-70">{formatLastSync(lastSyncAt)}</p>
               </div>
               <button
                 type="button"
@@ -677,10 +750,14 @@ export const ComandaMobile: React.FC<ComandaMobileProps> = ({
             </div>
             <div className="mt-3 space-y-2">
               {offlineQueue.slice(0, 3).map(item => (
-                <div key={item.id} className="flex items-center justify-between gap-3 rounded-lg bg-white/70 px-3 py-2 text-xs dark:bg-black/20">
-                  <span className="font-semibold">
-                    {item.mode === 'mesa' ? `Mesa ${item.tableNumber}` : 'Balcao'} · {item.items.reduce((sum, draft) => sum + draft.quantity, 0)} item(ns)
-                  </span>
+                <div key={item.id} className="flex items-start justify-between gap-3 rounded-lg bg-white/70 px-3 py-2 text-xs dark:bg-black/20">
+                  <div className="min-w-0">
+                    <p className="font-semibold">
+                      {item.mode === 'mesa' ? `Mesa ${item.tableNumber}` : 'Balcao'} · {item.items.reduce((sum, draft) => sum + draft.quantity, 0)} item(ns)
+                    </p>
+                    {item.lastError && <p className="mt-1 text-[10px] leading-4 text-red-700 dark:text-red-200">{item.lastError}</p>}
+                    {item.attempts && <p className="text-[9px] opacity-60">{item.attempts} tentativa(s) realizada(s)</p>}
+                  </div>
                   <button
                     type="button"
                     onClick={() => handleRemoveOfflineItem(item.id)}

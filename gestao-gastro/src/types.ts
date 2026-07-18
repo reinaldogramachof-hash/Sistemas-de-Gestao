@@ -89,6 +89,7 @@ export interface Order {
   waiterId: string;
   customerId?: string;
   timestamp: string;
+  createdAt?: string;
 }
 
 export interface OrderCloseResult {

@@ -124,6 +124,7 @@ const toOrder = (row: OrderRow): Order => ({
   status: row.status,
   waiterId: row.waiter_id,
   timestamp: row.timestamp,
+  createdAt: row.created_at,
 });
 
 // ─── CRUD ────────────────────────────────────────────────────────────────────

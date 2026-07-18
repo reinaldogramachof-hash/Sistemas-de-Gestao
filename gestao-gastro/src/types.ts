@@ -132,6 +132,7 @@ export interface CashierSession {
   expensesTotal: number;
   tipsTotal: number;
   finalBalance?: number;
+  expectedCashBalance?: number;
   ordersCount: number;
   status: 'open' | 'closed';
   countedCash?: number;

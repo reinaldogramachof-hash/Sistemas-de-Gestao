@@ -83,7 +83,7 @@ interface AppContextType extends AppState {
   updateExpense: (expense: Expense) => void;
   deleteExpense: (id: string) => void;
   openCashier: (initialBalance?: number, operator?: { id: string; name: string }) => void;
-  closeCashier: (tipsTotal: number, countedCash?: number) => void;
+  closeCashier: (tipsTotal: number, countedCash?: number, expectedCashBalance?: number) => void;
   transferTable: (from: number, to: number) => void;
   mergeTables: (source: number, target: number) => void;
   reserveTable: (numbers: number[], reason: string) => void;
@@ -895,7 +895,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setCashierSession(newSession);
   };
 
-  const closeCashier = (tipsTotal: number, countedCash?: number) => {
+  const closeCashier = (tipsTotal: number, countedCash?: number, expectedCashBalance?: number) => {
     if (!cashierSession) return;
     const closedOrders = localOrders.filter(o => o.status === 'closed');
     const salesTotal = closedOrders.reduce((acc, o) => acc + o.subtotal, 0);
@@ -908,7 +908,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     const initialBalance = cashierSession.initialBalance || 0;
     const finalBalance = initialBalance + salesTotal + serviceTaxTotal - expensesTotal + tipsTotal;
-    const cashBreakdown = countedCash !== undefined ? countedCash - finalBalance : undefined;
+    const cashBreakdown = countedCash !== undefined ? countedCash - (expectedCashBalance ?? finalBalance) : undefined;
 
     const closedSession: CashierSession = {
       ...cashierSession,
@@ -920,6 +920,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       expensesTotal,
       ordersCount: closedOrders.length,
       finalBalance,
+      expectedCashBalance,
       countedCash,
       cashBreakdown,
       closedOrderIds: closedOrders.map(o => o.id),

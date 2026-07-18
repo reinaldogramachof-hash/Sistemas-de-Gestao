@@ -57,6 +57,7 @@ export const Cashier: React.FC = () => {
 
   const [tipsTotal, setTipsTotal] = useState('');
   const [countedCash, setCountedCash] = useState('');
+  const [closingError, setClosingError] = useState('');
 
   const [initialBalanceInput, setInitialBalanceInput] = useState('');
   const [openingError, setOpeningError] = useState('');
@@ -94,7 +95,16 @@ export const Cashier: React.FC = () => {
   const cashOutTotal = withdrawalsTotal + operatingExpensesTotal;
 
   const initialBalance = cashierSession?.initialBalance || 0;
-  const saldoPrevisto = initialBalance + salesToday + serviceChargeToday + suppliesTotal - cashOutTotal;
+  const cashPaymentsTotal = paymentTotals.Dinheiro || 0;
+  const parsedTips = tipsTotal.trim() === '' ? 0 : Number(tipsTotal.replace(',', '.'));
+  const validTips = Number.isFinite(parsedTips) && parsedTips >= 0 ? parsedTips : 0;
+  const operationalBalance = initialBalance + salesToday + serviceChargeToday + suppliesTotal - cashOutTotal;
+  const expectedCashBalance = initialBalance + cashPaymentsTotal + suppliesTotal - cashOutTotal + validTips;
+  const parsedCountedCash = countedCash.trim() === '' ? undefined : Number(countedCash.replace(',', '.'));
+  const cashDifference = parsedCountedCash !== undefined && Number.isFinite(parsedCountedCash)
+    ? parsedCountedCash - expectedCashBalance
+    : undefined;
+  const isCashReconciled = cashDifference !== undefined && Math.abs(cashDifference) < 0.01;
 
   const canCloseCashier = activeOrdersCount === 0 && occupiedTablesCount === 0;
 
@@ -168,12 +178,15 @@ export const Cashier: React.FC = () => {
 
   const handleCloseCashier = () => {
     if(!canCloseCashier) return;
-    const tips = parseFloat(tipsTotal.replace(',', '.')) || 0;
-    const counted = countedCash.trim() ? parseFloat(countedCash.replace(',', '.')) : undefined;
-    closeCashier(tips, counted);
-    log('Caixa', 'fechamento', { tips, counted });
+    if (!Number.isFinite(parsedTips) || parsedTips < 0 || (parsedCountedCash !== undefined && (!Number.isFinite(parsedCountedCash) || parsedCountedCash < 0))) {
+      setClosingError('Informe valores válidos, iguais ou maiores que zero.');
+      return;
+    }
+    closeCashier(parsedTips, parsedCountedCash, expectedCashBalance);
+    log('Caixa', 'fechamento', { tips: parsedTips, counted: parsedCountedCash, expectedCashBalance });
     setTipsTotal('');
     setCountedCash('');
+    setClosingError('');
   };
 
   const handleShareReport = async () => {
@@ -191,8 +204,10 @@ Taxas/Serviço: ${formatCurrency(serviceChargeToday)}
 Suprimentos: ${formatCurrency(suppliesTotal)}
 Sangrias: ${formatCurrency(withdrawalsTotal)}
 Despesas: ${formatCurrency(operatingExpensesTotal)}
-Saldo Previsto: ${formatCurrency(saldoPrevisto)}
-Contagem (Declarado): ${countedCash ? formatCurrency(parseFloat(countedCash.replace(',','.'))) : 'Não informado'}
+Saldo financeiro do turno: ${formatCurrency(operationalBalance + validTips)}
+Dinheiro esperado na gaveta: ${formatCurrency(expectedCashBalance)}
+Contagem declarada: ${parsedCountedCash !== undefined && Number.isFinite(parsedCountedCash) ? formatCurrency(parsedCountedCash) : 'Não informado'}
+Diferença de caixa: ${cashDifference === undefined ? 'Não conferida' : cashDifference === 0 ? 'Conferido' : `${cashDifference > 0 ? 'Sobra' : 'Falta'} de ${formatCurrency(Math.abs(cashDifference))}`}
 
 *Formas de Pagamento*
 ${Object.entries(paymentTotals).map(([method, amount]) => `${method}: ${formatCurrency(amount as number)}`).join('\n') || 'Nenhuma venda fechada'}`;
@@ -386,7 +401,7 @@ ${Object.entries(paymentTotals).map(([method, amount]) => `${method}: ${formatCu
           { label: 'Entradas (Vendas)', value: salesToday + serviceChargeToday, icon: TrendingUp, color: 'text-emerald-500', bg: 'bg-emerald-500/10' },
           { label: 'Suprimentos', value: suppliesTotal, icon: Plus, color: 'text-emerald-500', bg: 'bg-emerald-500/10' },
           { label: 'Saídas do Caixa', value: cashOutTotal, icon: TrendingDown, color: 'text-red-500', bg: 'bg-red-500/10' },
-          { label: 'Saldo Estimado Caixa', value: saldoPrevisto, icon: Banknote, color: 'text-blue-500', bg: 'bg-blue-500/10' }
+          { label: 'Dinheiro Esperado', value: expectedCashBalance, icon: Banknote, color: 'text-blue-500', bg: 'bg-blue-500/10' }
         ].map((kpi, i) => (
           <div
             key={i}
@@ -521,22 +536,35 @@ ${Object.entries(paymentTotals).map(([method, amount]) => `${method}: ${formatCu
               </div>
             ) : (
               <div className="space-y-4">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-bold uppercase tracking-wide opacity-40 ml-2">Gorjetas em Espécie</label>
-                  <input type="text" placeholder="R$ 0,00" value={tipsTotal} onChange={e => setTipsTotal(e.target.value)} className={`w-full p-4 rounded-lg border border-red-500/20 outline-none font-bold text-sm ${isDark ? 'bg-black/20' : 'bg-white'}`} />
+                <div className={`rounded-lg border p-4 text-xs ${isDark ? 'border-white/10 bg-black/20' : 'border-red-100 bg-white'}`}>
+                  <p className="mb-3 text-[10px] font-bold uppercase tracking-wide opacity-50">Conferência da gaveta</p>
+                  <div className="space-y-2">
+                    <div className="flex justify-between gap-3"><span className="opacity-60">Fundo inicial</span><strong>{formatCurrency(initialBalance)}</strong></div>
+                    <div className="flex justify-between gap-3"><span className="opacity-60">Vendas em dinheiro</span><strong>+ {formatCurrency(cashPaymentsTotal)}</strong></div>
+                    <div className="flex justify-between gap-3"><span className="opacity-60">Suprimentos</span><strong>+ {formatCurrency(suppliesTotal)}</strong></div>
+                    <div className="flex justify-between gap-3"><span className="opacity-60">Sangrias e despesas</span><strong>- {formatCurrency(cashOutTotal)}</strong></div>
+                    <div className="flex justify-between gap-3"><span className="opacity-60">Gorjetas em espécie</span><strong>+ {formatCurrency(validTips)}</strong></div>
+                    <div className="mt-3 flex justify-between gap-3 border-t border-current/10 pt-3 text-sm"><span className="font-bold">Dinheiro esperado</span><strong className="text-blue-500">{formatCurrency(expectedCashBalance)}</strong></div>
+                  </div>
+                  <p className="mt-3 text-[10px] leading-4 opacity-50">PIX e cartão aparecem no resumo financeiro, mas não entram na contagem da gaveta.</p>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[10px] font-bold uppercase tracking-wide opacity-40 ml-2">Contagem Declarada (Opcional)</label>
-                  <input type="text" placeholder="R$ 0,00" value={countedCash} onChange={e => setCountedCash(e.target.value)} className={`w-full p-4 rounded-lg border border-red-500/20 outline-none font-bold text-sm ${isDark ? 'bg-black/20' : 'bg-white'}`} />
+                  <label htmlFor="cashier-cash-tips" className="text-[10px] font-bold uppercase tracking-wide opacity-40 ml-2">Gorjetas em espécie</label>
+                  <input id="cashier-cash-tips" type="text" inputMode="decimal" placeholder="R$ 0,00" value={tipsTotal} onChange={event => { setTipsTotal(event.target.value); if (closingError) setClosingError(''); }} aria-invalid={Boolean(closingError)} className={`min-h-12 w-full p-4 rounded-lg border border-red-500/20 outline-none font-bold text-sm ${isDark ? 'bg-black/20' : 'bg-white'}`} />
+                </div>
+                <div className="space-y-2">
+                  <label htmlFor="cashier-counted-cash" className="text-[10px] font-bold uppercase tracking-wide opacity-40 ml-2">Dinheiro contado na gaveta (opcional)</label>
+                  <input id="cashier-counted-cash" type="text" inputMode="decimal" placeholder="R$ 0,00" value={countedCash} onChange={event => { setCountedCash(event.target.value); if (closingError) setClosingError(''); }} aria-invalid={Boolean(closingError)} aria-describedby="cashier-closing-help cashier-closing-error" className={`min-h-12 w-full p-4 rounded-lg border border-red-500/20 outline-none font-bold text-sm ${isDark ? 'bg-black/20' : 'bg-white'}`} />
                   <div className="flex justify-between items-center ml-2 mt-1">
-                    <p className="text-[9px] font-bold opacity-30 uppercase tracking-wide">Compara com o saldo estimado ({formatCurrency(saldoPrevisto)})</p>
-                    {countedCash.trim() && !isNaN(parseFloat(countedCash.replace(',','.'))) && (
-                      <span className={`text-[9px] font-bold uppercase ${parseFloat(countedCash.replace(',','.')) - saldoPrevisto === 0 ? 'text-emerald-500' : parseFloat(countedCash.replace(',','.')) - saldoPrevisto > 0 ? 'text-emerald-500' : 'text-red-500'}`}>
-                        {parseFloat(countedCash.replace(',','.')) - saldoPrevisto === 0 ? 'Caixa conferido' : parseFloat(countedCash.replace(',','.')) - saldoPrevisto > 0 ? `Sobra de ${formatCurrency(parseFloat(countedCash.replace(',','.')) - saldoPrevisto)}` : `Falta de ${formatCurrency(Math.abs(parseFloat(countedCash.replace(',','.')) - saldoPrevisto))}`}
+                    <p id="cashier-closing-help" className="text-[9px] font-bold opacity-40 uppercase tracking-wide">Compara somente com o dinheiro esperado</p>
+                    {cashDifference !== undefined && (
+                      <span className={`text-[9px] font-bold uppercase ${isCashReconciled || cashDifference > 0 ? 'text-emerald-500' : 'text-red-500'}`}>
+                        {isCashReconciled ? 'Caixa conferido' : cashDifference > 0 ? `Sobra de ${formatCurrency(cashDifference)}` : `Falta de ${formatCurrency(Math.abs(cashDifference))}`}
                       </span>
                     )}
                   </div>
                 </div>
+                {closingError && <p id="cashier-closing-error" role="alert" className="text-xs font-semibold text-red-500">{closingError}</p>}
                 <button onClick={handleShareReport} className={`w-full py-3 rounded-lg font-bold uppercase tracking-wide text-[10px] flex items-center justify-center gap-2 border transition-all mt-6 ${isDark ? 'border-[#2C2C2E] hover:bg-white/5 text-gray-300' : 'border-gray-200 hover:bg-gray-50 text-gray-600'}`}>
                   {copied ? <><Check className="w-4 h-4 text-emerald-500" /> Resumo Copiado</> : <><Share2 className="w-4 h-4" /> Compartilhar Fechamento</>}
                 </button>

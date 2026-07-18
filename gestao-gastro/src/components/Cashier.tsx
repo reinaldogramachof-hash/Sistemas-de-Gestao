@@ -28,6 +28,19 @@ import { Expense } from '../types';
 import { ui } from '../ui/styles';
 import { OperationalState } from './OperationalState';
 
+type CashMovementKind = 'suprimento' | 'sangria' | 'despesa';
+
+const getMovementKind = (expense: Expense): CashMovementKind => {
+  if (expense.movementKind) return expense.movementKind;
+  return expense.entryType === 'entrada' ? 'suprimento' : 'sangria';
+};
+
+const movementLabels: Record<CashMovementKind, string> = {
+  suprimento: 'Suprimento',
+  sangria: 'Sangria',
+  despesa: 'Despesa',
+};
+
 export const Cashier: React.FC = () => {
   const { cashierSession, cashierHistory, expenses, orders, tables, theme, currentUser, openCashier, closeCashier, addExpense, updateExpense, deleteExpense, settings, supabaseOnline } = useApp();
   const { log } = useAudit();
@@ -35,7 +48,8 @@ export const Cashier: React.FC = () => {
 
   const [expenseDesc, setExpenseDesc] = useState('');
   const [expenseVal, setExpenseVal] = useState('');
-  const [expenseType, setExpenseType] = useState<'saida' | 'entrada'>('saida');
+  const [movementKind, setMovementKind] = useState<CashMovementKind>('sangria');
+  const [movementError, setMovementError] = useState('');
 
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [deletingExpense, setDeletingExpense] = useState<Expense | null>(null);
@@ -68,13 +82,19 @@ export const Cashier: React.FC = () => {
   }, {} as Record<string, number>);
   const hasPayments = Object.keys(paymentTotals).length > 0;
 
-  // Saída subtrai do caixa, entrada soma (suprimento)
-  const expensesTotal = expenses.reduce((acc, e) => {
-    return e.entryType === 'entrada' ? acc - e.amount : acc + e.amount;
-  }, 0);
+  const suppliesTotal = expenses
+    .filter(expense => getMovementKind(expense) === 'suprimento')
+    .reduce((total, expense) => total + expense.amount, 0);
+  const withdrawalsTotal = expenses
+    .filter(expense => getMovementKind(expense) === 'sangria')
+    .reduce((total, expense) => total + expense.amount, 0);
+  const operatingExpensesTotal = expenses
+    .filter(expense => getMovementKind(expense) === 'despesa')
+    .reduce((total, expense) => total + expense.amount, 0);
+  const cashOutTotal = withdrawalsTotal + operatingExpensesTotal;
 
   const initialBalance = cashierSession?.initialBalance || 0;
-  const saldoPrevisto = initialBalance + salesToday + serviceChargeToday - expensesTotal;
+  const saldoPrevisto = initialBalance + salesToday + serviceChargeToday + suppliesTotal - cashOutTotal;
 
   const canCloseCashier = activeOrdersCount === 0 && occupiedTablesCount === 0;
 
@@ -93,43 +113,50 @@ export const Cashier: React.FC = () => {
   };
 
   const handleAddExpense = () => {
+    const normalizedValue = expenseVal.trim().replace(',', '.');
+    const value = normalizedValue === '' ? Number.NaN : Number(normalizedValue);
+    if (!expenseDesc.trim() || !Number.isFinite(value) || value <= 0) {
+      setMovementError('Informe uma descrição e um valor maior que zero.');
+      return;
+    }
+
+    const entryType = movementKind === 'suprimento' ? 'entrada' : 'saida';
     if (editingExpense) {
-       const v = parseFloat(expenseVal.replace(',', '.'));
-       if (!expenseDesc.trim() || isNaN(v) || v <= 0) return;
-       const updated: Expense = { ...editingExpense, description: expenseDesc.trim(), amount: v, entryType: expenseType };
+       const updated: Expense = { ...editingExpense, description: expenseDesc.trim(), amount: value, entryType, movementKind };
        updateExpense(updated);
        log('Caixa', 'edicao_movimentacao', { expense: updated as unknown as Record<string, unknown> });
        setEditingExpense(null);
        setExpenseDesc('');
        setExpenseVal('');
-       setExpenseType('saida');
+       setMovementKind('sangria');
+       setMovementError('');
        return;
     }
-
-    const v = parseFloat(expenseVal.replace(',', '.'));
-    if (!expenseDesc.trim() || isNaN(v) || v <= 0) return;
 
     const newExpense: Expense = {
       id: Date.now().toString(),
       description: expenseDesc.trim(),
-      amount: v,
+      amount: value,
       category: 'Outros',
       status: 'pago',
       timestamp: new Date().toISOString(),
-      entryType: expenseType
+      entryType,
+      movementKind,
     };
 
     addExpense(newExpense);
     log('Caixa', 'movimentacao', { expense: newExpense as unknown as Record<string, unknown> });
     setExpenseDesc('');
     setExpenseVal('');
+    setMovementError('');
   };
 
   const handleEditClick = (e: Expense) => {
     setEditingExpense(e);
     setExpenseDesc(e.description);
     setExpenseVal(e.amount.toString().replace('.', ','));
-    setExpenseType(e.entryType || 'saida');
+    setMovementKind(getMovementKind(e));
+    setMovementError('');
   };
 
   const handleDeleteConfirm = () => {
@@ -161,8 +188,9 @@ Agora: ${new Date().toLocaleString('pt-BR')}
 Fundo Inicial: ${formatCurrency(initialBalance)}
 Vendas: ${formatCurrency(salesToday)}
 Taxas/Serviço: ${formatCurrency(serviceChargeToday)}
-Despesas/Sangrias: ${formatCurrency(expenses.filter(e => e.entryType !== 'entrada').reduce((a,b)=>a+b.amount,0))}
-Suprimentos: ${formatCurrency(expenses.filter(e => e.entryType === 'entrada').reduce((a,b)=>a+b.amount,0))}
+Suprimentos: ${formatCurrency(suppliesTotal)}
+Sangrias: ${formatCurrency(withdrawalsTotal)}
+Despesas: ${formatCurrency(operatingExpensesTotal)}
 Saldo Previsto: ${formatCurrency(saldoPrevisto)}
 Contagem (Declarado): ${countedCash ? formatCurrency(parseFloat(countedCash.replace(',','.'))) : 'Não informado'}
 
@@ -270,7 +298,7 @@ ${Object.entries(paymentTotals).map(([method, amount]) => `${method}: ${formatCu
                       <th className="px-8 py-5">Turno</th>
                       <th className="px-8 py-5 text-right">Pedidos</th>
                       <th className="px-8 py-5 text-right">Faturamento</th>
-                      <th className="px-8 py-5 text-right">Despesas</th>
+                      <th className="px-8 py-5 text-right">Impacto das movimentações</th>
                       <th className="px-8 py-5 text-right">Diferença Caixa</th>
                       <th className="px-8 py-5 text-right">Saldo Final</th>
                     </tr>
@@ -300,7 +328,9 @@ ${Object.entries(paymentTotals).map(([method, amount]) => `${method}: ${formatCu
                           </td>
                           <td className="px-8 py-6 text-right font-bold opacity-60">{s.ordersCount}</td>
                           <td className="px-8 py-6 text-right font-bold text-emerald-500">{formatCurrency(s.salesTotal + s.serviceTaxTotal)}</td>
-                          <td className="px-8 py-6 text-right font-bold text-red-500">{formatCurrency(s.expensesTotal)}</td>
+                          <td className={`px-8 py-6 text-right font-bold ${s.expensesTotal > 0 ? 'text-red-500' : s.expensesTotal < 0 ? 'text-emerald-500' : 'opacity-40'}`}>
+                            {s.expensesTotal > 0 ? '-' : s.expensesTotal < 0 ? '+' : ''}{formatCurrency(Math.abs(s.expensesTotal))}
+                          </td>
                           <td className={`px-8 py-6 text-right font-bold text-xs ${diffColor}`}>
                             {hasDiff ? `${diffSign}${formatCurrency(s.cashBreakdown)}` : 'N/C'}
                           </td>
@@ -350,11 +380,12 @@ ${Object.entries(paymentTotals).map(([method, amount]) => `${method}: ${formatCu
         </p>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
         {[
           { label: 'Fundo Inicial', value: initialBalance, icon: Wallet, color: 'text-slate-500', bg: 'bg-slate-500/10' },
           { label: 'Entradas (Vendas)', value: salesToday + serviceChargeToday, icon: TrendingUp, color: 'text-emerald-500', bg: 'bg-emerald-500/10' },
-          { label: 'Saídas (Despesas)', value: expensesTotal > 0 ? expensesTotal : 0, icon: TrendingDown, color: 'text-red-500', bg: 'bg-red-500/10' },
+          { label: 'Suprimentos', value: suppliesTotal, icon: Plus, color: 'text-emerald-500', bg: 'bg-emerald-500/10' },
+          { label: 'Saídas do Caixa', value: cashOutTotal, icon: TrendingDown, color: 'text-red-500', bg: 'bg-red-500/10' },
           { label: 'Saldo Estimado Caixa', value: saldoPrevisto, icon: Banknote, color: 'text-blue-500', bg: 'bg-blue-500/10' }
         ].map((kpi, i) => (
           <div
@@ -394,7 +425,8 @@ ${Object.entries(paymentTotals).map(([method, amount]) => `${method}: ${formatCu
                ) : (
                  <div className="space-y-3">
                    {expenses.map(e => {
-                     const isEntrada = e.entryType === 'entrada';
+                     const kind = getMovementKind(e);
+                     const isEntrada = kind === 'suprimento';
                      const ColorIcon = isEntrada ? TrendingUp : TrendingDown;
                      const colorClass = isEntrada ? 'text-emerald-500 bg-emerald-500/10' : 'text-red-500 bg-red-500/10';
                      const textClass = isEntrada ? 'text-emerald-500' : 'text-red-500';
@@ -404,7 +436,7 @@ ${Object.entries(paymentTotals).map(([method, amount]) => `${method}: ${formatCu
                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${colorClass}`}><ColorIcon className="w-5 h-5" /></div>
                            <div>
                              <p className="font-bold uppercase text-xs">{e.description}</p>
-                             <p className="text-[10px] font-bold opacity-30">{new Date(e.timestamp).toLocaleTimeString('pt-BR')} • {isEntrada ? 'Suprimento' : 'Sangria/Despesa'}</p>
+                             <p className="text-[10px] font-bold opacity-30">{new Date(e.timestamp).toLocaleTimeString('pt-BR')} • {movementLabels[kind]}</p>
                            </div>
                          </div>
                          <div className="flex items-center gap-4">
@@ -427,27 +459,33 @@ ${Object.entries(paymentTotals).map(([method, amount]) => `${method}: ${formatCu
           <div className={`p-8 rounded-xl border shadow-sm ${isDark ? 'bg-[#1C1C1E] border-[#2C2C2E]' : 'bg-white border-gray-100'}`}>
             <h3 className="text-sm font-bold uppercase tracking-wide mb-6 opacity-40">{editingExpense ? 'Editar Movimentação' : 'Registrar Movimentação'}</h3>
             <div className="space-y-4">
-              <div className="flex bg-black/5 dark:bg-white/5 p-1 rounded-lg">
-                <button
-                  onClick={() => setExpenseType('saida')}
-                  className={`flex-1 py-2 text-[10px] font-bold uppercase tracking-wide rounded-md transition-all ${expenseType === 'saida' ? 'bg-red-500 text-white shadow-sm' : 'text-gray-500 hover:text-gray-900 dark:hover:text-white'}`}
-                >
-                  Saída / Sangria
-                </button>
-                <button
-                  onClick={() => setExpenseType('entrada')}
-                  className={`flex-1 py-2 text-[10px] font-bold uppercase tracking-wide rounded-md transition-all ${expenseType === 'entrada' ? 'bg-emerald-500 text-white shadow-sm' : 'text-gray-500 hover:text-gray-900 dark:hover:text-white'}`}
-                >
-                  Entrada / Suprimento
-                </button>
+              <div className="grid grid-cols-3 gap-1 rounded-lg bg-black/5 p-1 dark:bg-white/5" aria-label="Tipo da movimentação">
+                {(['suprimento', 'sangria', 'despesa'] as CashMovementKind[]).map(kind => (
+                  <button
+                    key={kind}
+                    type="button"
+                    aria-pressed={movementKind === kind}
+                    onClick={() => {
+                      setMovementKind(kind);
+                      setMovementError('');
+                    }}
+                    className={`min-h-11 rounded-md px-2 py-2 text-[9px] font-bold uppercase tracking-wide transition-all ${movementKind === kind ? kind === 'suprimento' ? 'bg-emerald-500 text-white shadow-sm' : 'bg-red-500 text-white shadow-sm' : 'text-gray-500 hover:text-gray-900 dark:hover:text-white'}`}
+                  >
+                    {movementLabels[kind]}
+                  </button>
+                ))}
               </div>
-              <div className="space-y-2"><label className="text-[10px] font-bold uppercase tracking-wide opacity-30 ml-2">Descrição</label><input type="text" placeholder={expenseType === 'saida' ? "Ex: Pagamento Gelo" : "Ex: Troco extra"} value={expenseDesc} onChange={e => setExpenseDesc(e.target.value)} className={`w-full p-4 rounded-lg border outline-none font-bold text-sm ${isDark ? 'bg-[#121214] border-[#2C2C2E]' : 'bg-gray-50 border-gray-200'}`} /></div>
-              <div className="space-y-2"><label className="text-[10px] font-bold uppercase tracking-wide opacity-30 ml-2">Valor</label><div className="relative"><span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-sm opacity-20">R$</span><input type="text" placeholder="0,00" value={expenseVal} onChange={e => setExpenseVal(e.target.value)} className={`w-full pl-10 pr-4 py-4 rounded-lg border outline-none font-bold text-sm ${isDark ? 'bg-[#121214] border-[#2C2C2E]' : 'bg-gray-50 border-gray-200'}`} /></div></div>
-              <button onClick={handleAddExpense} className={`w-full py-4 text-white rounded-lg font-bold uppercase tracking-wide text-[10px] shadow-sm transition-all ${expenseType === 'saida' ? 'bg-red-500 hover:bg-red-600' : 'bg-emerald-500 hover:bg-emerald-600'}`}>
+              <p className="text-xs leading-5 opacity-60">
+                {movementKind === 'suprimento' ? 'Adiciona dinheiro para troco e aumenta o saldo esperado.' : movementKind === 'sangria' ? 'Retira dinheiro da gaveta e reduz o saldo esperado.' : 'Registra um gasto operacional pago pelo caixa e reduz o saldo esperado.'}
+              </p>
+              <div className="space-y-2"><label htmlFor="cash-movement-description" className="text-[10px] font-bold uppercase tracking-wide opacity-40 ml-2">Descrição</label><input id="cash-movement-description" type="text" placeholder={movementKind === 'suprimento' ? 'Ex: Troco extra' : movementKind === 'sangria' ? 'Ex: Retirada para cofre' : 'Ex: Pagamento de gelo'} value={expenseDesc} onChange={event => { setExpenseDesc(event.target.value); if (movementError) setMovementError(''); }} aria-invalid={Boolean(movementError)} className={`min-h-12 w-full rounded-lg border p-4 outline-none font-bold text-sm ${movementError ? 'border-red-400' : isDark ? 'bg-[#121214] border-[#2C2C2E]' : 'bg-gray-50 border-gray-200'}`} /></div>
+              <div className="space-y-2"><label htmlFor="cash-movement-value" className="text-[10px] font-bold uppercase tracking-wide opacity-40 ml-2">Valor</label><div className="relative"><span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-sm opacity-20">R$</span><input id="cash-movement-value" type="text" inputMode="decimal" placeholder="0,00" value={expenseVal} onChange={event => { setExpenseVal(event.target.value); if (movementError) setMovementError(''); }} aria-invalid={Boolean(movementError)} aria-describedby="cash-movement-error" className={`min-h-12 w-full rounded-lg border py-4 pl-10 pr-4 outline-none font-bold text-sm ${movementError ? 'border-red-400' : isDark ? 'bg-[#121214] border-[#2C2C2E]' : 'bg-gray-50 border-gray-200'}`} /></div></div>
+              {movementError && <p id="cash-movement-error" role="alert" className="text-xs font-semibold text-red-500">{movementError}</p>}
+              <button onClick={handleAddExpense} className={`min-h-12 w-full py-4 text-white rounded-lg font-bold uppercase tracking-wide text-[10px] shadow-sm transition-all ${movementKind === 'suprimento' ? 'bg-emerald-500 hover:bg-emerald-600' : 'bg-red-500 hover:bg-red-600'}`}>
                 {editingExpense ? 'Salvar movimentação' : 'Registrar movimentação'}
               </button>
               {editingExpense && (
-                <button onClick={() => { setEditingExpense(null); setExpenseDesc(''); setExpenseVal(''); setExpenseType('saida'); }} className={`w-full py-3 font-bold text-xs uppercase tracking-wide rounded-lg transition-colors ${isDark ? 'bg-[#2C2C2E] hover:bg-[#3C3C3E]' : 'bg-gray-100 hover:bg-gray-200'}`}>Cancelar Edição</button>
+                <button onClick={() => { setEditingExpense(null); setExpenseDesc(''); setExpenseVal(''); setMovementKind('sangria'); setMovementError(''); }} className={`w-full py-3 font-bold text-xs uppercase tracking-wide rounded-lg transition-colors ${isDark ? 'bg-[#2C2C2E] hover:bg-[#3C3C3E]' : 'bg-gray-100 hover:bg-gray-200'}`}>Cancelar Edição</button>
               )}
             </div>
           </div>

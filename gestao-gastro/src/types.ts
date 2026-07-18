@@ -117,6 +117,7 @@ export interface Expense {
   dueDate?: string;
   timestamp: string;
   entryType?: 'saida' | 'entrada';
+  movementKind?: 'suprimento' | 'sangria' | 'despesa';
 }
 
 export interface CashierSession {

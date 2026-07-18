@@ -318,7 +318,7 @@ export const ComandaMobileApp: React.FC = () => {
   }
 
   return (
-    <>
+    <div className="comanda-mobile">
       <div className="hidden lg:flex items-center justify-center p-4 bg-amber-50 dark:bg-amber-900/20 text-amber-800 dark:text-amber-200 text-sm font-medium border-b border-amber-200 dark:border-amber-700/30">
         <span className="flex items-center gap-2">
           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -333,6 +333,6 @@ export const ComandaMobileApp: React.FC = () => {
         tenantId={resolvedTenantId || ''}
         onLogout={handleLogout}
       />
-    </>
+    </div>
   );
 };

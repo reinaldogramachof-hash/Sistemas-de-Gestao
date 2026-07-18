@@ -103,6 +103,28 @@
   .dark *::-webkit-scrollbar-thumb {
     background-color: rgba(75, 85, 99, 0.5);
   }
+
+  /* --- Módulo do Garçom (Comanda Mobile) --- */
+  .comanda-mobile input,
+  .comanda-mobile select,
+  .comanda-mobile textarea {
+    @media (max-width: 767px) {
+      font-size: 16px !important;
+      line-height: 1.5 !important;
+    }
+  }
+
+  .comanda-mobile button,
+  .comanda-mobile .clickable-item {
+    touch-action: manipulation;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  .scroll-x-touch {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
 }
 
 @layer utilities {

@@ -137,8 +137,8 @@ const CounterInput: React.FC<CounterInputProps> = ({ label, value, min, onChange
           type="button"
           onClick={() => update(value - 1)}
           disabled={value <= min}
-          className="h-9 w-9 rounded-lg border border-gray-200 dark:border-white/10 text-lg font-bold disabled:opacity-35"
-          aria-label={`Diminuir ${label}`}
+          className="h-11 w-11 rounded-lg border border-gray-200 dark:border-white/10 text-lg font-bold disabled:opacity-35"
+          aria-label={`Diminuir quantidade de ${label}`}
         >
           -
         </button>
@@ -147,14 +147,14 @@ const CounterInput: React.FC<CounterInputProps> = ({ label, value, min, onChange
           min={min}
           value={value}
           onChange={e => update(Number(e.target.value || min))}
-          className="h-9 w-14 rounded-lg border border-gray-200 dark:border-white/10 bg-transparent text-center text-sm font-bold outline-none"
+          className="h-11 w-14 rounded-lg border border-gray-200 dark:border-white/10 bg-transparent text-center text-sm font-bold outline-none"
           aria-label={label}
         />
         <button
           type="button"
           onClick={() => update(value + 1)}
-          className="h-9 w-9 rounded-lg bg-slate-700 text-lg font-bold text-white"
-          aria-label={`Aumentar ${label}`}
+          className="h-11 w-11 rounded-lg bg-slate-700 text-lg font-bold text-white"
+          aria-label={`Aumentar quantidade de ${label}`}
         >
           +
         </button>

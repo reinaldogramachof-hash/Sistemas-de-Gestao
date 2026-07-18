@@ -95,7 +95,7 @@ export const GarcomLogin: React.FC<GarcomLoginProps> = ({ onLogin }) => {
   };
 
   return (
-    <main className="min-h-screen bg-[#101827] px-4 py-8 text-white sm:flex sm:items-center sm:justify-center">
+    <main className="comanda-mobile min-h-screen bg-[#101827] px-4 py-8 text-white sm:flex sm:items-center sm:justify-center">
       <section className="mx-auto flex w-full max-w-md flex-col justify-center sm:min-h-[calc(100vh-4rem)]">
         <header className="mb-7 text-center">
           <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl border border-[#526784]/45 bg-[#2c3d57] shadow-lg shadow-black/20">

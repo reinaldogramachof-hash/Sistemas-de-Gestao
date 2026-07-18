@@ -85,7 +85,7 @@ export const ComandaLancamento: React.FC<ComandaLancamentoProps> = React.memo(({
         className="w-full h-11 px-3 rounded-xl border border-gray-200 dark:border-white/10 bg-transparent text-sm outline-none"
       />
 
-      <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
+      <div className="flex gap-2 overflow-x-auto scroll-x-touch pb-1 scrollbar-none">
         {categories.map(cat => (
           <button
             key={cat}
@@ -133,8 +133,11 @@ export const ComandaLancamento: React.FC<ComandaLancamentoProps> = React.memo(({
                     Obs
                   </button>
                   <button
+                    type="button"
                     onClick={() => onDecrement(product.id)}
-                    className="w-8 h-8 rounded-lg border border-gray-200 dark:border-white/10 text-sm font-bold"
+                    disabled={!draftItem || draftItem.quantity === 0}
+                    aria-label={`Diminuir quantidade de ${product.name}`}
+                    className="w-11 h-11 rounded-lg border border-gray-200 dark:border-white/10 text-sm font-bold disabled:opacity-35"
                   >
                     −
                   </button>
@@ -142,8 +145,10 @@ export const ComandaLancamento: React.FC<ComandaLancamentoProps> = React.memo(({
                     {draftItem?.quantity || 0}
                   </span>
                   <button
+                    type="button"
                     onClick={() => onIncrement(product)}
-                    className="w-8 h-8 rounded-lg bg-slate-700 text-white text-sm font-bold"
+                    aria-label={`Aumentar quantidade de ${product.name}`}
+                    className="w-11 h-11 rounded-lg bg-slate-700 text-white text-sm font-bold active:scale-[0.95]"
                   >
                     +
                   </button>

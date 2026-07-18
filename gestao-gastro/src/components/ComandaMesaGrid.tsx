@@ -65,13 +65,14 @@ export const ComandaMesaGrid: React.FC<ComandaMesaGridProps> = React.memo(({
         <p className="text-xs opacity-60 mt-0.5">Toque na mesa para abrir a comanda.</p>
       </div>
 
-      <div className="grid grid-cols-2 gap-2">
+      <div role="group" aria-label="Filtrar mesas por situação" className="flex gap-2 overflow-x-auto scroll-x-touch pb-2 scrollbar-none">
         {filters.map(filter => (
           <button
             key={filter}
             type="button"
             onClick={() => setStatusFilter(filter)}
-            className={`h-10 rounded-lg border px-3 text-left transition-all ${
+            aria-pressed={statusFilter === filter}
+            className={`h-10 rounded-lg border px-3 text-left transition-all shrink-0 min-w-[8rem] ${
               statusFilter === filter
                 ? 'border-slate-700 bg-slate-700 text-white'
                 : 'border-gray-200 bg-white text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-slate-200'

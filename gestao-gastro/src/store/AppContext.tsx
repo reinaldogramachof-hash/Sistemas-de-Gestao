@@ -836,7 +836,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                 type: 'out',
                 quantity: quantityToAbate,
                 unitCost: nextStock[idx].costPrice,
-                reason: `Venda - ${item.product.name} (Ficha Técnica)`,
+                reason: `Venda - ${item.product.name} (Ficha Técnica) · Pedido ${order.id}`,
                 timestamp: new Date().toISOString()
               });
             }

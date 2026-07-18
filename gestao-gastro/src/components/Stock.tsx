@@ -15,6 +15,25 @@ import { OperationFeedback, type OperationFeedbackMessage } from './OperationFee
 import { OperationalState } from './OperationalState';
 
 type TabType = 'overview' | 'movements' | 'losses';
+type StockDiagnosticFilter = 'all' | 'critical' | 'expired' | 'expiring' | 'healthy';
+type MovementOriginFilter = 'all' | 'sales' | 'losses' | 'manual';
+
+const LOSS_REASONS = ['Vencimento', 'Quebra', 'Desperdício no preparo', 'Avaria no recebimento', 'Outro'];
+
+const getDaysUntilExpiry = (expiryDate?: string) => {
+  if (!expiryDate) return null;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const expiry = new Date(`${expiryDate}T00:00:00`);
+  if (Number.isNaN(expiry.getTime())) return null;
+  return Math.ceil((expiry.getTime() - today.getTime()) / 86_400_000);
+};
+
+const getMovementOrigin = (movement: StockMovement): Exclude<MovementOriginFilter, 'all'> => {
+  if (movement.type === 'out' && movement.reason?.startsWith('Venda -')) return 'sales';
+  if (movement.type === 'loss') return 'losses';
+  return 'manual';
+};
 
 export const Stock: React.FC = () => {
   const { stockItems, updateStockItem, addStockItem, deleteStockItem, suppliers, stockMovements, addStockMovement, theme, products, supabaseOnline } = useApp();
@@ -23,6 +42,8 @@ export const Stock: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TabType>('overview');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('Todas');
+  const [diagnosticFilter, setDiagnosticFilter] = useState<StockDiagnosticFilter>('all');
+  const [movementOriginFilter, setMovementOriginFilter] = useState<MovementOriginFilter>('all');
 
   // Unified Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -46,7 +67,8 @@ export const Stock: React.FC = () => {
   // Form State for Loss
   const [lossData, setLossData] = useState({
     quantity: 0,
-    reason: ''
+    reasonType: LOSS_REASONS[0],
+    details: ''
   });
 
   const handleDeleteStockItem = (id: string, name: string) => {
@@ -75,13 +97,33 @@ export const Stock: React.FC = () => {
     return stockItems.filter(i => {
       const matchesSearch = i.name.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesCategory = selectedCategory === 'Todas' || i.category === selectedCategory;
-      return matchesSearch && matchesCategory;
+      const daysUntilExpiry = getDaysUntilExpiry(i.expiryDate);
+      const isCritical = i.currentStock <= i.minStock;
+      const isExpired = daysUntilExpiry !== null && daysUntilExpiry < 0;
+      const isExpiring = daysUntilExpiry !== null && daysUntilExpiry >= 0 && daysUntilExpiry <= 7;
+      const matchesDiagnostic = diagnosticFilter === 'all'
+        || (diagnosticFilter === 'critical' && isCritical)
+        || (diagnosticFilter === 'expired' && isExpired)
+        || (diagnosticFilter === 'expiring' && isExpiring)
+        || (diagnosticFilter === 'healthy' && !isCritical && !isExpired && !isExpiring);
+      return matchesSearch && matchesCategory && matchesDiagnostic;
     });
-  }, [stockItems, searchTerm, selectedCategory]);
+  }, [stockItems, searchTerm, selectedCategory, diagnosticFilter]);
 
   const sortedMovements = useMemo(() => {
-    return [...stockMovements].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-  }, [stockMovements]);
+    return [...stockMovements]
+      .filter(movement => movementOriginFilter === 'all' || getMovementOrigin(movement) === movementOriginFilter)
+      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+  }, [stockMovements, movementOriginFilter]);
+
+  const diagnostics = useMemo(() => stockItems.reduce((summary, item) => {
+    const daysUntilExpiry = getDaysUntilExpiry(item.expiryDate);
+    if (item.currentStock <= item.minStock) summary.critical += 1;
+    if (daysUntilExpiry !== null && daysUntilExpiry < 0) summary.expired += 1;
+    if (daysUntilExpiry !== null && daysUntilExpiry >= 0 && daysUntilExpiry <= 7) summary.expiring += 1;
+    if (item.currentStock > item.minStock && (daysUntilExpiry === null || daysUntilExpiry > 7)) summary.healthy += 1;
+    return summary;
+  }, { critical: 0, expired: 0, expiring: 0, healthy: 0 }), [stockItems]);
 
   const handleOpenModal = (item?: StockItem) => {
     if (item) {
@@ -159,26 +201,35 @@ export const Stock: React.FC = () => {
   const handleSaveLoss = (e: React.FormEvent) => {
     e.preventDefault();
     const si = stockItems.find(item => item.id === selectedItemId);
-    if (si && lossData.quantity > 0) {
-      updateStockItem({ ...si, currentStock: Math.max(0, si.currentStock - lossData.quantity) });
+    if (!si || lossData.quantity <= 0) return;
+    if (lossData.quantity > si.currentStock) {
+      setFeedback({
+        tone: 'warning',
+        title: 'Quantidade acima do saldo',
+        description: `${si.name} possui ${formatStockQuantity(si.currentStock, si.unit)} disponíveis. Revise a perda antes de confirmar.`,
+      });
+      return;
+    }
+
+    const reason = `Perda - ${lossData.reasonType}${lossData.details.trim() ? `: ${lossData.details.trim()}` : ''}`;
+    updateStockItem({ ...si, currentStock: si.currentStock - lossData.quantity });
       addStockMovement({
         id: Date.now().toString(),
         stockItemId: si.id,
         type: 'loss',
         quantity: lossData.quantity,
         unitCost: si.costPrice,
-        reason: lossData.reason || 'Perda/Desperdício',
+        reason,
         timestamp: new Date().toISOString()
       });
       setIsLossModalOpen(false);
       setSelectedItemId('');
-      setLossData({ quantity: 0, reason: '' });
+      setLossData({ quantity: 0, reasonType: LOSS_REASONS[0], details: '' });
       setFeedback({
         tone: 'success',
         title: 'Perda registrada',
         description: `A baixa de ${formatStockQuantity(lossData.quantity, si.unit)} em ${si.name} foi registrada no histórico.`,
       });
-    }
   };
 
   const getStatusInfo = (si: StockItem) => {
@@ -187,7 +238,8 @@ export const Stock: React.FC = () => {
     return { label: 'OK', color: 'text-emerald-500', bg: 'bg-emerald-500/10' };
   };
 
-  const alertCount = stockItems.filter(i => i.currentStock <= i.minStock).length;
+  const selectedLossItem = stockItems.find(item => item.id === selectedItemId);
+  const lossExceedsStock = Boolean(selectedLossItem && lossData.quantity > selectedLossItem.currentStock);
 
   return (
     <div className="space-y-8 animate-in fade-in duration-200 pb-24">
@@ -260,6 +312,22 @@ export const Stock: React.FC = () => {
               </select>
             </div>
 
+            <div className={`relative flex items-center px-5 rounded-lg border ${isDark ? 'bg-[#1C1C1E] border-[#2C2C2E]' : 'bg-white border-gray-200 shadow-sm'}`}>
+              <AlertTriangle className="w-4 h-4 mr-3 opacity-30" />
+              <select
+                aria-label="Filtrar diagnóstico do estoque"
+                value={diagnosticFilter}
+                onChange={e => setDiagnosticFilter(e.target.value as StockDiagnosticFilter)}
+                className="bg-transparent border-none outline-none text-[10px] font-bold uppercase tracking-wide appearance-none pr-10 cursor-pointer"
+              >
+                <option value="all">Todos os estados</option>
+                <option value="critical">Estoque crítico</option>
+                <option value="expired">Validade vencida</option>
+                <option value="expiring">Vence em até 7 dias</option>
+                <option value="healthy">Sem pendências</option>
+              </select>
+            </div>
+
             <button
               onClick={() => handleOpenModal()}
               className="flex items-center justify-center gap-3 px-10 h-14 rounded-lg bg-[#475569] text-white font-bold text-[10px] uppercase tracking-wide transition-all shadow-sm"
@@ -268,21 +336,25 @@ export const Stock: React.FC = () => {
             </button>
           </div>
 
-          {alertCount > 0 && (
-            <motion.div
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              className="flex items-center gap-5 p-6 rounded-lg bg-amber-500/5 border border-amber-500/20 text-amber-600"
-            >
-              <div className="w-12 h-12 rounded-lg bg-amber-500/20 flex items-center justify-center shrink-0">
-                <AlertTriangle className="w-6 h-6 shadow-sm" />
-              </div>
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-wide">Insumos em Nível Crítico</p>
-                <p className="text-xs font-bold opacity-80 mt-0.5">Existem <strong>{alertCount}</strong> itens que precisam de reposição imediata.</p>
-              </div>
-            </motion.div>
-          )}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4" aria-label="Diagnóstico do estoque">
+            {[
+              { id: 'critical', label: 'Insumos em Nível Crítico', value: diagnostics.critical, color: 'text-amber-500 bg-amber-500/5 border-amber-500/20' },
+              { id: 'expired', label: 'Validade vencida', value: diagnostics.expired, color: 'text-red-500 bg-red-500/5 border-red-500/20' },
+              { id: 'expiring', label: 'Vence em 7 dias', value: diagnostics.expiring, color: 'text-orange-500 bg-orange-500/5 border-orange-500/20' },
+              { id: 'healthy', label: 'Sem pendências', value: diagnostics.healthy, color: 'text-emerald-500 bg-emerald-500/5 border-emerald-500/20' },
+            ].map(diagnostic => (
+              <button
+                key={diagnostic.id}
+                type="button"
+                onClick={() => setDiagnosticFilter(current => current === diagnostic.id ? 'all' : diagnostic.id as StockDiagnosticFilter)}
+                aria-pressed={diagnosticFilter === diagnostic.id}
+                className={`p-5 rounded-lg border text-left transition-all ${diagnostic.color} ${diagnosticFilter === diagnostic.id ? 'ring-2 ring-current/30' : 'hover:-translate-y-0.5'}`}
+              >
+                <span className="block text-2xl font-bold">{diagnostic.value}</span>
+                <span className="text-[9px] font-bold uppercase tracking-wide opacity-80">{diagnostic.label}</span>
+              </button>
+            ))}
+          </div>
 
           {/* Insumos Table */}
           {filteredItems.length === 0 ? (
@@ -311,6 +383,7 @@ export const Stock: React.FC = () => {
                     <th className="px-10 py-7">Fornecedor Preferencial</th>
                     <th className="px-10 py-7">Saldo e Mínimo</th>
                     <th className="px-10 py-7">Custo Un.</th>
+                    <th className="px-10 py-7">Validade</th>
                     <th className="px-10 py-7">Status</th>
                     <th className="px-10 py-7 text-right">Gestão</th>
                   </tr>
@@ -319,6 +392,7 @@ export const Stock: React.FC = () => {
                   {filteredItems.map(si => {
                     const status = getStatusInfo(si);
                     const supplier = suppliers.find(s => s.id === si.supplierId);
+                    const daysUntilExpiry = getDaysUntilExpiry(si.expiryDate);
                     return (
                       <tr key={si.id} className={`${isDark ? 'hover:bg-white/5' : 'hover:bg-gray-50/50'} transition-all group`}>
                         <td className="px-10 py-6">
@@ -359,16 +433,30 @@ export const Stock: React.FC = () => {
                           <span className="font-bold font-mono text-xs opacity-60">R$ {si.costPrice.toFixed(2)}</span>
                         </td>
                         <td className="px-10 py-6">
+                          {!si.expiryDate || daysUntilExpiry === null ? (
+                            <span className="text-[9px] font-bold uppercase opacity-20">Não informada</span>
+                          ) : (
+                            <div className="flex flex-col gap-1">
+                              <span className={`text-[10px] font-bold ${daysUntilExpiry < 0 ? 'text-red-500' : daysUntilExpiry <= 7 ? 'text-orange-500' : 'opacity-60'}`}>
+                                {new Date(`${si.expiryDate}T00:00:00`).toLocaleDateString('pt-BR')}
+                              </span>
+                              <span className={`text-[8px] font-bold uppercase tracking-wide ${daysUntilExpiry < 0 ? 'text-red-500' : daysUntilExpiry <= 7 ? 'text-orange-500' : 'opacity-30'}`}>
+                                {daysUntilExpiry < 0 ? `Vencido há ${Math.abs(daysUntilExpiry)} dia(s)` : daysUntilExpiry === 0 ? 'Vence hoje' : `${daysUntilExpiry} dia(s) restantes`}
+                              </span>
+                            </div>
+                          )}
+                        </td>
+                        <td className="px-10 py-6">
                            <span className={`px-3 py-1.5 rounded-full text-[9px] font-bold uppercase tracking-wide ${status.color} ${status.bg}`}>
                              {status.label}
                            </span>
                         </td>
                         <td className="px-10 py-6 text-right">
-                          <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-all transform translate-x-4 group-hover:translate-x-0">
-                            <button onClick={() => handleOpenModal(si)} className={`p-3 rounded-lg transition-all ${isDark ? 'bg-white/5 hover:bg-white/10' : 'bg-gray-50 hover:bg-gray-100'}`}><Edit2 className="w-4 h-4 opacity-40" /></button>
-                            <button onClick={() => { setSelectedItemId(si.id); setIsLossModalOpen(true); }} className="p-3 rounded-lg bg-red-500/10 text-red-500 hover:bg-red-500/20 transition-all"><AlertTriangle className="w-4 h-4" /></button>
-                            <button onClick={() => handleOpenModal(si)} className="p-3 rounded-lg bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 transition-all"><Plus className="w-4 h-4" /></button>
-                            <button onClick={() => handleDeleteStockItem(si.id, si.name)} className={`p-3 rounded-lg transition-all ${isDark ? 'bg-white/5 hover:bg-red-500/20 hover:text-red-500' : 'bg-gray-50 hover:bg-red-50 hover:text-red-500'}`}><Trash2 className="w-4 h-4 opacity-40 hover:opacity-100" /></button>
+                          <div className="flex justify-end gap-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all md:translate-x-4 md:group-hover:translate-x-0">
+                            <button aria-label={`Editar ${si.name}`} title="Editar insumo" onClick={() => handleOpenModal(si)} className={`p-3 rounded-lg transition-all ${isDark ? 'bg-white/5 hover:bg-white/10' : 'bg-gray-50 hover:bg-gray-100'}`}><Edit2 className="w-4 h-4 opacity-40" /></button>
+                            <button aria-label={`Registrar perda de ${si.name}`} title="Registrar perda" onClick={() => { setSelectedItemId(si.id); setIsLossModalOpen(true); }} className="p-3 rounded-lg bg-red-500/10 text-red-500 hover:bg-red-500/20 transition-all"><AlertTriangle className="w-4 h-4" /></button>
+                            <button aria-label={`Adicionar entrada de ${si.name}`} title="Adicionar entrada" onClick={() => handleOpenModal(si)} className="p-3 rounded-lg bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 transition-all"><Plus className="w-4 h-4" /></button>
+                            <button aria-label={`Excluir ${si.name}`} title="Excluir insumo" onClick={() => handleDeleteStockItem(si.id, si.name)} className={`p-3 rounded-lg transition-all ${isDark ? 'bg-white/5 hover:bg-red-500/20 hover:text-red-500' : 'bg-gray-50 hover:bg-red-50 hover:text-red-500'}`}><Trash2 className="w-4 h-4 opacity-40 hover:opacity-100" /></button>
                           </div>
                         </td>
                       </tr>
@@ -385,6 +473,33 @@ export const Stock: React.FC = () => {
       {/* Movements Tab */}
       {activeTab === 'movements' && (
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+          <div className="flex flex-wrap gap-2" aria-label="Filtrar origem das movimentações">
+            {[
+              { id: 'all', label: 'Todas' },
+              { id: 'sales', label: 'Baixas por venda' },
+              { id: 'losses', label: 'Perdas' },
+              { id: 'manual', label: 'Entradas e ajustes' },
+            ].map(filter => (
+              <button
+                key={filter.id}
+                type="button"
+                onClick={() => setMovementOriginFilter(filter.id as MovementOriginFilter)}
+                aria-pressed={movementOriginFilter === filter.id}
+                className={`px-4 py-2.5 rounded-lg text-[9px] font-bold uppercase tracking-wide border transition-all ${movementOriginFilter === filter.id ? 'bg-[#475569] border-[#475569] text-white' : isDark ? 'border-white/10 hover:bg-white/5' : 'border-gray-200 hover:bg-gray-50'}`}
+              >
+                {filter.label}
+              </button>
+            ))}
+          </div>
+          {sortedMovements.length === 0 ? (
+            <OperationalState
+              variant="empty"
+              title="Nenhuma movimentação neste filtro"
+              description="Escolha outra origem para consultar as entradas, perdas e baixas automáticas por venda."
+              actionLabel="Mostrar todas"
+              onAction={() => setMovementOriginFilter('all')}
+            />
+          ) : (
           <div className={`rounded-xl border overflow-hidden ${isDark ? 'bg-[#1C1C1E] border-[#2C2C2E]' : 'bg-white border-gray-200 shadow-sm'}`}>
             <div className="overflow-x-auto">
               <table className="w-full text-left">
@@ -400,6 +515,7 @@ export const Stock: React.FC = () => {
                 <tbody className={`divide-y ${isDark ? 'divide-white/5' : 'divide-gray-50'}`}>
                   {sortedMovements.map(m => {
                     const item = stockItems.find(si => si.id === m.stockItemId);
+                    const origin = getMovementOrigin(m);
                     return (
                       <tr key={m.id} className={`${isDark ? 'hover:bg-white/5' : 'hover:bg-gray-50/50'} transition-all group`}>
                         <td className="px-10 py-6 text-[10px] font-bold opacity-30">{new Date(m.timestamp).toLocaleString('pt-BR')}</td>
@@ -410,7 +526,12 @@ export const Stock: React.FC = () => {
                           {m.type === 'loss' && <span className="inline-flex items-center gap-2 text-red-500 font-bold text-[9px] uppercase tracking-wide"><AlertTriangle className="w-4 h-4" /> Quebra</span>}
                         </td>
                         <td className="px-10 py-6 font-bold font-mono text-sm">{formatStockQuantity(m.quantity, item?.unit || '')}</td>
-                        <td className="px-10 py-6 text-[10px] font-bold uppercase opacity-40">{m.reason}</td>
+                        <td className="px-10 py-6">
+                          <span className={`inline-flex mb-2 px-2.5 py-1 rounded-full text-[8px] font-bold uppercase tracking-wide ${origin === 'sales' ? 'bg-blue-500/10 text-blue-500' : origin === 'losses' ? 'bg-red-500/10 text-red-500' : 'bg-slate-500/10 text-slate-500'}`}>
+                            {origin === 'sales' ? 'Gerada pelo PDV' : origin === 'losses' ? 'Perda registrada' : 'Operação manual'}
+                          </span>
+                          <p className="text-[10px] font-bold uppercase opacity-50">{m.reason || 'Motivo não informado'}</p>
+                        </td>
                       </tr>
                     );
                   })}
@@ -418,12 +539,22 @@ export const Stock: React.FC = () => {
               </table>
             </div>
           </div>
+          )}
         </motion.div>
       )}
 
       {/* Losses Tab */}
       {activeTab === 'losses' && (
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {stockMovements.every(m => m.type !== 'loss') && (
+            <div className="md:col-span-2 lg:col-span-4">
+              <OperationalState
+                variant="empty"
+                title="Nenhuma perda registrada"
+                description="As quebras, vencimentos e desperdícios aparecerão aqui depois da primeira baixa."
+              />
+            </div>
+          )}
           {stockMovements.filter(m => m.type === 'loss').map(m => {
              const item = stockItems.find(si => si.id === m.stockItemId);
              return (
@@ -435,7 +566,10 @@ export const Stock: React.FC = () => {
                   <h4 className="text-sm font-bold uppercase tracking-tight mb-1">{item?.name}</h4>
                   <p className="text-[10px] font-bold opacity-40 uppercase tracking-wide  mb-4">{m.reason}</p>
                   <div className="flex justify-between items-end border-t border-current/5 pt-4">
-                     <span className="text-[9px] font-bold uppercase opacity-20">Volume Perdido</span>
+                     <div className="flex flex-col gap-1">
+                       <span className="text-[9px] font-bold uppercase opacity-20">Volume perdido</span>
+                       <span className="text-[9px] font-bold uppercase opacity-30">Impacto: R$ {((m.unitCost || 0) * m.quantity).toFixed(2)}</span>
+                     </div>
                      <span className="text-lg font-bold text-red-500">-{formatStockQuantity(m.quantity, item?.unit || '')}</span>
                   </div>
                </div>
@@ -573,22 +707,35 @@ export const Stock: React.FC = () => {
                 <button onClick={() => setIsLossModalOpen(false)}><X className="w-6 h-6" /></button>
               </div>
               <form onSubmit={handleSaveLoss} className="p-8 space-y-6">
+                {selectedLossItem && (
+                  <div className={`p-4 rounded-lg border ${isDark ? 'bg-white/5 border-white/10' : 'bg-gray-50 border-gray-100'}`}>
+                    <p className="text-[9px] font-bold uppercase tracking-wide opacity-40">Saldo disponível</p>
+                    <p className="mt-1 text-lg font-bold">{formatStockQuantity(selectedLossItem.currentStock, selectedLossItem.unit)}</p>
+                  </div>
+                )}
                 <div className="space-y-2">
-                  {(() => {
-                    const lossItem = stockItems.find(si => si.id === selectedItemId);
-                    return (
-                      <label className="text-[10px] font-bold uppercase tracking-wide opacity-40 ml-2">
-                        Quantidade Perdida ({lossItem?.unit || ''})
-                      </label>
-                    );
-                  })()}
-                  <input required type="number" step="0.001" value={lossData.quantity} onChange={e => setLossData({...lossData, quantity: Number(e.target.value)})} className={`w-full h-14 px-6 rounded-lg border outline-none font-bold text-xl ${isDark ? 'bg-transparent border-[#2C2C2E]' : 'bg-gray-50 border-gray-100'}`} />
+                  <label htmlFor="stock-loss-quantity" className="text-[10px] font-bold uppercase tracking-wide opacity-40 ml-2">
+                    Quantidade perdida ({selectedLossItem?.unit || ''})
+                  </label>
+                  <input id="stock-loss-quantity" required min="0.001" max={selectedLossItem?.currentStock} type="number" step="0.001" value={lossData.quantity} onChange={e => setLossData({...lossData, quantity: Number(e.target.value)})} aria-invalid={lossExceedsStock} className={`w-full h-14 px-6 rounded-lg border outline-none font-bold text-xl ${lossExceedsStock ? 'border-red-500 text-red-500' : isDark ? 'bg-transparent border-[#2C2C2E]' : 'bg-gray-50 border-gray-100'}`} />
+                  {lossExceedsStock && <p className="text-xs font-bold text-red-500" role="alert">A perda não pode ultrapassar o saldo disponível.</p>}
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[10px] font-bold uppercase tracking-wide opacity-40 ml-2">Motivo da Baixa</label>
-                  <textarea required value={lossData.reason} onChange={e => setLossData({...lossData, reason: e.target.value})} placeholder="Ex: Vencimento, Quebra de garrafa, Desperdício de preparo..." rows={3} className={`w-full p-6 rounded-lg border outline-none font-bold text-sm resize-none ${isDark ? 'bg-transparent border-[#2C2C2E]' : 'bg-gray-50 border-gray-100'}`} />
+                  <label htmlFor="stock-loss-reason" className="text-[10px] font-bold uppercase tracking-wide opacity-40 ml-2">Motivo da baixa</label>
+                  <select id="stock-loss-reason" value={lossData.reasonType} onChange={e => setLossData({...lossData, reasonType: e.target.value})} className={`w-full h-14 px-6 rounded-lg border outline-none font-bold text-sm ${isDark ? 'bg-[#121214] border-[#2C2C2E] text-white' : 'bg-gray-50 border-gray-100'}`}>
+                    {LOSS_REASONS.map(reason => <option key={reason} value={reason}>{reason}</option>)}
+                  </select>
                 </div>
-                <button type="submit" className="w-full h-16 rounded-lg bg-red-500 text-white font-bold uppercase tracking-wide text-[10px] shadow-sm mt-4 transition-all">
+                <div className="space-y-2">
+                  <label htmlFor="stock-loss-details" className="text-[10px] font-bold uppercase tracking-wide opacity-40 ml-2">Detalhes (opcional)</label>
+                  <textarea id="stock-loss-details" value={lossData.details} onChange={e => setLossData({...lossData, details: e.target.value})} placeholder="Ex: lote, ocorrência ou responsável..." rows={3} className={`w-full p-6 rounded-lg border outline-none font-bold text-sm resize-none ${isDark ? 'bg-transparent border-[#2C2C2E]' : 'bg-gray-50 border-gray-100'}`} />
+                </div>
+                {selectedLossItem && lossData.quantity > 0 && !lossExceedsStock && (
+                  <p className="text-xs font-semibold opacity-60">
+                    A confirmação reduzirá o saldo para {formatStockQuantity(selectedLossItem.currentStock - lossData.quantity, selectedLossItem.unit)} e registrará impacto de R$ {(lossData.quantity * selectedLossItem.costPrice).toFixed(2)}.
+                  </p>
+                )}
+                <button type="submit" disabled={lossData.quantity <= 0 || lossExceedsStock} className="w-full h-16 rounded-lg bg-red-500 text-white font-bold uppercase tracking-wide text-[10px] shadow-sm mt-4 transition-all disabled:opacity-40 disabled:cursor-not-allowed">
                   Confirmar Baixa de Estoque
                 </button>
               </form>

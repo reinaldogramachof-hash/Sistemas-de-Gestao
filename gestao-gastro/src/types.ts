@@ -107,6 +107,8 @@ export interface Waiter {
   name: string;
 }
 
+export type CashMovementKind = 'suprimento' | 'sangria' | 'despesa';
+
 export interface Expense {
   id: string;
   description: string;
@@ -117,7 +119,7 @@ export interface Expense {
   dueDate?: string;
   timestamp: string;
   entryType?: 'saida' | 'entrada';
-  movementKind?: 'suprimento' | 'sangria' | 'despesa';
+  movementKind?: CashMovementKind;
 }
 
 export interface CashierSession {

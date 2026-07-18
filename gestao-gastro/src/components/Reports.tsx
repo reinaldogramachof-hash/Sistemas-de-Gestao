@@ -25,6 +25,7 @@ import { ui } from '../ui/styles';
 import { formatCurrency } from '../utils/format';
 import { HelpTooltip } from './HelpTooltip';
 import { OperationalState } from './OperationalState';
+import { getOrderNetRevenue, isOperatingExpense } from '../utils/finance';
 
 type Tab = 'dashboard' | 'fluxo' | 'vendas' | 'produtos' | 'atendentes';
 type Period = 'hoje' | 'semana' | 'mes' | 'total';
@@ -126,7 +127,7 @@ export const Reports: React.FC = () => {
 
   const filteredExpenses = useMemo(() => {
     return expenses.filter(expense => {
-      if (expense.entryType && expense.entryType !== 'saida') return false;
+      if (!isOperatingExpense(expense)) return false;
       return isWithinPeriod(expense.timestamp, period);
     });
   }, [expenses, period]);
@@ -138,7 +139,7 @@ export const Reports: React.FC = () => {
   const salesData = useMemo(() => [...filteredOrders].reverse(), [filteredOrders]);
   const salesItems = useMemo(() => filteredOrders.flatMap(order => order.items), [filteredOrders]);
 
-  const totalRevenue = filteredOrders.reduce((acc, order) => acc + order.subtotal, 0);
+  const totalRevenue = filteredOrders.reduce((acc, order) => acc + getOrderNetRevenue(order), 0);
   const totalService = filteredOrders.reduce((acc, order) => acc + order.serviceCharge, 0);
   const totalSalesAmount = totalRevenue + totalService;
   const totalExpensesAmount = filteredExpenses.reduce((acc, expense) => acc + expense.amount, 0);
@@ -208,7 +209,7 @@ export const Reports: React.FC = () => {
         labels.push(`${hour}h`);
         sales.push(filteredOrders.reduce((acc, order) => {
           const date = new Date(order.timestamp);
-          return date.getHours() === hour ? acc + order.subtotal + order.serviceCharge : acc;
+          return date.getHours() === hour ? acc + order.total : acc;
         }, 0));
         expensesArr.push(filteredExpenses.reduce((acc, expense) => {
           const date = new Date(expense.timestamp);
@@ -231,7 +232,7 @@ export const Reports: React.FC = () => {
         labels.push(`${weekdays[day.getDay()]} (${day.getDate()}/${day.getMonth() + 1})`);
         sales.push(filteredOrders.reduce((acc, order) => {
           const date = new Date(order.timestamp);
-          return date.toDateString() === day.toDateString() ? acc + order.subtotal + order.serviceCharge : acc;
+          return date.toDateString() === day.toDateString() ? acc + order.total : acc;
         }, 0));
         expensesArr.push(filteredExpenses.reduce((acc, expense) => {
           const date = new Date(expense.timestamp);
@@ -257,7 +258,7 @@ export const Reports: React.FC = () => {
           const date = new Date(order.timestamp);
           const isSameMonth = date.getMonth() === month && date.getFullYear() === year;
           return isSameMonth && date.getDate() >= start && date.getDate() <= end
-            ? acc + order.subtotal + order.serviceCharge
+            ? acc + order.total
             : acc;
         }, 0));
         expensesArr.push(filteredExpenses.reduce((acc, expense) => {
@@ -276,7 +277,7 @@ export const Reports: React.FC = () => {
 
     filteredOrders.forEach(order => {
       const date = new Date(order.timestamp);
-      if (date.getFullYear() === now.getFullYear()) sales[date.getMonth()] += order.subtotal + order.serviceCharge;
+      if (date.getFullYear() === now.getFullYear()) sales[date.getMonth()] += order.total;
     });
 
     filteredExpenses.forEach(expense => {
@@ -301,6 +302,7 @@ export const Reports: React.FC = () => {
       status: newExpense.status || 'pago',
       timestamp: new Date().toISOString(),
       entryType: 'saida',
+      movementKind: 'despesa',
     };
 
     addExpense(expense);
@@ -573,9 +575,9 @@ export const Reports: React.FC = () => {
                         <th className="px-8 py-5">Turno</th>
                         <th className="px-8 py-5 text-right">Pedidos</th>
                         <th className="px-8 py-5 text-right">Faturamento</th>
-                        <th className="px-8 py-5 text-right">Despesas</th>
+                        <th className="px-8 py-5 text-right">Impacto das movimentações</th>
                         <th className="px-8 py-5 text-right">Diferença Caixa</th>
-                        <th className="px-8 py-5 text-right">Saldo Final</th>
+                        <th className="px-8 py-5 text-right">Saldo financeiro</th>
                       </tr>
                     </thead>
                     <tbody className={`divide-y ${isDark ? 'divide-[#2C2C2E]' : 'divide-gray-100'}`}>
@@ -599,7 +601,9 @@ export const Reports: React.FC = () => {
                             </td>
                             <td className="px-8 py-6 text-right font-bold opacity-60">{session.ordersCount}</td>
                             <td className="px-8 py-6 text-right font-bold text-emerald-500">{formatCurrency(session.salesTotal + session.serviceTaxTotal)}</td>
-                            <td className="px-8 py-6 text-right font-bold text-red-500">{formatCurrency(session.expensesTotal)}</td>
+                            <td className={`px-8 py-6 text-right font-bold ${session.expensesTotal > 0 ? 'text-red-500' : session.expensesTotal < 0 ? 'text-emerald-500' : 'opacity-40'}`}>
+                              {session.expensesTotal > 0 ? '-' : session.expensesTotal < 0 ? '+' : ''}{formatCurrency(Math.abs(session.expensesTotal))}
+                            </td>
                             <td className={`px-8 py-6 text-right font-bold text-xs ${diffColor}`}>{hasDiff ? `${diffSign}${formatCurrency(session.cashBreakdown)}` : 'N/C'}</td>
                             <td className="px-8 py-6 text-right"><span className="px-4 py-2 bg-emerald-500/10 text-emerald-500 rounded-full font-bold text-xs">{formatCurrency(session.finalBalance ?? 0)}</span></td>
                           </tr>

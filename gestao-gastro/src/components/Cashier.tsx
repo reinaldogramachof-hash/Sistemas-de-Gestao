@@ -24,16 +24,10 @@ import {
   Check
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Expense } from '../types';
+import { CashMovementKind, Expense } from '../types';
 import { ui } from '../ui/styles';
 import { OperationalState } from './OperationalState';
-
-type CashMovementKind = 'suprimento' | 'sangria' | 'despesa';
-
-const getMovementKind = (expense: Expense): CashMovementKind => {
-  if (expense.movementKind) return expense.movementKind;
-  return expense.entryType === 'entrada' ? 'suprimento' : 'sangria';
-};
+import { getCashMovementKind, getOrderNetRevenue } from '../utils/finance';
 
 const movementLabels: Record<CashMovementKind, string> = {
   suprimento: 'Suprimento',
@@ -67,7 +61,7 @@ export const Cashier: React.FC = () => {
   const activeOrdersCount = orders.filter(o => o.status === 'open').length;
   const occupiedTablesCount = tables.filter(t => t.status !== 'livre').length;
 
-  const salesToday = closedOrders.reduce((acc, o) => acc + o.subtotal, 0);
+  const salesToday = closedOrders.reduce((acc, order) => acc + getOrderNetRevenue(order), 0);
   const serviceChargeToday = closedOrders.reduce((acc, o) => acc + o.serviceCharge, 0);
 
   const paymentTotals = closedOrders.reduce((acc, order) => {
@@ -84,13 +78,13 @@ export const Cashier: React.FC = () => {
   const hasPayments = Object.keys(paymentTotals).length > 0;
 
   const suppliesTotal = expenses
-    .filter(expense => getMovementKind(expense) === 'suprimento')
+    .filter(expense => getCashMovementKind(expense) === 'suprimento')
     .reduce((total, expense) => total + expense.amount, 0);
   const withdrawalsTotal = expenses
-    .filter(expense => getMovementKind(expense) === 'sangria')
+    .filter(expense => getCashMovementKind(expense) === 'sangria')
     .reduce((total, expense) => total + expense.amount, 0);
   const operatingExpensesTotal = expenses
-    .filter(expense => getMovementKind(expense) === 'despesa')
+    .filter(expense => getCashMovementKind(expense) === 'despesa')
     .reduce((total, expense) => total + expense.amount, 0);
   const cashOutTotal = withdrawalsTotal + operatingExpensesTotal;
 
@@ -165,7 +159,7 @@ export const Cashier: React.FC = () => {
     setEditingExpense(e);
     setExpenseDesc(e.description);
     setExpenseVal(e.amount.toString().replace('.', ','));
-    setMovementKind(getMovementKind(e));
+    setMovementKind(getCashMovementKind(e));
     setMovementError('');
   };
 
@@ -440,7 +434,7 @@ ${Object.entries(paymentTotals).map(([method, amount]) => `${method}: ${formatCu
                ) : (
                  <div className="space-y-3">
                    {expenses.map(e => {
-                     const kind = getMovementKind(e);
+                     const kind = getCashMovementKind(e);
                      const isEntrada = kind === 'suprimento';
                      const ColorIcon = isEntrada ? TrendingUp : TrendingDown;
                      const colorClass = isEntrada ? 'text-emerald-500 bg-emerald-500/10' : 'text-red-500 bg-red-500/10';

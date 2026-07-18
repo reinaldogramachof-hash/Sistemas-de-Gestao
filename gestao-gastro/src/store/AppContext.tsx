@@ -9,6 +9,7 @@ import { isSupabaseConfigured, supabase } from '../lib/supabase';
 import { setTableOccupied, clearTable as clearTableSupabase } from '../services/tablesSupabaseService';
 import { createOrder as createOrderSupabase, closeOrder as closeOrderSupabase } from '../services/ordersSupabaseService';
 import { syncProduct } from '../services/menuSupabaseService';
+import { getOrderNetRevenue } from '../utils/finance';
 
 const TENANT_ID = import.meta.env.VITE_GASTRO_TENANT_ID as string;
 const LOCAL_TENANT_ID = 'default-empresa';
@@ -757,7 +758,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       payments,
       serviceCharge,
       status: 'closed',
-      total: order.subtotal + serviceCharge,
+      total: order.total,
     };
 
     setLocalOrders(prev => {
@@ -782,20 +783,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             items: order.items,
             subtotal: order.subtotal,
             serviceCharge,
-            total: order.subtotal + serviceCharge,
+            total: order.total,
             waiterId: order.waiterId,
             timestamp: order.timestamp,
           });
           await closeOrderSupabase(effectiveTenantId, created.id, {
             payments,
             serviceCharge,
-            total: order.subtotal + serviceCharge,
+            total: order.total,
           });
         } else {
           await closeOrderSupabase(effectiveTenantId, order.id, {
             payments,
             serviceCharge,
-            total: order.subtotal + serviceCharge,
+            total: order.total,
           });
           if (order.tableNumber) {
             await clearTableSupabase(effectiveTenantId, order.tableNumber);
@@ -898,7 +899,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const closeCashier = (tipsTotal: number, countedCash?: number, expectedCashBalance?: number) => {
     if (!cashierSession) return;
     const closedOrders = localOrders.filter(o => o.status === 'closed');
-    const salesTotal = closedOrders.reduce((acc, o) => acc + o.subtotal, 0);
+    const salesTotal = closedOrders.reduce((acc, order) => acc + getOrderNetRevenue(order), 0);
     const serviceTaxTotal = closedOrders.reduce((acc, o) => acc + o.serviceCharge, 0);
 
     // saida subtrai, entrada soma (suprimento)

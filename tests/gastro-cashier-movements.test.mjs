@@ -7,10 +7,13 @@ const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf
 test('caixa diferencia suprimento, sangria e despesa sem quebrar dados antigos', () => {
   const cashier = read('gestao-gastro/src/components/Cashier.tsx');
   const types = read('gestao-gastro/src/types.ts');
+  const finance = read('gestao-gastro/src/utils/finance.ts');
 
-  assert.match(types, /movementKind\?: 'suprimento' \| 'sangria' \| 'despesa'/);
-  assert.match(cashier, /expense\.movementKind/);
-  assert.match(cashier, /expense\.entryType === 'entrada' \? 'suprimento' : 'sangria'/);
+  assert.match(types, /export type CashMovementKind = 'suprimento' \| 'sangria' \| 'despesa'/);
+  assert.match(types, /movementKind\?: CashMovementKind/);
+  assert.match(finance, /expense\.movementKind/);
+  assert.match(finance, /expense\.entryType === 'entrada' \? 'suprimento' : 'despesa'/);
+  assert.match(cashier, /getCashMovementKind\(expense\)/);
   assert.match(cashier, /movementKind === 'suprimento' \? 'entrada' : 'saida'/);
 });
 

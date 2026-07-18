@@ -207,21 +207,28 @@ export const UserManual: React.FC = () => {
     }
   ];
 
-  const proTips = [
-    { id: 'tip_1', title: 'Engenharia de Cardápio', icon: Target, content: 'Posicione os produtos com maior margem de lucro em locais de destaque visual no sistema. Use o Dashboard para identificar os "Estrelas" (muita saída, margem alta).' },
-    { id: 'tip_2', title: 'Controle de CMV', icon: TrendingUp, content: 'Mantenha o seu Custo de Mercadoria Vendida (CMV) entre 25% e 35%. Use a ficha técnica rigorosamente para que o estoque reflita a realidade.' },
-    { id: 'tip_3', title: 'Ticket Médio', icon: Star, content: 'Treine sua equipe para oferecer acompanhamentos ou bebidas premium. Um aumento de 10% no ticket médio pode representar até 30% de aumento no lucro líquido.' },
-    { id: 'tip_4', title: 'Fidelização', icon: UserCheck, content: 'Use o cadastro de clientes para registrar preferências e datas especiais. Um cliente que se sente reconhecido volta 3x mais.' }
+  const proTips: Array<{
+    id: string;
+    module: AppModule;
+    title: string;
+    icon: React.ElementType;
+    content: string;
+  }> = [
+    { id: 'tip_1', module: 'produtos', title: 'Engenharia de Cardápio', icon: Target, content: 'Posicione os produtos com maior margem de lucro em locais de destaque visual no sistema. Use o Dashboard para identificar os "Estrelas" (muita saída, margem alta).' },
+    { id: 'tip_2', module: 'estoque', title: 'Controle de CMV', icon: TrendingUp, content: 'Mantenha o seu Custo de Mercadoria Vendida (CMV) entre 25% e 35%. Use a ficha técnica rigorosamente para que o estoque reflita a realidade.' },
+    { id: 'tip_3', module: 'dashboard', title: 'Ticket Médio', icon: Star, content: 'Treine sua equipe para oferecer acompanhamentos ou bebidas premium. Um aumento de 10% no ticket médio pode representar até 30% de aumento no lucro líquido.' },
+    { id: 'tip_4', module: 'clientes', title: 'Fidelização', icon: UserCheck, content: 'Use o cadastro de clientes para registrar preferências e datas especiais. Um cliente que se sente reconhecido volta 3x mais.' }
   ];
 
   const visibleModuleGuides = moduleGuides.filter((guide) => checkAccess(guide.module));
+  const visibleProTips = proTips.filter((tip) => checkAccess(tip.module));
   const visibleGuideIds = new Set([
     ...visibleModuleGuides.map((guide) => guide.id),
-    ...proTips.map((tip) => tip.id),
+    ...visibleProTips.map((tip) => tip.id),
   ]);
   const totalItems = visibleGuideIds.size;
   const completedItems = readGuides.filter((guideId) => visibleGuideIds.has(guideId)).length;
-  const progressPercent = Math.round((completedItems / totalItems) * 100);
+  const progressPercent = totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : 0;
 
   return (
     <div className="space-y-10 animate-in fade-in duration-700 pb-24">
@@ -363,7 +370,7 @@ export const UserManual: React.FC = () => {
             exit={{ opacity: 0, y: -20 }}
             className="grid grid-cols-1 md:grid-cols-2 gap-8"
           >
-            {proTips.map((tip) => {
+            {visibleProTips.map((tip) => {
               const isRead = readGuides.includes(tip.id);
               return (
                 <div

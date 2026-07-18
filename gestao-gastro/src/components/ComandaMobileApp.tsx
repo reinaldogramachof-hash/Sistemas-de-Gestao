@@ -212,7 +212,7 @@ export const ComandaMobileApp: React.FC = () => {
       if (!session?.access_token) {
         const message = 'Sessao expirada. Entre novamente na comanda.';
         setError(message);
-        await supabase.auth.signOut();
+        await supabase.auth.signOut({ scope: 'local' });
         throw new Error(message);
       }
 
@@ -225,7 +225,7 @@ export const ComandaMobileApp: React.FC = () => {
         body: JSON.stringify({
           action: 'validate_member_access',
           tenant_id: tenant,
-          required_role: 'waiter',
+          required_role: 'team',
         }),
       });
       const data: MemberAccessResponse = await response.json().catch(() => ({
@@ -238,20 +238,28 @@ export const ComandaMobileApp: React.FC = () => {
         const message = data.message || 'Usuario nao esta ativo neste restaurante.';
         setLastAccessError(message);
         setError(message);
-        await supabase.auth.signOut();
+        await supabase.auth.signOut({ scope: 'local' });
         throw new Error(message);
       }
 
-      if (member.role !== 'waiter') {
-        const message = 'Esta area e exclusiva para garcons.';
+      const allowedRoles = ['owner', 'admin', 'cashier', 'waiter'];
+      if (!allowedRoles.includes(member.role || '')) {
+        const message = 'Acesso negado: esta conta não possui permissão de acesso à comanda.';
         setLastAccessError(message);
         setError(message);
-        await supabase.auth.signOut();
+        await supabase.auth.signOut({ scope: 'local' });
         throw new Error(message);
       }
 
       sessionStorage.setItem(USER_ROLE_KEY, member.role);
-      verifiedDisplayName = member.display_name || '';
+      const roleMap: Record<string, string> = {
+        owner: 'Proprietário',
+        admin: 'Administrador',
+        cashier: 'Caixa',
+        waiter: 'Garçom'
+      };
+      const friendlyRole = roleMap[member.role] || 'Operador';
+      verifiedDisplayName = member.display_name || friendlyRole;
     } else {
       sessionStorage.setItem(USER_ROLE_KEY, 'waiter');
     }
@@ -279,7 +287,7 @@ export const ComandaMobileApp: React.FC = () => {
     clearSession();
     setSession(null);
     if (isSupabaseConfigured) {
-      await supabase.auth.signOut();
+      await supabase.auth.signOut({ scope: 'local' });
     }
   };
 

@@ -508,9 +508,16 @@ if ($action === 'validate_member_access') {
         exit;
     }
 
-    if ($requiredRole !== '' && ($member['role'] ?? '') !== $requiredRole) {
+    $allowedRoles = ['owner', 'admin', 'cashier', 'waiter'];
+    if (!in_array($member['role'] ?? '', $allowedRoles, true)) {
         http_response_code(403);
-        echo json_encode(['status' => 'error', 'message' => 'Usuario nao possui permissao para este modulo.']);
+        echo json_encode(['status' => 'error', 'message' => 'Usuario nao possui cargo valido neste restaurante.']);
+        exit;
+    }
+
+    if ($requiredRole !== '' && $requiredRole !== 'team' && ($member['role'] ?? '') !== $requiredRole) {
+        http_response_code(403);
+        echo json_encode(['status' => 'error', 'message' => 'Usuario nao possui o cargo especifico requerido.']);
         exit;
     }
 

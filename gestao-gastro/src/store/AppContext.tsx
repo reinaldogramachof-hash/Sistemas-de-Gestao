@@ -105,6 +105,7 @@ interface AppContextType extends AppState {
   updateOrderItemKitchenStatus: (orderId: string, itemIndex: number, status: KitchenItemStatus) => void;
   addLoyaltyEntry: (entry: Omit<LoyaltyEntry, 'id' | 'empresaId' | 'createdAt'>) => void;
   initializeTables: (count: number) => Promise<void>;
+  setCurrentUser: React.Dispatch<React.SetStateAction<{ id: string; name: string; role: string }>>;
 }
 
 const getTenantKey = (key: string): string => {
@@ -244,7 +245,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     tenantId: currentTenantId
   };
 
-  const [currentUser, setCurrentUser] = useState({ id: 'admin', name: 'Administrador', role: 'admin' });
+  const [currentUser, setCurrentUser] = useState(() => {
+    const storedRole = sessionStorage.getItem('gestao_gastro_user_role') || 'admin';
+    const storedName = sessionStorage.getItem('gestao_gastro_user_name') || 'Administrador';
+    return { id: 'admin', name: storedName, role: storedRole };
+  });
 
   // Monitora sessão Supabase para atualizar o currentUser
   useEffect(() => {
@@ -252,8 +257,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const updateCurrentUser = async () => {
         const { data: { session } } = await supabase.auth.getSession();
         if (session && session.user) {
-          const userName = localStorage.getItem('gestao_gastro_user_name') || session.user.user_metadata?.display_name || session.user.email || 'Administradora';
-          const userRole = localStorage.getItem('gestao_gastro_user_role') || 'admin';
+          const userName = sessionStorage.getItem('gestao_gastro_user_name') || session.user.user_metadata?.display_name || session.user.email || 'Administradora';
+          const userRole = sessionStorage.getItem('gestao_gastro_user_role') || 'admin';
           setCurrentUser({
             id: session.user.id,
             name: userName,
@@ -266,8 +271,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
       const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
         if (session && session.user) {
-          const userName = localStorage.getItem('gestao_gastro_user_name') || session.user.user_metadata?.display_name || session.user.email || 'Administradora';
-          const userRole = localStorage.getItem('gestao_gastro_user_role') || 'admin';
+          const userName = sessionStorage.getItem('gestao_gastro_user_name') || session.user.user_metadata?.display_name || session.user.email || 'Administradora';
+          const userRole = sessionStorage.getItem('gestao_gastro_user_role') || 'admin';
           setCurrentUser({
             id: session.user.id,
             name: userName,
@@ -1135,7 +1140,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       addStockMovement, updateSettings, toggleGuideRead, importData, exportData, resetToMocks,
       setDraftOrder, clearDraftOrder, updateOrderItemKitchenStatus, addLoyaltyEntry,
       productSyncErrors, retrySyncProduct, clearSyncError, reloadCollaborators,
-      initializeTables: initializeTenantTables
+      initializeTables: initializeTenantTables, setCurrentUser
     }}>
       {children}
     </AppContext.Provider>

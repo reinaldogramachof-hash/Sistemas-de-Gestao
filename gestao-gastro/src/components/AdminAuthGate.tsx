@@ -9,7 +9,7 @@ interface AdminAuthGateProps {
 }
 
 export const AdminAuthGate: React.FC<AdminAuthGateProps> = ({ children }) => {
-  const { currentEmpresa, currentUser, theme } = useApp();
+  const { currentEmpresa, currentUser, theme, setCurrentUser } = useApp();
   const isDark = theme === 'dark';
 
   const tenantId = resolveTenant(window.location.pathname) || import.meta.env.VITE_GASTRO_TENANT_ID;
@@ -80,31 +80,55 @@ export const AdminAuthGate: React.FC<AdminAuthGateProps> = ({ children }) => {
     }
 
     try {
-      const { data, error } = await supabase
-        .from('tenant_members')
-        .select('role, active, display_name')
-        .eq('tenant_id', tenantId)
-        .eq('user_id', userId)
-        .eq('active', true)
-        .maybeSingle();
-
-      if (error) throw error;
-
-      if (data && (data.role === 'owner' || data.role === 'admin')) {
-        setIsAdminMember(true);
-        // Salva metadados locais de login
-        localStorage.setItem('gestao_gastro_user_role', data.role);
-        localStorage.setItem('gestao_gastro_user_name', data.display_name || 'Administradora');
-        sessionStorage.setItem('gestao_gastro_user_role', data.role);
-      } else {
-        setIsAdminMember(false);
-        setError('Acesso negado: esta conta não possui permissão de administrador neste restaurante.');
-        // Remove sessão para não entrar em loop
-        await supabase.auth.signOut();
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session || !session.access_token) {
+        throw new Error('Sessão inválida.');
       }
+
+      const response = await fetch('/api_admin_users.php', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({
+          action: 'validate_member_access',
+          tenant_id: tenantId,
+          required_role: 'team'
+        })
+      });
+
+      const data = await response.json().catch(() => null);
+
+      if (!response.ok || !data || data.status !== 'success' || !data.member) {
+        setIsAdminMember(false);
+        setError(data?.message || 'Acesso negado: esta conta não possui permissão ativa neste restaurante.');
+        await supabase.auth.signOut({ scope: 'local' });
+        return;
+      }
+
+      const member = data.member;
+      const roleMap: Record<string, string> = {
+        owner: 'Proprietário',
+        admin: 'Administrador',
+        cashier: 'Caixa',
+        waiter: 'Garçom'
+      };
+      const friendlyRole = roleMap[member.role] || 'Colaborador';
+      const userName = member.display_name || friendlyRole;
+
+      sessionStorage.setItem('gestao_gastro_user_role', member.role);
+      sessionStorage.setItem('gestao_gastro_user_name', userName);
+
+      setCurrentUser({
+        id: member.user_id,
+        name: userName,
+        role: member.role
+      });
+      setIsAdminMember(true);
     } catch (err) {
       setIsAdminMember(false);
-      setError('Erro ao validar sua permissão de administrador.');
+      setError('Erro ao validar sua permissão de acesso.');
     }
   };
 
@@ -140,6 +164,7 @@ export const AdminAuthGate: React.FC<AdminAuthGateProps> = ({ children }) => {
             localStorage.removeItem('gestao_gastro_user_role');
             localStorage.removeItem('gestao_gastro_user_name');
             sessionStorage.removeItem('gestao_gastro_user_role');
+            sessionStorage.removeItem('gestao_gastro_user_name');
           }
         });
         unsubscribe = () => subscription.unsubscribe();

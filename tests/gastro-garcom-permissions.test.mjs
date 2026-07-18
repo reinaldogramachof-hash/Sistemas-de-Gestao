@@ -167,7 +167,7 @@ describe('Garçom Permissions — gestao-gastro', () => {
     const api = readFileSync(join(process.cwd(), 'api_admin_users.php'), 'utf-8');
 
     assert.ok(
-      content.includes("action: 'validate_member_access'") && content.includes("required_role: 'waiter'"),
+      content.includes("action: 'validate_member_access'") && (content.includes("required_role: 'waiter'") || content.includes("required_role: 'team'")),
       'rota externa deve validar permissao por endpoint protegido em vez de depender de leitura direta por RLS',
     );
     assert.ok(

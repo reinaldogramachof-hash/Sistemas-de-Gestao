@@ -56,7 +56,7 @@ const DateTimeDisplay = () => {
 };
 
 export const Layout: React.FC<LayoutProps> = ({ currentView, setCurrentView, children }) => {
-  const { theme, setTheme, cashierSession, currentUser } = useApp();
+  const { theme, setTheme, cashierSession, currentUser, draftOrder, clearDraftOrder } = useApp();
   const { checkAccess } = useModules();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
@@ -66,15 +66,29 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setCurrentView, chi
   const isDark = theme === 'dark';
 
   const handleLogout = async () => {
+    if (draftOrder && draftOrder.items && draftOrder.items.length > 0) {
+      const confirmDiscard = window.confirm(
+        'Você possui um rascunho de venda em andamento no PDV. Se prosseguir com o logout, este rascunho será descartado. Deseja continuar?'
+      );
+      if (!confirmDiscard) {
+        return;
+      }
+      clearDraftOrder();
+    }
+
     try {
       if (isSupabaseConfigured && supabase) {
-        await supabase.auth.signOut();
+        await supabase.auth.signOut({ scope: 'local' });
       }
+    } catch (err) {
+      console.error('Erro ao efetuar logout remoto:', err);
+    } finally {
       localStorage.removeItem('gestao_gastro_user_name');
       localStorage.removeItem('gestao_gastro_user_role');
+      sessionStorage.removeItem('gestao_gastro_user_name');
+      sessionStorage.removeItem('gestao_gastro_user_role');
+      sessionStorage.removeItem('garcom_session');
       window.location.reload();
-    } catch (err) {
-      console.error('Erro ao efetuar logout:', err);
     }
   };
 

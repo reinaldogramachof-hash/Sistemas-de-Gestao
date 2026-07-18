@@ -23,10 +23,10 @@ test('Inspect AdminAuthGate.tsx for security structure and first access flow', (
     'AdminAuthGate.tsx deve gerenciar login e mudanças de estado usando Supabase Auth'
   );
 
-  // c) Deve validar a permissão administrativa de membros de forma segura contra a tabela tenant_members
+  // c) Deve validar a permissão de membros de forma segura
   assert.ok(
-    source.includes('tenant_members') && source.includes('role') && source.includes('active'),
-    'AdminAuthGate.tsx deve verificar cargo e ativação de membros na tabela tenant_members do Supabase'
+    (source.includes('tenant_members') || source.includes('validate_member_access')) && source.includes('role'),
+    'AdminAuthGate.tsx deve verificar cargo e ativação de membros'
   );
 });
 
@@ -283,9 +283,9 @@ test('Inspect Layout.tsx for dynamic profile, dropdown and logout button', () =>
     'Layout.tsx deve gerenciar o estado showProfileMenu e botão Sair que aciona o handleLogout'
   );
 
-  // c) No logout, deve chamar auth.signOut e limpar localStorage
+  // c) No logout, deve chamar auth.signOut e limpar local/session storage
   assert.ok(
-    source.includes('signOut()') && source.includes('removeItem') && source.includes('gestao_gastro_user_name'),
+    source.includes('signOut') && source.includes('removeItem') && source.includes('gestao_gastro_user_name'),
     'Layout.tsx deve limpar sessões locais e chamar signOut do Supabase Auth'
   );
 });

@@ -145,6 +145,25 @@ test('Cardápio and Estoque expose shared operational states', () => {
   assert.ok(stock.includes('filteredItems.length === 0'), 'Estoque deve tratar busca vazia');
 });
 
+test('Operational modules explain local mode and empty results consistently', () => {
+  const expectations = {
+    'gestao-gastro/src/components/PDV.tsx': ['variant="offline"', 'PDV em modo local'],
+    'gestao-gastro/src/components/Tables.tsx': ['variant="offline"', 'filteredTables.length === 0', 'occupancyPercentage'],
+    'gestao-gastro/src/components/Cashier.tsx': ['variant="offline"', 'Nenhum fechamento anterior', 'Nenhuma movimentação avulsa'],
+    'gestao-gastro/src/components/Dashboard.tsx': ['variant="offline"', 'Nenhum pedido registrado', 'Ranking ainda sem dados'],
+    'gestao-gastro/src/components/Reports.tsx': ['variant="offline"', '<OperationalState', 'Financeiro em modo local'],
+    'gestao-gastro/src/components/MenuList.tsx': ['filteredProducts.length === 0', 'Nenhum produto encontrado'],
+  };
+
+  for (const [path, markers] of Object.entries(expectations)) {
+    const source = read(path);
+    assert.ok(source.includes("import { OperationalState } from './OperationalState'"), `${path} deve usar o estado operacional compartilhado`);
+    for (const marker of markers) {
+      assert.ok(source.includes(marker), `${path} deve conter ${marker}`);
+    }
+  }
+});
+
 test('Base modules keep Portuguese visible labels accented', () => {
   const expectations = {
     'gestao-gastro/src/components/Dashboard.tsx': [

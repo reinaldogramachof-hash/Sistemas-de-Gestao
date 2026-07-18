@@ -15,9 +15,10 @@ import { ui } from '../ui/styles';
 import { getComandaAccessUrl } from '../utils/comandaAccess';
 import { HelpTooltip } from './HelpTooltip';
 import { formatCurrency } from '../utils/format';
+import { OperationalState } from './OperationalState';
 
 export const Dashboard: React.FC = () => {
-  const { orders, tables, products, stockItems, theme, currentEmpresa } = useApp();
+  const { orders, tables, products, stockItems, theme, currentEmpresa, supabaseOnline } = useApp();
   const isDark = theme === 'dark';
 
   const isToday = (timestampStr: string) => {
@@ -119,6 +120,14 @@ export const Dashboard: React.FC = () => {
 
   return (
     <div className="space-y-8 animate-in fade-in duration-200 pb-12">
+      {!supabaseOnline && (
+        <OperationalState
+          variant="offline"
+          title="Dashboard em modo local"
+          description="Os indicadores refletem apenas os dados disponíveis neste dispositivo até a conexão ser restabelecida."
+          compact
+        />
+      )}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="space-y-1">
           <div className="flex items-center gap-1.5">
@@ -190,10 +199,12 @@ export const Dashboard: React.FC = () => {
                  )
               })}
                {Object.keys(categorySales).length === 0 && (
-                 <div className="flex flex-col items-center justify-center py-12 opacity-50">
-                   <ShoppingBag className="w-12 h-12 mb-3" />
-                   <p className="text-sm font-semibold opacity-70 px-4 text-center">Feche o primeiro pedido hoje para ver as categorias mais vendidas.</p>
-                 </div>
+                 <OperationalState
+                   variant="empty"
+                   title="Sem vendas por categoria hoje"
+                   description="Feche o primeiro pedido para acompanhar as categorias mais vendidas."
+                   compact
+                 />
                )}
             </div>
          </div>
@@ -247,9 +258,12 @@ export const Dashboard: React.FC = () => {
                  </tbody>
                </table>
                 {recentOrders.length === 0 && (
-                  <div className="py-12 flex flex-col items-center justify-center opacity-40">
-                    <p className="text-sm font-semibold">Pedidos aparecerão aqui.</p>
-                  </div>
+                  <OperationalState
+                    variant="empty"
+                    title="Nenhum pedido registrado"
+                    description="Os pedidos recentes aparecerão aqui após o primeiro atendimento."
+                    compact
+                  />
                 )}
              </div>
          </div>
@@ -281,7 +295,12 @@ export const Dashboard: React.FC = () => {
               </div>
             ))}
              {topProducts.length === 0 && (
-               <div className="py-12 text-center opacity-40 text-sm font-semibold">O ranking de hoje aparece após as primeiras vendas do dia.</div>
+               <OperationalState
+                 variant="empty"
+                 title="Ranking ainda sem dados"
+                 description="Os produtos mais pedidos aparecerão após as primeiras vendas do dia."
+                 compact
+               />
              )}
           </div>
         </div>

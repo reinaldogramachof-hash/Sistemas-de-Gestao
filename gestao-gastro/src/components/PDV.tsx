@@ -12,9 +12,10 @@ import { allocateComboItems, calcComboOriginalPrice, getProductDiscount } from '
 import { validateStock } from '../services/stockGuard';
 import { HelpTooltip } from './HelpTooltip';
 import { OperationFeedback, type OperationFeedbackMessage } from './OperationFeedback';
+import { OperationalState } from './OperationalState';
 
 export const PDV: React.FC = () => {
-  const { collaborators, currentEmpresa, waiters, theme, promotions, campaigns, combos, products, customers, draftOrder, setDraftOrder, clearDraftOrder, stockItems } = useApp();
+  const { collaborators, currentEmpresa, waiters, theme, promotions, campaigns, combos, products, customers, draftOrder, setDraftOrder, clearDraftOrder, stockItems, supabaseOnline } = useApp();
   const isDark = theme === 'dark';
   const activeOperators = collaborators.filter(c => c.status === 'active');
   const systemOperator = {
@@ -226,6 +227,16 @@ export const PDV: React.FC = () => {
     <div className="flex flex-col lg:flex-row h-[calc(100vh-112px)] gap-5">
       <OperationFeedback feedback={feedback} onDismiss={() => setFeedback(null)} />
       <section className="flex-1 flex flex-col min-w-0">
+        {!supabaseOnline && (
+          <div className="mb-4">
+            <OperationalState
+              variant="offline"
+              title="PDV em modo local"
+              description="As vendas permanecem neste dispositivo. Confirme a conexão antes de continuar a operação em outro terminal."
+              compact
+            />
+          </div>
+        )}
         <div className="mb-5 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div className="space-y-1">
             <div className="flex items-center gap-1.5">

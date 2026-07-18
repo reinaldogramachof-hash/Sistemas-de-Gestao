@@ -26,9 +26,10 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { Expense } from '../types';
 import { ui } from '../ui/styles';
+import { OperationalState } from './OperationalState';
 
 export const Cashier: React.FC = () => {
-  const { cashierSession, cashierHistory, expenses, orders, tables, theme, openCashier, closeCashier, addExpense, updateExpense, deleteExpense, settings } = useApp();
+  const { cashierSession, cashierHistory, expenses, orders, tables, theme, openCashier, closeCashier, addExpense, updateExpense, deleteExpense, settings, supabaseOnline } = useApp();
   const { log } = useAudit();
   const isDark = theme === 'dark';
 
@@ -178,6 +179,14 @@ ${Object.entries(paymentTotals).map(([method, amount]) => `${method}: ${formatCu
   if (!cashierSession) {
     return (
       <div className="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-200 pb-12">
+        {!supabaseOnline && (
+          <OperationalState
+            variant="offline"
+            title="Caixa em modo local"
+            description="A abertura e as movimentações ficam neste dispositivo até a conexão ser restabelecida."
+            compact
+          />
+        )}
         <div className={`flex flex-col items-center justify-center p-16 rounded-xl border shadow-sm relative overflow-hidden
           ${isDark ? 'bg-[#1C1C1E] border-[#2C2C2E]' : 'bg-white border-gray-200'}`}>
           <div className="absolute top-0 left-0 w-full h-2 bg-red-500" />
@@ -205,7 +214,7 @@ ${Object.entries(paymentTotals).map(([method, amount]) => `${method}: ${formatCu
           </div>
         </div>
 
-        {cashierHistory.length > 0 && (
+        {cashierHistory.length > 0 ? (
           <div className="space-y-6">
             <div className="flex items-center gap-2">
               <History className="w-5 h-5 opacity-40" />
@@ -266,6 +275,12 @@ ${Object.entries(paymentTotals).map(([method, amount]) => `${method}: ${formatCu
               </div>
             </div>
           </div>
+        ) : (
+          <OperationalState
+            variant="empty"
+            title="Nenhum fechamento anterior"
+            description="O histórico será exibido depois do primeiro fechamento de caixa."
+          />
         )}
       </div>
     );
@@ -274,6 +289,14 @@ ${Object.entries(paymentTotals).map(([method, amount]) => `${method}: ${formatCu
   // Caixa aberto
   return (
     <div className="space-y-8 animate-in fade-in duration-200 pb-12">
+      {!supabaseOnline && (
+        <OperationalState
+          variant="offline"
+          title="Caixa em modo local"
+          description="Movimentações ficam neste dispositivo até a conexão ser restabelecida. Confira a conexão antes do fechamento."
+          compact
+        />
+      )}
       <div className="flex items-center gap-1.5 mb-2">
         <h2 className="text-2xl font-bold uppercase tracking-tighter">Caixa</h2>
         <HelpTooltip moduleKey="finance" />
@@ -313,7 +336,14 @@ ${Object.entries(paymentTotals).map(([method, amount]) => `${method}: ${formatCu
              </div>
              <div className="pt-8 border-t border-dashed border-current/10">
                <h3 className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wide opacity-40 mb-6">Suprimentos e Sangrias <HelpTooltip content="Use Sangria para registrar retiradas de dinheiro em espécie da gaveta (ex: pagamento de fornecedor). Use Suprimento para registrar adição de troco no meio do expediente." /></h3>
-               {expenses.length === 0 ? (<div className="py-10 text-center opacity-20  text-sm">Nenhuma movimentação avulsa registrada hoje.</div>) : (
+               {expenses.length === 0 ? (
+                 <OperationalState
+                   variant="empty"
+                   title="Nenhuma movimentação avulsa"
+                   description="Suprimentos, sangrias e despesas deste turno aparecerão aqui."
+                   compact
+                 />
+               ) : (
                  <div className="space-y-3">
                    {expenses.map(e => {
                      const isEntrada = e.entryType === 'entrada';

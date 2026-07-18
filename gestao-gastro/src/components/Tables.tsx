@@ -13,6 +13,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { ui } from '../ui/styles';
 import { HelpTooltip } from './HelpTooltip';
+import { OperationalState } from './OperationalState';
 
 const TableTimer: React.FC<{ timestamp: string; isDark: boolean; status: string }> = ({ timestamp, isDark, status }) => {
   const [now, setNow] = useState(Date.now());
@@ -40,7 +41,7 @@ const TableTimer: React.FC<{ timestamp: string; isDark: boolean; status: string 
 };
 
 export const Tables: React.FC = () => {
-  const { tables, theme, orders, reserveTable, clearTable } = useApp();
+  const { tables, theme, orders, reserveTable, clearTable, supabaseOnline } = useApp();
   const isDark = theme === 'dark';
   const [selectedTable, setSelectedTable] = useState<number | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -70,6 +71,7 @@ export const Tables: React.FC = () => {
   const occupiedCount = computedTables.filter(t => t.visualStatus === 'ocupada').length;
   const waitingCount = computedTables.filter(t => t.visualStatus === 'aguardando').length;
   const reservedCount = computedTables.filter(t => t.visualStatus === 'reservada').length;
+  const occupancyPercentage = tables.length > 0 ? Math.round((occupiedCount / tables.length) * 100) : 0;
 
   const filteredTables = computedTables.filter(t => {
     const matchesSearch = t.number.toString().includes(searchTerm);
@@ -97,6 +99,14 @@ export const Tables: React.FC = () => {
 
   return (
     <div className="flex flex-col h-full gap-8 animate-in fade-in duration-200">
+      {!supabaseOnline && (
+        <OperationalState
+          variant="offline"
+          title="Mesas em modo local"
+          description="Alterações ficam neste dispositivo até a conexão ser restabelecida. Evite operar a mesma mesa em outro terminal."
+          compact
+        />
+      )}
       <div className="space-y-6">
         <div className="flex flex-col md:flex-row justify-between md:items-end gap-6">
           <div className="space-y-1">
@@ -108,7 +118,7 @@ export const Tables: React.FC = () => {
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 flex-1 lg:max-w-3xl">
-            <StatCard label="Ocupação" value={`${occupiedCount}/${tables.length}`} subValue={`${((occupiedCount/tables.length)*100).toFixed(0)}%`} icon={Users} color="emerald" isDark={isDark} />
+            <StatCard label="Ocupação" value={`${occupiedCount}/${tables.length}`} subValue={`${occupancyPercentage}%`} icon={Users} color="emerald" isDark={isDark} />
             <StatCard label="Aguardando" value={waitingCount.toString()} subValue="Pedidos" icon={Clock} color="amber" isDark={isDark} />
             <StatCard label="Reservas" value={reservedCount.toString()} subValue="Bloqueadas" icon={CalendarCheck} color="purple" isDark={isDark} />
             <StatCard label="Vendas" value={`R$ ${salesToday.toFixed(0)}`} subValue="Hoje" icon={CheckCircle2} color="rose" isDark={isDark} />
@@ -145,6 +155,15 @@ export const Tables: React.FC = () => {
         </div>
       </div>
 
+      {filteredTables.length === 0 ? (
+        <OperationalState
+          variant="empty"
+          title={tables.length === 0 ? 'Nenhuma mesa configurada' : 'Nenhuma mesa encontrada'}
+          description={tables.length === 0
+            ? 'Configure as mesas do salão antes de iniciar o atendimento.'
+            : 'Ajuste a busca, o setor ou o filtro de situação para continuar.'}
+        />
+      ) : (
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6">
         <AnimatePresence mode="popLayout">
           {filteredTables.map(table => {
@@ -215,6 +234,7 @@ export const Tables: React.FC = () => {
           })}
         </AnimatePresence>
       </div>
+      )}
 
       <AnimatePresence>
         {isSelecting && selectedForReservation.length > 0 && (

@@ -5,6 +5,7 @@ import { motion } from 'motion/react';
 import { ui } from '../ui/styles';
 import { getProductIcon } from '../utils/productIcons';
 import { ShoppingCart } from 'lucide-react';
+import { OperationalState } from './OperationalState';
 
 import { getProductStock } from '../services/stockGuard';
 
@@ -28,6 +29,18 @@ export const MenuList: React.FC<MenuListProps> = ({ category, searchTerm, onSele
   const getCategoryIcon = (cat: string, name: string) => {
     return getProductIcon(cat, name);
   };
+
+  if (filteredProducts.length === 0) {
+    return (
+      <OperationalState
+        variant="empty"
+        title="Nenhum produto encontrado"
+        description={products.length === 0
+          ? 'Cadastre e ative produtos no Cardápio para iniciar uma venda.'
+          : 'Ajuste a busca ou selecione outra categoria para continuar.'}
+      />
+    );
+  }
 
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3 xl:gap-4">

@@ -24,6 +24,7 @@ import { Expense } from '../types';
 import { ui } from '../ui/styles';
 import { formatCurrency } from '../utils/format';
 import { HelpTooltip } from './HelpTooltip';
+import { OperationalState } from './OperationalState';
 
 type Tab = 'dashboard' | 'fluxo' | 'vendas' | 'produtos' | 'atendentes';
 type Period = 'hoje' | 'semana' | 'mes' | 'total';
@@ -104,7 +105,7 @@ const getCategoryTone = (category: Expense['category']) => {
 };
 
 export const Reports: React.FC = () => {
-  const { orders, waiters, theme, expenses, addExpense, deleteExpense, stockItems, cashierHistory } = useApp();
+  const { orders, waiters, theme, expenses, addExpense, deleteExpense, stockItems, cashierHistory, supabaseOnline } = useApp();
   const isDark = theme === 'dark';
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
   const [period, setPeriod] = useState<Period>('mes');
@@ -328,9 +329,11 @@ export const Reports: React.FC = () => {
   };
 
   const renderEmptyState = (message: string) => (
-    <div className={`py-20 px-6 text-center rounded-xl border border-dashed ${isDark ? 'border-white/10 text-white/30' : 'border-gray-200 text-gray-400'}`}>
-      <p className="text-xs font-bold uppercase tracking-wide">{message}</p>
-    </div>
+    <OperationalState
+      variant="empty"
+      title={message}
+      description="Altere o período selecionado ou registre uma nova movimentação para visualizar os dados."
+    />
   );
 
   const renderChart = () => (
@@ -422,6 +425,14 @@ export const Reports: React.FC = () => {
 
   return (
     <div className="flex flex-col min-h-full gap-8 animate-in fade-in duration-200 pb-12">
+      {!supabaseOnline && (
+        <OperationalState
+          variant="offline"
+          title="Financeiro em modo local"
+          description="Totais e relatórios refletem apenas os dados disponíveis neste dispositivo até a conexão ser restabelecida."
+          compact
+        />
+      )}
       <div className="flex flex-col lg:flex-row justify-between lg:items-end gap-6">
         <div className="space-y-1">
           <h2 className={ui.pageTitle}>Financeiro</h2>

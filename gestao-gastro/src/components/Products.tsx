@@ -380,7 +380,7 @@ export const Products: React.FC = () => {
                     <td className="px-8 py-5 text-right">
                        <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-all">
                           <button onClick={() => openModal(p)} className="p-2 rounded-lg hover:bg-[#475569]/10 hover:text-[#475569]"><Edit2 className="w-4 h-4" /></button>
-                          <button onClick={() => deleteProduct(p.id)} className="p-2 rounded-lg hover:bg-red-500/10 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
+                          <button onClick={() => handleDeleteProduct(p)} className="p-2 rounded-lg hover:bg-red-500/10 hover:text-red-500" aria-label={`Excluir ${p.name}`}><Trash2 className="w-4 h-4" /></button>
                        </div>
                     </td>
                   </tr>

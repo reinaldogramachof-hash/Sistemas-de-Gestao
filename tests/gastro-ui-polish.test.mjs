@@ -119,6 +119,7 @@ test('Cardápio and Estoque use shared non-blocking feedback', () => {
   assert.ok(products.includes("title: 'Ficha Técnica incompleta'"), 'Cardápio deve orientar ficha técnica incompleta');
   assert.ok(products.includes("title: 'Sincronização pendente'"), 'Cardápio deve explicar falha de sincronização');
   assert.match(products, /window\.confirm\(`Excluir \$\{product\.name\}/, 'exclusão de produto deve exigir confirmação');
+  assert.doesNotMatch(products, /onClick=\{\(\) => deleteProduct\(/, 'grade e lista devem usar a mesma confirmação de exclusão');
   assert.ok(stock.includes("title: 'Exclusão bloqueada'"), 'Estoque deve explicar vínculo que impede exclusão');
   assert.ok(stock.includes("title: 'Perda registrada'"), 'Estoque deve confirmar a baixa registrada');
   assert.match(stock, /window\.confirm\(`Tem certeza que deseja excluir o insumo/, 'exclusão de insumo deve continuar confirmada');

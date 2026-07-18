@@ -270,22 +270,27 @@ describe('Garçom Permissions — gestao-gastro', () => {
     );
   });
 
-  test('ComandaMobile deve abrir resumo antes de adicionar itens em mesa ocupada', () => {
+  test('ComandaMobile deve abrir seletor de comandas em mesa ocupada com múltiplas contas', () => {
     const content = readSrc('components/ComandaMobile.tsx');
     const grid = readSrc('components/ComandaMesaGrid.tsx');
     const resumo = readSrc('components/ComandaMesaResumo.tsx');
 
+    // Fluxo agora inclui passo 'seletor' para múltiplas comandas
     assert.ok(
-      content.includes("type Step = 'mesa' | 'resumo' | 'lancamento' | 'confirmacao'"),
-      'fluxo do garcom deve ter etapa de resumo da comanda',
+      content.includes("'mesa'") && content.includes("'seletor'") && content.includes("'resumo'") && content.includes("'lancamento'"),
+      'fluxo do garcom deve ter etapas de seletor de comandas, resumo e lancamento',
     );
     assert.ok(
-      content.includes("setStep(table.status === 'livre' && !table.activeOrderId ? 'lancamento' : 'resumo')"),
-      'mesa ocupada deve abrir consulta antes do lancamento',
+      content.includes('ComandaMesaSelector') && content.includes('listOpenComandasForTable'),
+      'ComandaMobile deve renderizar seletor de comandas para mesas com multiplas contas',
     );
     assert.ok(
       content.includes('<ComandaMesaResumo') && content.includes('selectedOpenOrder'),
       'ComandaMobile deve renderizar resumo com pedido aberto da mesa selecionada',
+    );
+    assert.ok(
+      content.includes('handleSelectComanda') && content.includes('handleCreateComandaInTable'),
+      'ComandaMobile deve ter handlers para selecionar e criar comandas em mesas ocupadas',
     );
     assert.ok(
       grid.includes('openOrders') && grid.includes('item(ns)'),
@@ -357,19 +362,19 @@ describe('Garçom Permissions — gestao-gastro', () => {
     const tableService = readSrc('services/tablesSupabaseService.ts');
     const orderService = readSrc('services/ordersSupabaseService.ts');
 
-    assert.ok(content.includes('handleReleaseSelectedTable') && content.includes('clearTable(tenantId, selectedTable.number)'), 'garcom deve conseguir liberar mesa sem comanda aberta');
+    assert.ok(content.includes('handleReleaseSelectedTable') && content.includes('releaseTableSafely(tenantId, selectedTable.number)'), 'garcom deve liberar mesa sem comandas por RPC segura');
     assert.ok(content.includes('const [freshTables, freshOrders] = await Promise.all'), 'liberacao e transferencia devem revalidar mesas e pedidos antes de agir');
-    assert.ok(content.includes('closeOrder(tenantId, activeOrder.id') && content.includes('Mesa liberada sem consumo pelo garcom'), 'comanda vazia deve ser fechada com valor zero ao liberar mesa sem consumo');
-    assert.ok(content.includes('Esta mesa possui consumo lancado'), 'mesa com consumo lancado nao deve ser liberada pelo garcom');
-    assert.ok(content.includes('handleTransferSelectedTable') && content.includes('updateTable(tenantId, targetTableNumber'), 'garcom deve conseguir transferir comanda para mesa livre');
+    assert.ok(content.includes('for (const comanda of tableComandas)') && content.includes('closeComanda(tenantId, comanda.id') && content.includes('Mesa liberada sem consumo pelo garcom'), 'todas as comandas vazias devem ser fechadas com valor zero');
+    assert.ok(content.includes('findComandaWithConsumption') && content.includes('possui consumo na comanda'), 'consumo em qualquer comanda deve bloquear a liberacao');
+    assert.ok(content.includes('handleTransferSelectedTable') && content.includes('transferComanda(tenantId, activeOrder.id, targetTableNumber)'), 'garcom deve transferir a comanda selecionada por RPC atomica');
     assert.ok(content.includes("targetTable.status !== 'livre'") && content.includes('targetTable.activeOrderId'), 'transferencia deve revalidar que a mesa destino segue livre');
-    assert.ok(content.includes('updateOrderMeta(tenantId, activeOrder.id, { tableNumber: targetTableNumber })'), 'transferencia deve atualizar tableNumber do pedido');
+    assert.ok(content.includes('resolveSelectedComandaId(selectedComanda, currentTable, selectedTable)'), 'transferencia deve priorizar a comanda escolhida no seletor');
     assert.ok(resumo.includes('Liberar mesa') && resumo.includes('Trocar de mesa'), 'resumo da mesa deve exibir acoes operacionais esperadas');
     assert.ok(resumo.includes('Nome do cliente') && resumo.includes('onUpdateCustomerName'), 'resumo mobile deve permitir nomear cliente antes de lancar itens');
     assert.ok(orderModal.includes('Liberar mesa sem consumo') && orderModal.includes('activeOrderHasConsumption'), 'desktop deve liberar mesa vazia sem expor risco para mesa com consumo');
-    assert.ok(tableService.includes('activeOrderId?: string | null') && tableService.includes('active_order_id = data.activeOrderId ?? null'), 'clearTable deve conseguir gravar null em active_order_id');
+    assert.ok(tableService.includes('export async function releaseTableSafely'), 'tables service deve expor liberacao segura por RPC');
     assert.ok(orderService.includes('payload.table_number = data.tableNumber'), 'orders service deve permitir atualizar table_number na troca de mesa');
-    assert.ok(orderService.includes('export async function closeOrder'), 'orders service deve permitir fechar comanda vazia ao liberar mesa sem consumo');
+    assert.ok(orderService.includes('export async function closeComanda') && orderService.includes('export async function transferComanda'), 'orders service deve expor fechamento e transferencia atomicos');
   });
 
   test('Confirmacao da comanda nao deve citar cozinha no plano base', () => {

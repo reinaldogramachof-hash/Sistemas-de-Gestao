@@ -65,3 +65,54 @@ export const reconcileTablesWithOpenComandas = (
 
 export const canReleaseTable = (orders: Order[], tableNumber: number): boolean =>
   listOpenComandasForTable(orders, tableNumber).length === 0;
+
+export const orderHasConsumption = (order: Order): boolean =>
+  order.items.length > 0 || order.subtotal > 0 || order.total > 0;
+
+export const findComandaWithConsumption = (
+  orders: Order[],
+  tableNumber: number,
+): Order | undefined => listOpenComandasForTable(orders, tableNumber).find(orderHasConsumption);
+
+export const resolveSelectedComandaId = (
+  selectedComanda: Pick<Order, 'id'> | null | undefined,
+  currentTable: Pick<Table, 'activeOrderId'> | null | undefined,
+  fallbackTable: Pick<Table, 'activeOrderId'> | null | undefined,
+): string | undefined => selectedComanda?.id ?? currentTable?.activeOrderId ?? fallbackTable?.activeOrderId;
+
+interface OfflineComandaTargetInput {
+  isBalcao: boolean;
+  queueId: string;
+  selectedComanda?: Pick<Order, 'id' | 'comandaLabel' | 'offlineIdKey'> | null;
+  tableActiveOrderId?: string;
+}
+
+export interface OfflineComandaTarget {
+  existingOrderId?: string;
+  targetOrderId?: string;
+  comandaLabel?: string;
+  offlineIdKey?: string;
+  isNewComanda: boolean;
+}
+
+export const resolveOfflineComandaTarget = ({
+  isBalcao,
+  queueId,
+  selectedComanda,
+  tableActiveOrderId,
+}: OfflineComandaTargetInput): OfflineComandaTarget => {
+  if (isBalcao) return { isNewComanda: false };
+
+  const selectedComandaId = selectedComanda?.id;
+  const selectedIsLocal = Boolean(selectedComandaId?.startsWith('local_comanda_'));
+  const targetOrderId = selectedComandaId ?? tableActiveOrderId;
+  const isNewComanda = selectedIsLocal || !targetOrderId;
+
+  return {
+    existingOrderId: targetOrderId && !selectedIsLocal ? targetOrderId : undefined,
+    targetOrderId,
+    comandaLabel: selectedComanda?.comandaLabel ?? (isNewComanda ? 'Comanda Geral' : undefined),
+    offlineIdKey: isNewComanda ? (selectedComanda?.offlineIdKey ?? queueId) : undefined,
+    isNewComanda,
+  };
+};

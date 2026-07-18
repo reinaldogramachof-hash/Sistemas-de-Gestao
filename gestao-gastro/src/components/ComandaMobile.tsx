@@ -2,15 +2,18 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import type { Order, OrderItem, Product, Table } from '../types';
 import { ComandaMesaGrid } from './ComandaMesaGrid';
 import { ComandaMesaResumo } from './ComandaMesaResumo';
+import { ComandaMesaSelector } from './ComandaMesaSelector';
 import { ComandaLancamento, ComandaDraftItem } from './ComandaLancamento';
 import { ComandaConfirmacao } from './ComandaConfirmacao';
-import { clearTable, listTables, setTableOccupied, subscribeToTables, updateTable } from '../services/tablesSupabaseService';
-import { closeOrder, createOrder, listOpenOrders, subscribeToOrders, updateOrderItems, updateOrderMeta } from '../services/ordersSupabaseService';
+import { listTables, releaseTableSafely, setTableOccupied, subscribeToTables } from '../services/tablesSupabaseService';
+import { closeComanda, createComanda as createComandaRpc, createOrder, listOpenOrders, subscribeToOrders, transferComanda, updateOrderItems, updateOrderMeta } from '../services/ordersSupabaseService';
+import { writeSecureAudit } from '../services/secureAuditService';
 import { isSupabaseConfigured } from '../lib/supabase';
+import { findComandaWithConsumption, getComandaDisplayLabel, listOpenComandasForTable, resolveOfflineComandaTarget, resolveSelectedComandaId } from '../utils/multipleComandas';
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
-type Step = 'mesa' | 'resumo' | 'lancamento' | 'confirmacao';
+type Step = 'mesa' | 'seletor' | 'resumo' | 'lancamento' | 'confirmacao';
 
 interface WaiterSession {
   waiterId: string;
@@ -21,6 +24,10 @@ interface OfflineQueueItem {
   id: string;
   tableNumber: number | null;
   existingOrderId?: string;
+  targetOrderId?: string;
+  comandaLabel?: string;
+  offlineIdKey?: string;
+  isNewComanda?: boolean;
   mode: 'mesa' | 'balcao';
   customerName: string;
   adultCount: number;
@@ -42,6 +49,8 @@ const getOfflineQueueKey = (tenantId: string, waiterId: string) =>
   `${OFFLINE_QUEUE_KEY}:${tenantId || 'local'}:${waiterId || 'anonymous'}`;
 const getLastSyncKey = (tenantId: string, waiterId: string) =>
   `garcom_last_sync:${tenantId || 'local'}:${waiterId || 'anonymous'}`;
+const createOfflineIdKey = () =>
+  `garcom_${Date.now()}_${globalThis.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2)}`;
 
 // ─── Utils ────────────────────────────────────────────────────────────────────
 
@@ -166,6 +175,9 @@ export const ComandaMobile: React.FC<ComandaMobileProps> = ({
   const [offlineQueue, setOfflineQueue] = useState<OfflineQueueItem[]>(() => loadOfflineQueue(offlineQueueKey));
   const [syncing, setSyncing] = useState(false);
   const [lastSyncAt, setLastSyncAt] = useState<string | null>(() => localStorage.getItem(getLastSyncKey(tenantId, waiterSession.waiterId)));
+  // Comanda selecionada no seletor de comandas múltiplas
+  const [selectedComanda, setSelectedComanda] = useState<Order | null>(null);
+  const [isBusyComanda, setIsBusyComanda] = useState(false);
   const autoSyncAttemptedRef = useRef(false);
 
   // ─── Network detection ────────────────────────────────────────────────────
@@ -244,6 +256,37 @@ export const ComandaMobile: React.FC<ComandaMobileProps> = ({
           throw new Error('Tenant nao configurado para sincronizar fila offline.');
         }
 
+        if (item.isNewComanda && item.mode === 'mesa') {
+          if (!item.tableNumber || !item.offlineIdKey) {
+            throw new Error('Nova comanda offline sem identificador idempotente.');
+          }
+
+          const created = await createComandaRpc(tenantId, {
+            tableNumber: item.tableNumber,
+            comandaLabel: item.comandaLabel?.trim() || 'Comanda Geral',
+            offlineIdKey: item.offlineIdKey,
+            customerName: item.customerName.trim() || undefined,
+            customerCount: item.adultCount + item.childrenCount,
+            adultCount: item.adultCount,
+            childrenCount: item.childrenCount,
+            generalObservation: item.generalObservation,
+            items: orderItems,
+            subtotal,
+            serviceCharge: 0,
+            total: subtotal,
+            waiterId: item.waiterId,
+            waiterName: item.waiterName,
+            timestamp: item.timestamp,
+          });
+          void writeSecureAudit(tenantId, 'comanda_offline_synced', {
+            order_id: created.id,
+            offline_id_key: item.offlineIdKey,
+            table: item.tableNumber,
+          });
+          syncedCount += 1;
+          continue;
+        }
+
         if (item.remoteOrderId) {
           const freshOrders = await listOpenOrders(tenantId);
           if (!freshOrders.some(order => order.id === item.remoteOrderId)) {
@@ -256,18 +299,21 @@ export const ComandaMobile: React.FC<ComandaMobileProps> = ({
           continue;
         }
 
-        if (item.existingOrderId) {
+        const existingOrderId = item.targetOrderId && !item.targetOrderId.startsWith('local_comanda_')
+          ? item.targetOrderId
+          : item.existingOrderId;
+        if (existingOrderId) {
           const freshOrders = await listOpenOrders(tenantId);
-          const existingOrder = freshOrders.find(order => order.id === item.existingOrderId);
+          const existingOrder = freshOrders.find(order => order.id === existingOrderId);
           if (!existingOrder) throw new Error('Pedido ativo nao encontrado para sincronizar fila offline.');
 
           const syncStage = item.syncStage ?? 'items';
           if (syncStage === 'items') {
-            await updateOrderItems(tenantId, item.existingOrderId, mergeOrderItems(existingOrder.items, orderItems));
+            await updateOrderItems(tenantId, existingOrderId, mergeOrderItems(existingOrder.items, orderItems));
             pendingItem = { ...pendingItem, syncStage: 'metadata' };
           }
           if (syncStage !== 'table' && (item.generalObservation.trim() || item.customerName.trim() || item.adultCount !== existingOrder.adultCount || item.childrenCount !== existingOrder.childrenCount)) {
-            await updateOrderMeta(tenantId, item.existingOrderId, {
+            await updateOrderMeta(tenantId, existingOrderId, {
               customerName: item.customerName.trim() || existingOrder.customerName,
               customerCount: item.adultCount + item.childrenCount,
               adultCount: item.adultCount,
@@ -276,9 +322,6 @@ export const ComandaMobile: React.FC<ComandaMobileProps> = ({
             });
           }
           pendingItem = { ...pendingItem, syncStage: 'table' };
-          if (item.mode === 'mesa' && item.tableNumber) {
-            await setTableOccupied(tenantId, item.tableNumber, item.existingOrderId);
-          }
           syncedCount += 1;
           continue;
         }
@@ -362,6 +405,16 @@ export const ComandaMobile: React.FC<ComandaMobileProps> = ({
     setAdultCount(1);
     setChildrenCount(0);
     setGeneralObservation('');
+    setSelectedComanda(null);
+
+    // Mesa com comando(s) abertas → mostrar seletor de comandas
+    const tableComandas = listOpenComandasForTable(openOrders, table.number);
+    if (tableComandas.length > 0) {
+      setStep('seletor');
+      return;
+    }
+
+    // Mesa livre ou marcada como ocupada mas sem comanda → ir direto para lançamento
     setStep(table.status === 'livre' && !table.activeOrderId ? 'lancamento' : 'resumo');
   };
 
@@ -396,6 +449,78 @@ export const ComandaMobile: React.FC<ComandaMobileProps> = ({
     setOpenOrders(freshOrders);
   };
 
+  /**
+   * Seleciona uma comanda existente no seletor e avança para o resumo.
+   */
+  const handleSelectComanda = (order: Order) => {
+    setSelectedComanda(order);
+    setCustomerName(order.customerName || '');
+    setAdultCount(order.adultCount ?? 1);
+    setChildrenCount(order.childrenCount ?? 0);
+    setGeneralObservation(order.generalObservation || '');
+    setStep('resumo');
+  };
+
+  /**
+   * Cria uma nova comanda em uma mesa já ocupada usando a RPC.
+   * Após criação vai direto para o lançamento de itens.
+   */
+  const handleCreateComandaInTable = async (label: string) => {
+    if (!selectedTable) return;
+    const offlineIdKey = createOfflineIdKey();
+    setIsBusyComanda(true);
+    setUiMessage(null);
+    try {
+      if (isOnline && isSupabaseConfigured && tenantId) {
+        const created = await createComandaRpc(tenantId, {
+          tableNumber: selectedTable.number,
+          comandaLabel: label,
+          offlineIdKey,
+          items: [],
+          subtotal: 0,
+          serviceCharge: 0,
+          total: 0,
+          waiterId: waiterSession.waiterId,
+          waiterName: waiterSession.waiterName,
+          timestamp: new Date().toISOString(),
+        });
+        void writeSecureAudit(tenantId, 'comanda_created', { order_id: created.id, table: selectedTable.number, label });
+        await refreshTablesAndOrders();
+        // Avança para lançamento já associado à nova comanda
+        setSelectedComanda(created);
+      } else {
+        // Offline: cria localmente com ID temporário
+        const localComanda: Order = {
+          id: `local_comanda_${offlineIdKey}`,
+          mode: 'mesa',
+          tableNumber: selectedTable.number,
+          comandaLabel: label,
+          offlineIdKey,
+          items: [],
+          subtotal: 0,
+          serviceCharge: 0,
+          total: 0,
+          payments: [],
+          status: 'open',
+          waiterId: waiterSession.waiterId,
+          timestamp: new Date().toISOString(),
+        };
+        setOpenOrders(prev => [...prev, localComanda]);
+        setSelectedComanda(localComanda);
+      }
+      setDraftItems([]);
+      setCustomerName('');
+      setAdultCount(1);
+      setChildrenCount(0);
+      setGeneralObservation('');
+      setStep('lancamento');
+    } catch (err) {
+      setUiMessage({ type: 'error', text: `Erro ao criar comanda: ${err instanceof Error ? err.message : 'tente novamente'}` });
+    } finally {
+      setIsBusyComanda(false);
+    }
+  };
+
   const handleReleaseSelectedTable = async () => {
     if (!tenantId || !selectedTable) return;
     setTableActionLoading(true);
@@ -406,34 +531,34 @@ export const ComandaMobile: React.FC<ComandaMobileProps> = ({
         listOpenOrders(tenantId),
       ]);
       const currentTable = freshTables.find(table => table.number === selectedTable.number);
-      const activeOrderId = currentTable?.activeOrderId ?? selectedTable.activeOrderId;
-      const activeOrder =
-        (activeOrderId ? freshOrders.find(order => order.id === activeOrderId) : undefined) ??
-        freshOrders.find(order => order.mode === 'mesa' && order.tableNumber === selectedTable.number);
-      const hasConsumption = Boolean(
-        activeOrder &&
-        (activeOrder.items.length > 0 || activeOrder.subtotal > 0 || activeOrder.total > 0),
-      );
-
-      if (hasConsumption) {
-        throw new Error('Esta mesa possui consumo lancado. Finalize ou cancele a comanda no caixa.');
+      if (!currentTable) {
+        throw new Error('Mesa nao encontrada. Atualize e tente novamente.');
       }
 
-      if (activeOrder) {
-        await updateOrderMeta(tenantId, activeOrder.id, {
+      const tableComandas = listOpenComandasForTable(freshOrders, selectedTable.number);
+      const comandaWithConsumption = findComandaWithConsumption(freshOrders, selectedTable.number);
+      if (comandaWithConsumption) {
+        throw new Error(
+          `Esta mesa possui consumo na comanda "${getComandaDisplayLabel(comandaWithConsumption)}". Finalize no caixa.`,
+        );
+      }
+
+      for (const comanda of tableComandas) {
+        await updateOrderMeta(tenantId, comanda.id, {
           generalObservation: mergeGeneralObservation(
-            activeOrder.generalObservation,
+            comanda.generalObservation,
             'Mesa liberada sem consumo pelo garcom.',
           ),
         });
-        await closeOrder(tenantId, activeOrder.id, {
+        await closeComanda(tenantId, comanda.id, {
           payments: [],
           serviceCharge: 0,
           total: 0,
         });
+        void writeSecureAudit(tenantId, 'order_closed_without_consumption', { order_id: comanda.id, mode: 'mesa' });
       }
 
-      await clearTable(tenantId, selectedTable.number);
+      await releaseTableSafely(tenantId, selectedTable.number);
       await refreshTablesAndOrders();
       setSelectedTable(null);
       setStep('mesa');
@@ -446,7 +571,7 @@ export const ComandaMobile: React.FC<ComandaMobileProps> = ({
   };
 
   const handleTransferSelectedTable = async (targetTableNumber: number) => {
-    if (!tenantId || !selectedTable?.activeOrderId) return;
+    if (!tenantId || !selectedTable) return;
     setTableActionLoading(true);
     setUiMessage(null);
     try {
@@ -456,10 +581,10 @@ export const ComandaMobile: React.FC<ComandaMobileProps> = ({
       ]);
       const currentTable = freshTables.find(table => table.number === selectedTable.number);
       const targetTable = freshTables.find(table => table.number === targetTableNumber);
-      const activeOrderId = currentTable?.activeOrderId ?? selectedTable.activeOrderId;
+      const comandaId = resolveSelectedComandaId(selectedComanda, currentTable, selectedTable);
 
-      if (!activeOrderId) {
-        throw new Error('A mesa de origem nao possui comanda ativa para transferencia.');
+      if (!comandaId || comandaId.startsWith('local_comanda_')) {
+        throw new Error('Nenhuma comanda sincronizada foi selecionada para transferencia.');
       }
 
       if (!targetTable || targetTable.status !== 'livre' || targetTable.activeOrderId) {
@@ -467,21 +592,13 @@ export const ComandaMobile: React.FC<ComandaMobileProps> = ({
       }
 
       const activeOrder =
-        freshOrders.find(order => order.id === activeOrderId) ??
-        openOrders.find(order => order.id === activeOrderId);
+        freshOrders.find(order => order.id === comandaId) ??
+        openOrders.find(order => order.id === comandaId);
       if (!activeOrder) {
         throw new Error('Comanda ativa nao encontrada para transferencia.');
       }
 
-      await updateOrderMeta(tenantId, activeOrder.id, { tableNumber: targetTableNumber });
-      await Promise.all([
-        clearTable(tenantId, selectedTable.number),
-        updateTable(tenantId, targetTableNumber, {
-          status: 'ocupada',
-          activeOrderId: activeOrder.id,
-          reservationReason: null,
-        }),
-      ]);
+      await transferComanda(tenantId, activeOrder.id, targetTableNumber);
       await refreshTablesAndOrders();
       setSelectedTable(null);
       setStep('mesa');
@@ -541,10 +658,17 @@ export const ComandaMobile: React.FC<ComandaMobileProps> = ({
   };
 
   const handleSaveOffline = () => {
+    const queueId = `offline_${createOfflineIdKey()}`;
+    const queueTarget = resolveOfflineComandaTarget({
+      isBalcao,
+      queueId,
+      selectedComanda,
+      tableActiveOrderId: selectedTable?.activeOrderId,
+    });
     const queueItem: OfflineQueueItem = {
-      id: `offline_${Date.now()}`,
+      id: queueId,
       tableNumber: selectedTable?.number ?? null,
-      existingOrderId: selectedTable?.activeOrderId,
+      ...queueTarget,
       mode: isBalcao ? 'balcao' : 'mesa',
       customerName,
       adultCount,
@@ -563,6 +687,7 @@ export const ComandaMobile: React.FC<ComandaMobileProps> = ({
     setAdultCount(isBalcao ? 0 : 1);
     setChildrenCount(0);
     setGeneralObservation('');
+    setSelectedComanda(null);
     setStep('mesa');
     setUiMessage({ type: 'warn', text: 'Pedido salvo na fila offline. Ele sera enviado ao reconectar.' });
   };
@@ -584,10 +709,14 @@ export const ComandaMobile: React.FC<ComandaMobileProps> = ({
       if (!tenantId) {
         throw new Error('Tenant não configurado ou rota inválida.');
       }
-      
-      let targetOrderId = isBalcao ? undefined : selectedTable?.activeOrderId;
+      // Usa a comanda selecionada pelo seletor de comandas múltiplas (se houver),
+      // ou cai para a lógica legada de comanda única por mesa.
+      const selectedComandaIsLocal = Boolean(selectedComanda?.id.startsWith('local_comanda_'));
+      let targetOrderId = isBalcao
+        ? undefined
+        : (selectedComandaIsLocal ? undefined : (selectedComanda?.id ?? selectedTable?.activeOrderId));
 
-      if (!isBalcao && selectedTable && !targetOrderId) {
+      if (!isBalcao && !selectedComandaIsLocal && selectedTable && !targetOrderId) {
         const freshTables = await listTables(tenantId);
         const currentTable = freshTables.find(t => t.number === selectedTable.number);
         if (currentTable && currentTable.activeOrderId) {
@@ -606,6 +735,7 @@ export const ComandaMobile: React.FC<ComandaMobileProps> = ({
             targetOrderId,
             mergeOrderItems(activeOrder.items, orderItems),
           );
+          void writeSecureAudit(tenantId, 'order_items_added', { order_id: targetOrderId, mode: 'mesa' });
           if (generalObservation.trim() || customerName.trim() || adultCount !== activeOrder.adultCount || childrenCount !== activeOrder.childrenCount) {
             await updateOrderMeta(tenantId, targetOrderId, {
               customerName: customerName.trim() || activeOrder.customerName,
@@ -636,26 +766,42 @@ export const ComandaMobile: React.FC<ComandaMobileProps> = ({
         }
       }
 
-      const createdOrder = await createOrder(tenantId, {
-        mode: isBalcao ? 'balcao' : 'mesa',
-        tableNumber: selectedTable?.number,
-        customerName: customerName.trim() || undefined,
-        customerCount: adultCount + childrenCount,
-        adultCount,
-        childrenCount,
-        items: orderItems,
-        subtotal,
-        serviceCharge: 0,
-        total: subtotal,
-        generalObservation,
-        waiterId: waiterSession.waiterId,
-        waiterName: waiterSession.waiterName,
-        timestamp: new Date().toISOString(),
-      });
+      const timestamp = new Date().toISOString();
+      const createdOrder = isBalcao
+        ? await createOrder(tenantId, {
+            mode: 'balcao',
+            customerName: customerName.trim() || undefined,
+            customerCount: adultCount + childrenCount,
+            adultCount,
+            childrenCount,
+            items: orderItems,
+            subtotal,
+            serviceCharge: 0,
+            total: subtotal,
+            generalObservation,
+            waiterId: waiterSession.waiterId,
+            waiterName: waiterSession.waiterName,
+            timestamp,
+          })
+        : await createComandaRpc(tenantId, {
+            tableNumber: selectedTable!.number,
+            comandaLabel: selectedComanda?.comandaLabel?.trim() || 'Comanda Geral',
+            offlineIdKey: selectedComanda?.offlineIdKey ?? createOfflineIdKey(),
+            customerName: customerName.trim() || undefined,
+            customerCount: adultCount + childrenCount,
+            adultCount,
+            childrenCount,
+            items: orderItems,
+            subtotal,
+            serviceCharge: 0,
+            total: subtotal,
+            generalObservation,
+            waiterId: waiterSession.waiterId,
+            waiterName: waiterSession.waiterName,
+            timestamp,
+          });
+      void writeSecureAudit(tenantId, 'order_created', { order_id: createdOrder.id, mode: isBalcao ? 'balcao' : 'mesa' });
       
-      if (!isBalcao && selectedTable?.number) {
-        await setTableOccupied(tenantId, selectedTable.number, createdOrder.id);
-      }
       setSuccess(true);
       setUiMessage({ type: 'ok', text: 'Pedido registrado na comanda.' });
       // Volta para a seleção de mesas após 2.5s
@@ -669,6 +815,7 @@ export const ComandaMobile: React.FC<ComandaMobileProps> = ({
         setChildrenCount(0);
         setGeneralObservation('');
         setSelectedTable(null);
+        setSelectedComanda(null);
         // Recarrega mesas e pedidos para refletir status atualizado
         void Promise.all([
           listTables(tenantId).then(setTables),
@@ -683,13 +830,21 @@ export const ComandaMobile: React.FC<ComandaMobileProps> = ({
 
   // ─── Rótulo da mesa/balcão atual ─────────────────────────────────────────
 
-  const tableLabel = isBalcao ? 'Balcão' : `Mesa ${selectedTable?.number ?? ''}`;
-  const selectedOpenOrder = selectedTable
-    ? (
-        openOrders.find(order => order.id === selectedTable.activeOrderId) ??
-        openOrders.find(order => order.mode === 'mesa' && order.tableNumber === selectedTable.number)
-      )
-    : undefined;
+  const tableLabel = isBalcao
+    ? 'Balcão'
+    : selectedComanda
+      ? `${getComandaDisplayLabel(selectedComanda)} · Mesa ${selectedTable?.number ?? ''}`
+      : `Mesa ${selectedTable?.number ?? ''}`;
+
+  // Comanda atualmente selecionada: usa selectedComanda se vier do seletor, senão busca pela mesa
+  const selectedOpenOrder = selectedComanda
+    ? (openOrders.find(order => order.id === selectedComanda.id) ?? selectedComanda)
+    : (selectedTable
+      ? (
+          openOrders.find(order => order.id === selectedTable.activeOrderId) ??
+          openOrders.find(order => order.mode === 'mesa' && order.tableNumber === selectedTable.number)
+        )
+      : undefined);
 
   // ─── Render ───────────────────────────────────────────────────────────────
 
@@ -811,6 +966,18 @@ export const ComandaMobile: React.FC<ComandaMobileProps> = ({
               onSelectBalcao={handleSelectBalcao}
             />
           )
+        )}
+
+        {step === 'seletor' && selectedTable && (
+          <ComandaMesaSelector
+            tableNumber={selectedTable.number}
+            comandas={listOpenComandasForTable(openOrders, selectedTable.number)}
+            isOnline={isOnline && isSupabaseConfigured}
+            isBusy={isBusyComanda}
+            onBack={() => setStep('mesa')}
+            onSelect={handleSelectComanda}
+            onCreate={handleCreateComandaInTable}
+          />
         )}
 
         {step === 'resumo' && selectedTable && (

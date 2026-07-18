@@ -6,14 +6,18 @@ import { CANTINHO_DA_RESENHA_SLUG, CANTINHO_DA_RESENHA_SLUG_ALIAS, getClientRout
 import { useTables } from '../hooks/useTables';
 import { useOrders } from '../hooks/useOrders';
 import { isSupabaseConfigured, supabase } from '../lib/supabase';
-import { setTableOccupied, clearTable as clearTableSupabase } from '../services/tablesSupabaseService';
-import { createOrder as createOrderSupabase, closeOrder as closeOrderSupabase } from '../services/ordersSupabaseService';
+import { isLocalHomologationMode, localHomologationStorageKey } from '../utils/localHomologation';
+import { releaseTableSafely } from '../services/tablesSupabaseService';
+import { createOrder as createOrderSupabase, closeOrder as closeOrderSupabase, createComanda as createComandaSupabase, closeComanda as closeComandaSupabase, transferComanda as transferComandaSupabase } from '../services/ordersSupabaseService';
 import { syncProduct } from '../services/menuSupabaseService';
 import { getOrderNetRevenue } from '../utils/finance';
+import { reconcileTablesWithOpenComandas, listOpenComandasForTable } from '../utils/multipleComandas';
 
 const TENANT_ID = import.meta.env.VITE_GASTRO_TENANT_ID as string;
 const LOCAL_TENANT_ID = 'default-empresa';
 const CANTINHO_CLEANUP_VERSION = 'cantinho-real-tests-cleanup-20260716-v1';
+const createComandaIdempotencyKey = () =>
+  `comanda_${Date.now()}_${globalThis.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2)}`;
 const CANTINHO_OPERATIONAL_KEYS_TO_CLEAR = [
   'stockItems',
   'suppliers',
@@ -79,6 +83,7 @@ interface AppContextType extends AppState {
   updateTable: (table: Table) => void;
   updateOrder: (order: Order) => void;
   addOrder: (order: Order) => Promise<Order>;
+  addComandaToTable: (tableNumber: number, comandaLabel: string, offlineIdKey?: string) => Promise<Order>;
   closeOrder: (order: Order, payments: PaymentItem[], serviceCharge: number) => Promise<OrderCloseResult>;
   addExpense: (expense: Expense) => void;
   updateExpense: (expense: Expense) => void;
@@ -174,7 +179,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   });
 
   const [localOrders, setLocalOrders] = useState<Order[]>(() => parseJSON('orders', []));
-  const [waiters] = useState<Waiter[]>(() => parseJSON('waiters', initialWaitersFallback));
+  const [waiters, setWaiters] = useState<Waiter[]>(() => parseJSON('waiters', initialWaitersFallback));
   const [expenses, setExpenses] = useState<Expense[]>(() => parseJSON('expenses', []));
   const [cashierSession, setCashierSession] = useState<CashierSession | null>(() => parseJSON('cashierSession', null));
   const [cashierHistory, setCashierHistory] = useState<CashierSession[]>(() => parseJSON('cashierHistory', []));
@@ -197,20 +202,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [productSyncErrors, setProductSyncErrors] = useState<Record<string, string>>(() => parseJSON('productSyncErrors', {}));
   const [productSyncIds, setProductSyncIds] = useState<Record<string, string>>(() => parseJSON('productSyncIds', {}));
   const [supabaseOnline, setSupabaseOnline] = useState(false);
+  const [localHomologationMode, setLocalHomologationMode] = useState(() => isLocalHomologationMode(effectiveTenantId));
+  const remoteWritesEnabled = isSupabaseConfigured && !localHomologationMode;
 
   // ─── Supabase hooks (mesas e pedidos em tempo real) ───────────────────────
   const tablesHook = useTables(effectiveTenantId);
   const ordersHook = useOrders(effectiveTenantId);
 
   // Sincroniza estado Supabase → estado local (para persistência de fallback)
+  // Reconcilia status visual de mesas com todas as comandas abertas
   useEffect(() => {
-    if (isSupabaseConfigured && tablesHook.tables.length > 0) {
-      setLocalTables(tablesHook.tables);
+    if (remoteWritesEnabled && !tablesHook.loading && !ordersHook.loading) {
+      const reconciled = reconcileTablesWithOpenComandas(tablesHook.tables, ordersHook.openOrders);
+      setLocalTables(reconciled);
     }
-  }, [tablesHook.tables]);
+  }, [tablesHook.tables, tablesHook.loading, ordersHook.openOrders, ordersHook.loading, remoteWritesEnabled]);
 
   useEffect(() => {
-    if (isSupabaseConfigured) {
+    if (remoteWritesEnabled) {
       // Garante que pedidos abertos do Supabase estão refletidos no estado local
       setLocalOrders(prev => {
         // Mantém pedidos fechados do localStorage + substitui abertos pelo Supabase
@@ -221,7 +230,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       });
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ordersHook.openOrders]);
+  }, [ordersHook.openOrders, remoteWritesEnabled]);
 
   // Alimenta o hook Supabase com dados locais quando offline
   useEffect(() => {
@@ -234,8 +243,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, [isSupabaseConfigured]);
 
   // Tabelas e pedidos visíveis: Supabase quando online, local quando offline
-  const tables = isSupabaseConfigured ? tablesHook.tables : localTables;
-  const orders = isSupabaseConfigured
+  const tables = localTables;
+  const orders = remoteWritesEnabled
     ? [...localOrders.filter(o => o.status === 'closed'), ...ordersHook.openOrders]
     : localOrders;
 
@@ -292,7 +301,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Função para recarregar colaboradores da tabela tenant_members no Supabase
   const reloadCollaborators = async () => {
-    if (!isSupabaseConfigured || !supabase || !effectiveTenantId) return;
+    if (!remoteWritesEnabled || !supabase || !effectiveTenantId) return;
     try {
       const { data, error } = await supabase
         .from('tenant_members')
@@ -322,7 +331,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // Carrega colaboradores da tabela tenant_members no Supabase na montagem/alteração do tenant
   useEffect(() => {
     reloadCollaborators();
-  }, [isSupabaseConfigured, effectiveTenantId]);
+  }, [isSupabaseConfigured, effectiveTenantId, localHomologationMode]);
 
   // Migração e limpeza de chaves legadas para armazenamento com prefixo de tenant
   useEffect(() => {
@@ -460,7 +469,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // Never request tenant data before Supabase Auth restores a valid session.
   // Keep the visible catalog intact if the remote request is empty or fails.
   useEffect(() => {
-    if (!isSupabaseConfigured || !effectiveTenantId || !supabaseOnline) return;
+    if (!remoteWritesEnabled || !effectiveTenantId || !supabaseOnline) return;
 
     let mounted = true;
     void import('../services/menuSupabaseService')
@@ -475,7 +484,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return () => {
       mounted = false;
     };
-  }, [supabaseOnline, effectiveTenantId]);
+  }, [supabaseOnline, effectiveTenantId, remoteWritesEnabled]);
 
   useEffect(() => {
     localStorage.setItem(getTenantKey('products'), JSON.stringify(products));
@@ -517,7 +526,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const initializeTenantTables = async (count: number) => {
-    if (isSupabaseConfigured) {
+    if (remoteWritesEnabled) {
       await tablesHook.initialize(count);
     } else {
       const newTables: Table[] = Array.from({ length: count }, (_, i) => ({
@@ -540,7 +549,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const keysToClear = [
         'stockItems', 'suppliers', 'customers', 'collaborators',
         'orders', 'expenses', 'stockMovements', 'cashierSession',
-        'cashierHistory', 'promotions', 'combos', 'campaigns', 'tables'
+        'cashierHistory', 'promotions', 'combos', 'campaigns', 'tables', 'localHomologationMode'
       ];
       keysToClear.forEach(k => localStorage.removeItem(getTenantKey(k)));
 
@@ -566,13 +575,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (data.stockItems) setStockItems(data.stockItems);
       if (data.suppliers) setSuppliers(data.suppliers);
       if (data.tables) setLocalTables(data.tables);
+      if (data.waiters) setWaiters(data.waiters);
       if (data.orders) setLocalOrders(data.orders);
       if (data.expenses) setExpenses(data.expenses);
+      if (data.cashierSession) setCashierSession(data.cashierSession);
+      if (data.cashierHistory) setCashierHistory(data.cashierHistory);
       if (data.customers) setCustomers(data.customers);
       if (data.collaborators) setCollaborators(data.collaborators);
       if (data.stockMovements) setStockMovements(data.stockMovements);
       if (data.settings) setSettings(data.settings);
       if (data.readGuides) setReadGuides(data.readGuides);
+      const isLocalPackage = data.scope === 'local-browser-only' && data.package === 'plena-gastro-teste-local-mock';
+      if (isLocalPackage) {
+        localStorage.setItem(localHomologationStorageKey(currentTenantId), 'true');
+        setLocalHomologationMode(true);
+      }
       alert('Dados importados com sucesso!');
     } catch (e) {
       alert('Erro ao importar JSON. Verifique o formato.');
@@ -588,7 +605,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const syncProductSafely = async (product: Product) => {
-    if (!supabaseOnline || !effectiveTenantId) return;
+    if (!supabaseOnline || !effectiveTenantId || localHomologationMode) return;
 
     try {
       const remoteId = await syncProduct(effectiveTenantId, product, productSyncIds[product.id]);
@@ -626,7 +643,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const retrySyncProduct = async (product: Product) => {
-    if (!supabaseOnline || !effectiveTenantId) {
+    if (!supabaseOnline || !effectiveTenantId || localHomologationMode) {
       throw new Error('Sincronização indisponível. Entre com uma conta autorizada do restaurante.');
     }
     try {
@@ -684,56 +701,124 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const addOrder = async (order: Order): Promise<Order> => {
+    const existingComandas = order.mode === 'mesa' && order.tableNumber
+      ? listOpenComandasForTable(remoteWritesEnabled ? ordersHook.openOrders : localOrders, order.tableNumber)
+      : [];
+    const normalizedOrder: Order = order.mode === 'mesa'
+      ? {
+          ...order,
+          comandaLabel: order.comandaLabel?.trim()
+            || (existingComandas.length === 0 ? 'Comanda Geral' : `Comanda ${existingComandas.length + 1}`),
+          offlineIdKey: order.offlineIdKey ?? order.id,
+        }
+      : order;
+
     // Local sempre (garante fallback e fechamento do caixa)
     setLocalOrders(prev => {
-      if (prev.some(o => o.id === order.id)) return prev;
-      return [...prev, order];
+      if (prev.some(o => o.id === normalizedOrder.id)) return prev;
+      return [...prev, normalizedOrder];
     });
     // Supabase: cria pedido e atualiza mesa se online
-    if (isSupabaseConfigured && !effectiveTenantId) {
+    if (remoteWritesEnabled && !effectiveTenantId) {
       console.error('VITE_GASTRO_TENANT_ID e obrigatorio para criar pedidos online.');
       return order;
     }
-    if (isSupabaseConfigured && order.mode === 'mesa' && order.tableNumber) {
+    if (remoteWritesEnabled && normalizedOrder.mode === 'mesa' && normalizedOrder.tableNumber) {
       try {
-        const created = await createOrderSupabase(effectiveTenantId, {
-          mode: order.mode,
-          tableNumber: order.tableNumber,
-          customerName: order.customerName,
-          customerCount: order.customerCount,
-          adultCount: order.adultCount,
-          childrenCount: order.childrenCount,
-          partialPayments: order.partialPayments,
-          loyaltyDiscount: order.loyaltyDiscount,
-          loyaltyPointsEarned: order.loyaltyPointsEarned,
-          loyaltyPointsRedeemed: order.loyaltyPointsRedeemed,
-          items: order.items,
-          subtotal: order.subtotal,
-          serviceCharge: order.serviceCharge,
-          total: order.total,
-          waiterId: order.waiterId,
-          timestamp: order.timestamp,
+        const created = await createComandaSupabase(effectiveTenantId, {
+          tableNumber: normalizedOrder.tableNumber,
+          comandaLabel: normalizedOrder.comandaLabel!,
+          offlineIdKey: normalizedOrder.offlineIdKey,
+          customerName: normalizedOrder.customerName,
+          customerCount: normalizedOrder.customerCount,
+          adultCount: normalizedOrder.adultCount,
+          childrenCount: normalizedOrder.childrenCount,
+          generalObservation: normalizedOrder.generalObservation,
+          partialPayments: normalizedOrder.partialPayments,
+          loyaltyDiscount: normalizedOrder.loyaltyDiscount,
+          loyaltyPointsEarned: normalizedOrder.loyaltyPointsEarned,
+          loyaltyPointsRedeemed: normalizedOrder.loyaltyPointsRedeemed,
+          items: normalizedOrder.items,
+          subtotal: normalizedOrder.subtotal,
+          serviceCharge: normalizedOrder.serviceCharge,
+          total: normalizedOrder.total,
+          waiterId: normalizedOrder.waiterId,
+          timestamp: normalizedOrder.timestamp,
         });
-        if (created && order.tableNumber) {
-          setLocalOrders(prev => prev.map(o => o.id === order.id ? { ...o, id: created.id } : o));
-          await setTableOccupied(effectiveTenantId, order.tableNumber, created.id);
-          return { ...order, id: created.id };
+        if (created) {
+          setLocalOrders(prev => prev.map(o => o.id === normalizedOrder.id ? created : o));
+          return created;
         }
       } catch (err) {
         console.error(err);
       }
-    } else if (order.mode === 'mesa' && order.tableNumber) {
-      // Fallback local: atualiza mesa no estado local
-      setLocalTables(prev => prev.map(t =>
-        t.number === order.tableNumber ? { ...t, status: 'ocupada', activeOrderId: order.id } : t
-      ));
+    } else if (normalizedOrder.mode === 'mesa' && normalizedOrder.tableNumber) {
+      const nextOpenOrders = [...localOrders.filter(item => item.status === 'open'), normalizedOrder];
+      setLocalTables(prev => reconcileTablesWithOpenComandas(prev, nextOpenOrders));
     }
-    return order;
+    return normalizedOrder;
+  };
+
+  /**
+   * Cria uma nova comanda separada em uma mesa já ocupada.
+   * Usa a RPC `gastro_create_comanda_rpc` para garantia de idempotência.
+   * O `activeOrderId` da mesa permanece apontando para a primeira comanda (compatibilidade).
+   */
+  const addComandaToTable = async (tableNumber: number, comandaLabel: string, offlineIdKey = createComandaIdempotencyKey()): Promise<Order> => {
+    if (!remoteWritesEnabled) {
+      // Fallback local: cria pedido convencional com label
+      const localOrder: Order = {
+        id: `local_${offlineIdKey}`,
+        mode: 'mesa',
+        tableNumber,
+        comandaLabel: comandaLabel.trim(),
+        offlineIdKey,
+        items: [],
+        subtotal: 0,
+        serviceCharge: 0,
+        total: 0,
+        payments: [],
+        status: 'open',
+        waiterId: currentUser.id,
+        timestamp: new Date().toISOString(),
+      };
+      setLocalOrders(prev => [...prev, localOrder]);
+      setLocalTables(prev => reconcileTablesWithOpenComandas(
+        prev,
+        [...localOrders.filter(order => order.status === 'open'), localOrder],
+      ));
+      return localOrder;
+    }
+
+    if (!effectiveTenantId) {
+      throw new Error('Tenant ID não configurado para criar comanda.');
+    }
+
+    const created = await createComandaSupabase(effectiveTenantId, {
+      tableNumber,
+      comandaLabel: comandaLabel.trim(),
+      offlineIdKey,
+      items: [],
+      subtotal: 0,
+      serviceCharge: 0,
+      total: 0,
+      waiterId: currentUser.id,
+      waiterName: currentUser.name,
+      timestamp: new Date().toISOString(),
+    });
+
+    // Adiciona ao estado local para feedback imediato (o hook realtime sincronizará)
+    setLocalOrders(prev => {
+      if (prev.some(o => o.id === created.id)) return prev;
+      return [...prev, created];
+    });
+
+    return created;
   };
 
   const updateOrder = (updatedOrder: Order) => {
     setLocalOrders(prev => prev.map(o => o.id === updatedOrder.id ? updatedOrder : o));
-    if (isSupabaseConfigured && updatedOrder.mode === 'mesa') {
+    if (remoteWritesEnabled && updatedOrder.mode === 'mesa') {
       void import('../services/ordersSupabaseService').then(({ updateOrderItems, updateOrderMeta }) => {
         updateOrderItems(effectiveTenantId, updatedOrder.id, updatedOrder.items).catch(console.error);
         updateOrderMeta(effectiveTenantId, updatedOrder.id, {
@@ -772,10 +857,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     let remoteError: string | undefined;
 
     // Fecha pedido no Supabase e libera mesa
-    if (isSupabaseConfigured && !effectiveTenantId) {
+    if (remoteWritesEnabled && !effectiveTenantId) {
       console.error('VITE_GASTRO_TENANT_ID e obrigatorio para fechar pedidos online.');
       remoteError = 'Tenant ID não configurado';
-    } else if (isSupabaseConfigured) {
+    } else if (remoteWritesEnabled) {
       try {
         if (order.mode === 'balcao') {
           const created = await createOrderSupabase(effectiveTenantId, {
@@ -793,14 +878,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             total: order.total,
           });
         } else {
-          await closeOrderSupabase(effectiveTenantId, order.id, {
+          await closeComandaSupabase(effectiveTenantId, order.id, {
             payments,
             serviceCharge,
             total: order.total,
           });
-          if (order.tableNumber) {
-            await clearTableSupabase(effectiveTenantId, order.tableNumber);
-          }
+          ordersHook.closeOrderLocal(order.id);
         }
         remoteSynced = true;
       } catch (err: any) {
@@ -808,10 +891,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         remoteError = err.message || 'Erro na sincronização';
       }
     } else if (order.tableNumber) {
-      // Fallback local
-      setLocalTables(prev => prev.map(t =>
-        t.number === order.tableNumber ? { ...t, status: 'livre', activeOrderId: undefined } : t
-      ));
+      const remainingOpenOrders = localOrders.filter(item => item.status === 'open' && item.id !== order.id);
+      setLocalTables(prev => reconcileTablesWithOpenComandas(prev, remainingOpenOrders));
     }
 
     setStockItems(prevStock => {
@@ -941,26 +1022,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (!fromTable?.activeOrderId || toTable?.status !== 'livre') return;
 
     const orderId = fromTable.activeOrderId;
+    const transferredOpenOrders = orders
+      .filter(order => order.status === 'open')
+      .map(order => order.id === orderId ? { ...order, tableNumber: toNumber } : order);
 
     setLocalOrders(prev => prev.map(o => o.id === orderId ? { ...o, tableNumber: toNumber } : o));
-    setLocalTables(prev => prev.map(t => {
-      if (t.number === fromNumber) return { ...t, status: 'livre', activeOrderId: undefined };
-      if (t.number === toNumber) return { ...t, status: 'ocupada', activeOrderId: orderId };
-      return t;
-    }));
+    setLocalTables(prev => reconcileTablesWithOpenComandas(prev, transferredOpenOrders));
 
-    if (isSupabaseConfigured && effectiveTenantId) {
-      void import('../services/ordersSupabaseService').then(({ updateOrderMeta }) => {
-        updateOrderMeta(effectiveTenantId, orderId, { tableNumber: toNumber }).catch(console.error);
-      });
-      void import('../services/tablesSupabaseService').then(({ clearTable, updateTable: updateTableRemote }) => {
-        clearTable(effectiveTenantId, fromNumber).catch(console.error);
-        updateTableRemote(effectiveTenantId, toNumber, {
-          status: 'ocupada',
-          activeOrderId: orderId,
-          reservationReason: null,
-        }).catch(console.error);
-      });
+    if (remoteWritesEnabled && effectiveTenantId) {
+      void transferComandaSupabase(effectiveTenantId, orderId, toNumber)
+        .then(() => Promise.all([tablesHook.refresh(), ordersHook.refresh()]))
+        .catch(console.error);
     }
   };
 
@@ -1013,62 +1085,36 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         ? { ...t, status: 'reservada', reservationReason: reason }
         : t
     ));
-    if (isSupabaseConfigured) {
+    if (remoteWritesEnabled) {
       void tablesHook.reserve(numbers, reason).catch(console.error);
     }
   };
 
   const clearTable = (number: number) => {
-    const tableToClear = tables.find(t => t.number === number);
-    const activeOrder = tableToClear?.activeOrderId
-      ? orders.find(order => order.id === tableToClear.activeOrderId)
-      : undefined;
-    const hasConsumption = Boolean(
-      activeOrder &&
-      (activeOrder.items.length > 0 || activeOrder.subtotal > 0 || activeOrder.total > 0),
-    );
+    const openComandas = listOpenComandasForTable(orders, number);
+    const hasConsumption = openComandas.some(order => (
+      order.items.length > 0 || order.subtotal > 0 || order.total > 0
+    ));
 
     if (hasConsumption) {
       console.warn('Mesa com consumo lancado nao pode ser liberada por clearTable.');
       return;
     }
 
-    if (activeOrder) {
-      const closedWithoutPayment: Order = {
-        ...activeOrder,
+    const closedOrderIds = new Set(openComandas.map(order => order.id));
+    if (closedOrderIds.size > 0) {
+      setLocalOrders(prev => prev.map(order => closedOrderIds.has(order.id) ? {
+        ...order,
         payments: [],
         serviceCharge: 0,
         total: 0,
         status: 'closed',
         generalObservation: [
-          activeOrder.generalObservation,
+          order.generalObservation,
           'Mesa liberada sem consumo.',
         ].filter(Boolean).join('\n'),
-      };
-
-      setLocalOrders(prev => {
-        const exists = prev.some(order => order.id === activeOrder.id);
-        return exists
-          ? prev.map(order => order.id === activeOrder.id ? closedWithoutPayment : order)
-          : [...prev, closedWithoutPayment];
-      });
-      ordersHook.closeOrderLocal(activeOrder.id);
-
-      if (isSupabaseConfigured && effectiveTenantId) {
-        void import('../services/ordersSupabaseService').then(({ closeOrder, updateOrderMeta }) => {
-          updateOrderMeta(effectiveTenantId, activeOrder.id, {
-            generalObservation: closedWithoutPayment.generalObservation,
-          })
-            .catch(console.error)
-            .finally(() => {
-              closeOrder(effectiveTenantId, activeOrder.id, {
-                payments: [],
-                serviceCharge: 0,
-                total: 0,
-              }).catch(console.error);
-            });
-        });
-      }
+      } : order));
+      openComandas.forEach(order => ordersHook.closeOrderLocal(order.id));
     }
 
     setLocalTables(prev => prev.map(t =>
@@ -1076,8 +1122,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         ? { ...t, status: 'livre', activeOrderId: undefined, reservationReason: undefined }
         : t
     ));
-    if (isSupabaseConfigured) {
-      void tablesHook.clear(number).catch(console.error);
+    if (remoteWritesEnabled && effectiveTenantId) {
+      void (async () => {
+        try {
+          for (const order of openComandas) {
+            await closeComandaSupabase(effectiveTenantId, order.id, {
+              payments: [],
+              serviceCharge: 0,
+              total: 0,
+            });
+          }
+          await releaseTableSafely(effectiveTenantId, number);
+          await Promise.all([tablesHook.refresh(), ordersHook.refresh()]);
+        } catch (error) {
+          console.error(error);
+        }
+      })();
     }
   };
 
@@ -1137,7 +1197,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setTheme, updateProduct, addProduct, deleteProduct,
       updateStockItem, addStockItem, deleteStockItem,
       updateSupplier, addSupplier, deleteSupplier,
-      updateTable, addOrder, updateOrder, closeOrder, addExpense, updateExpense, deleteExpense, openCashier, closeCashier,
+      updateTable, addOrder, addComandaToTable, updateOrder, closeOrder, addExpense, updateExpense, deleteExpense, openCashier, closeCashier,
       transferTable, mergeTables, reserveTable, clearTable,
       addCustomer, updateCustomer, deleteCustomer,
       addCollaborator, updateCollaborator, deleteCollaborator,

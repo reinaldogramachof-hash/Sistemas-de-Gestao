@@ -33,6 +33,14 @@ const desktopTables = readFileSync(
   join(root, 'gestao-gastro', 'src', 'components', 'Tables.tsx'),
   'utf8',
 );
+const mobileComanda = readFileSync(
+  join(root, 'gestao-gastro', 'src', 'components', 'ComandaMobile.tsx'),
+  'utf8',
+);
+const appContext = readFileSync(
+  join(root, 'gestao-gastro', 'src', 'store', 'AppContext.tsx'),
+  'utf8',
+);
 
 const functionBody = (name) => {
   const match = migration.match(
@@ -183,4 +191,49 @@ test('waiter and desktop grids aggregate every open check instead of one active 
   }
 
   assert.doesNotMatch(waiterTableGrid, /new Map\([\s\S]*order\.tableNumber, order/);
+});
+
+test('AppContext exposes reconciled tables and routes table lifecycle through atomic RPC services', () => {
+  assert.match(appContext, /const tables = localTables;/);
+  assert.match(appContext, /createComandaSupabase\(effectiveTenantId/);
+  assert.match(appContext, /closeComandaSupabase\(effectiveTenantId, order\.id/);
+  assert.match(appContext, /transferComandaSupabase\(effectiveTenantId, orderId, toNumber\)/);
+  assert.match(appContext, /openComandas\.some\(order =>/);
+  assert.match(appContext, /await releaseTableSafely\(effectiveTenantId, number\)/);
+  assert.doesNotMatch(appContext, /await clearTableSupabase\(effectiveTenantId, order\.tableNumber\)/);
+});
+
+test('mobile offline queue persists the selected check and a stable idempotency key', () => {
+  for (const field of ['targetOrderId?: string', 'comandaLabel?: string', 'offlineIdKey?: string', 'isNewComanda?: boolean']) {
+    assert.ok(mobileComanda.includes(field), `fila offline deve incluir ${field}`);
+  }
+  assert.match(mobileComanda, /resolveOfflineComandaTarget\(\{/);
+  assert.match(mobileComanda, /selectedComanda,/);
+  assert.match(mobileComanda, /tableActiveOrderId: selectedTable\?\.activeOrderId/);
+});
+
+test('mobile retry creates new offline table checks through the idempotent RPC', () => {
+  assert.match(mobileComanda, /if \(item\.isNewComanda && item\.mode === 'mesa'\)/);
+  assert.match(mobileComanda, /createComandaRpc\(tenantId, \{[\s\S]*offlineIdKey: item\.offlineIdKey/);
+  assert.match(mobileComanda, /comandaLabel: item\.comandaLabel\?\.trim\(\) \|\| 'Comanda Geral'/);
+});
+
+test('mobile transfer prioritizes the selected check and uses the atomic transfer RPC', () => {
+  assert.match(mobileComanda, /resolveSelectedComandaId\(selectedComanda, currentTable, selectedTable\)/);
+  assert.match(mobileComanda, /await transferComanda\(tenantId, activeOrder\.id, targetTableNumber\)/);
+  assert.doesNotMatch(mobileComanda, /updateOrderMeta\(tenantId, activeOrder\.id, \{ tableNumber: targetTableNumber \}\)/);
+});
+
+test('mobile release checks every open account before closing and releasing the table', () => {
+  assert.match(mobileComanda, /const tableComandas = listOpenComandasForTable\(freshOrders, selectedTable\.number\)/);
+  assert.match(mobileComanda, /findComandaWithConsumption\(freshOrders, selectedTable\.number\)/);
+  assert.match(mobileComanda, /for \(const comanda of tableComandas\)/);
+  assert.match(mobileComanda, /await closeComanda\(tenantId, comanda\.id/);
+  assert.match(mobileComanda, /await releaseTableSafely\(tenantId, selectedTable\.number\)/);
+});
+
+test('first online table order also uses the multiple-check RPC instead of legacy table mutation', () => {
+  assert.match(mobileComanda, /: await createComandaRpc\(tenantId, \{/);
+  assert.match(mobileComanda, /offlineIdKey: selectedComanda\?\.offlineIdKey \?\? createOfflineIdKey\(\)/);
+  assert.doesNotMatch(mobileComanda, /await setTableOccupied\(tenantId, selectedTable\.number, createdOrder\.id\)/);
 });

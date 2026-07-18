@@ -151,8 +151,44 @@ function findSaasLicense($key, $requestEmail = '', $requestTenantId = '', $reque
     $endpoint = '/rest/v1/licenses?select=license_key,status,expires_at,license_type,tenant_id,activation_email,max_devices,device_id,activated_at,last_verified_at,metadata,plans(code),tenants(slug,name),customers(email,name)&license_key=eq.' . $safeKey . '&limit=1';
     $res = supabaseLicenseRequest('GET', $endpoint);
 
-    if ($res['code'] !== 200 || empty($res['data'][0])) {
-        return null;
+    // 1. Identificar se o erro é Upstream ou Configuração
+    if ($res['code'] !== 200) {
+        $code = $res['code'];
+        $err = (isset($res['error']) && trim((string)$res['error']) !== '') ? $res['error'] : ((isset($res['raw']) && trim((string)$res['raw']) !== '') ? $res['raw'] : '');
+
+        if ($code === 0 || $code >= 500) {
+            addLog("SaaS upstream_error: Indisponibilidade do Supabase. HTTP $code. Erro: $err", 'error');
+            return [
+                'result' => 'upstream_error',
+                'code' => $code,
+                'error' => $err
+            ];
+        } else {
+            addLog("SaaS configuration_error: Falha de requisicao/credencial. HTTP $code. Erro: $err", 'error');
+            return [
+                'result' => 'configuration_error',
+                'code' => $code,
+                'error' => $err
+            ];
+        }
+    }
+
+    // 1.1 Tratar caso de HTTP 200 com JSON inválido (resposta upstream inválida)
+    if ($res['data'] === null) {
+        $err = (isset($res['raw']) && trim((string)$res['raw']) !== '') ? $res['raw'] : 'Invalid JSON';
+        addLog("SaaS upstream_error: Resposta do Supabase nao e um JSON valido. Raw: " . trim($err), 'error');
+        return [
+            'result' => 'upstream_error',
+            'code' => 200,
+            'error' => 'Invalid JSON from Supabase'
+        ];
+    }
+
+    // 2. HTTP 200 com array vazio: licença realmente inexistente
+    if (empty($res['data'][0])) {
+        return [
+            'result' => 'not_found'
+        ];
     }
 
     $license = $res['data'][0];
@@ -165,26 +201,40 @@ function findSaasLicense($key, $requestEmail = '', $requestTenantId = '', $reque
     $tenant = $license['tenants'] ?? [];
     $tenantSlug = trim((string)($tenant['slug'] ?? ''));
 
+    // 3. Divergência de Tenant
     if ($requestTenantSlug !== '' && !hash_equals(normalizeTenantSlugValue($tenantSlug), normalizeTenantSlugValue($requestTenantSlug))) {
-        return null;
+        return [
+            'result' => 'identity_mismatch',
+            'detail' => 'Tenant slug mismatch'
+        ];
     }
 
     if ($requestTenantSlug === '' && $requestTenantId !== '' && !hash_equals(strtolower($tenantId), strtolower(trim((string)$requestTenantId)))) {
-        return null;
+        return [
+            'result' => 'identity_mismatch',
+            'detail' => 'Tenant ID mismatch'
+        ];
     }
 
+    // 4. Divergência de E-mail
     $customer = $license['customers'] ?? [];
     $licenseEmail = strtolower(trim((string)($license['activation_email'] ?? $customer['email'] ?? '')));
     $requestEmailNormalized = strtolower(trim((string)$requestEmail));
     if ($requestEmailNormalized !== '' && $licenseEmail !== '' && !hash_equals($licenseEmail, $requestEmailNormalized)) {
-        return null;
+        return [
+            'result' => 'identity_mismatch',
+            'detail' => 'Email mismatch'
+        ];
     }
 
     $plan = $license['plans'] ?? [];
     $metadata = is_array($license['metadata'] ?? null) ? $license['metadata'] : [];
 
+    // 5. Sucesso (Found)
     return [
+        'result' => 'found',
         'status' => $status,
+        'license_key' => $license['license_key'] ?? $key,
         'client' => $tenant['name'] ?? $customer['name'] ?? 'Gestao Gastro',
         'tenant_id' => $tenantId,
         'tenant_slug' => $tenantSlug,
@@ -305,8 +355,21 @@ function touchSaasLicenseVerification(array $license, $device = '')
 
 function resetSaasLicenseDevice($licenseKey)
 {
-    if (!findSaasLicense($licenseKey)) {
-        return false;
+    $saasLicense = findSaasLicense($licenseKey);
+
+    if (!$saasLicense || $saasLicense['result'] !== 'found') {
+        $errType = $saasLicense['result'] ?? 'not_found';
+        $msg = 'Chave não encontrada no banco central.';
+        if ($errType === 'upstream_error') {
+            $msg = 'Erro ao conectar ao servidor de licenças (indisponível).';
+        } elseif ($errType === 'configuration_error') {
+            $msg = 'Erro de configuração no servidor de licenças.';
+        }
+        return [
+            'ok' => false,
+            'result' => $errType,
+            'message' => $msg
+        ];
     }
 
     $res = saasLicensePatch($licenseKey, [
@@ -315,7 +378,15 @@ function resetSaasLicenseDevice($licenseKey)
         'last_verified_at' => null,
     ]);
 
-    return $res['code'] >= 200 && $res['code'] < 300;
+    if ($res['code'] < 200 || $res['code'] >= 300) {
+        return [
+            'ok' => false,
+            'result' => 'upstream_error',
+            'message' => 'Erro ao atualizar o banco central.'
+        ];
+    }
+
+    return ['ok' => true, 'result' => 'found'];
 }
 
 function buildSaasLicenseResponse(array $license, $forVerify = false)
@@ -876,11 +947,17 @@ if ($action === 'update_status') {
         echo json_encode(['status' => 'success', 'success' => true]);
     } else {
         if ($status === 'reset_device') {
-            if (resetSaasLicenseDevice($key)) {
+            $resetResult = resetSaasLicenseDevice($key);
+            if ($resetResult['ok']) {
                 addLog("Dispositivo SaaS resetado para chave $key", 'warning');
                 echo json_encode(['status' => 'success', 'success' => true]);
             } else {
-                echo json_encode(['status' => 'error', 'message' => 'Chave nao encontrada ou falha ao resetar dispositivo SaaS']);
+                if ($resetResult['result'] === 'upstream_error') {
+                    http_response_code(503);
+                } elseif ($resetResult['result'] === 'configuration_error') {
+                    http_response_code(500);
+                }
+                echo json_encode(['status' => 'error', 'message' => $resetResult['message']]);
             }
             exit;
         }
@@ -1137,7 +1214,24 @@ if ($action === 'activate') {
             $jsonData['tenant_slug'] ?? ''
         );
 
-        if ($saasLicense && $saasLicense['status'] === 'active') {
+        if ($saasLicense && $saasLicense['result'] === 'upstream_error') {
+            http_response_code(503);
+            echo json_encode(['status' => 'error', 'message' => 'Servico de licenças temporariamente indisponível.']);
+            exit;
+        }
+
+        if ($saasLicense && $saasLicense['result'] === 'configuration_error') {
+            http_response_code(500);
+            echo json_encode(['status' => 'error', 'message' => 'Erro interno de configuração de licenças.']);
+            exit;
+        }
+
+        if ($saasLicense && $saasLicense['result'] === 'identity_mismatch') {
+            echo json_encode(['status' => 'error', 'message' => 'Licenca nao pertence a este restaurante ou e-mail incorreto.']);
+            exit;
+        }
+
+        if ($saasLicense && $saasLicense['result'] === 'found' && $saasLicense['status'] === 'active') {
             $deviceRegistration = registerSaasLicenseDevice($saasLicense, $device);
             if (!$deviceRegistration['ok']) {
                 addLog("Falha: Chave SaaS $key tentou ativar dispositivo invalido ou divergente", 'warning');
@@ -1151,7 +1245,7 @@ if ($action === 'activate') {
             $saasLicense = $deviceRegistration['license'];
             addLog("Sucesso: Chave SaaS $key validada para tenant " . $saasLicense['tenant_id'] . " no device $device", 'info');
             echo json_encode(buildSaasLicenseResponse($saasLicense, false));
-        } elseif ($saasLicense && $saasLicense['status'] === 'expired') {
+        } elseif ($saasLicense && $saasLicense['result'] === 'found' && $saasLicense['status'] === 'expired') {
             echo json_encode(['status' => 'expired', 'message' => 'Periodo de teste expirado.']);
         } else {
             addLog("Falha: Tentativa de ativacao com chave invalida $key", 'error');
@@ -1198,7 +1292,24 @@ if ($action === 'verify') {
             $jsonData['tenant_slug'] ?? ''
         );
 
-        if ($saasLicense) {
+        if ($saasLicense && $saasLicense['result'] === 'upstream_error') {
+            http_response_code(503);
+            echo json_encode(['status' => 'error', 'message' => 'Servico de licenças temporariamente indisponível.']);
+            exit;
+        }
+
+        if ($saasLicense && $saasLicense['result'] === 'configuration_error') {
+            http_response_code(500);
+            echo json_encode(['status' => 'error', 'message' => 'Erro interno de configuração de licenças.']);
+            exit;
+        }
+
+        if ($saasLicense && $saasLicense['result'] === 'identity_mismatch') {
+            echo json_encode(['status' => 'error', 'message' => 'Licenca nao pertence a este restaurante ou e-mail incorreto.']);
+            exit;
+        }
+
+        if ($saasLicense && $saasLicense['result'] === 'found') {
             if ($saasLicense['status'] === 'active') {
                 $verification = touchSaasLicenseVerification($saasLicense, $device);
                 if (!$verification['ok']) {

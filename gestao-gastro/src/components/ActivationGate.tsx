@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Shield, Key, Mail, Loader, CheckCircle, Clipboard, X } from 'lucide-react';
+import { Shield, Key, Mail, Loader, CheckCircle, Clipboard, X, AlertCircle, RefreshCw } from 'lucide-react';
 import { ReceiptConfirmation } from './ReceiptConfirmation';
 import { getClientSlugFromPath, persistTenantRoute, resolveTenant } from '../config/clientRoutes';
 import { getLicenseApiUrl } from '../services/licenseApi';
@@ -43,17 +43,12 @@ export const ActivationGate: React.FC<ActivationGateProps> = ({ children }) => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [needsReceipt, setNeedsReceipt] = useState(false);
+  const [offlineWarning, setOfflineWarning] = useState(false);
 
-  const clearStoredLicense = () => {
-    const tenantSlug = getClientSlugFromPath(window.location.pathname);
+  const clearLicenseCredentials = () => {
     localStorage.removeItem('plena_license');
     localStorage.removeItem('ml_license_email');
     localStorage.removeItem('gestao_gastro_verified_plan');
-    localStorage.removeItem('gestao_gastro_tenant_id');
-    localStorage.removeItem('gestao_gastro_tenant_slug');
-    if (tenantSlug) {
-      localStorage.removeItem(`gestao_gastro_tenant_id:${tenantSlug}`);
-    }
   };
 
   const checkLicense = async () => {
@@ -69,10 +64,29 @@ export const ActivationGate: React.FC<ActivationGateProps> = ({ children }) => {
       return;
     }
 
+    // Migração de clientes existentes sem timestamp de verificação
+    if (savedKey && savedEmail && !localStorage.getItem('gestao_gastro_last_license_check')) {
+      localStorage.setItem('gestao_gastro_last_license_check', new Date().toISOString());
+    }
+
+    const applyOfflineFallback = (fallbackErrorMsg?: string) => {
+      const lastCheckStr = localStorage.getItem('gestao_gastro_last_license_check');
+      const lastCheck = lastCheckStr ? new Date(lastCheckStr).getTime() : 0;
+      const hoursSinceLastCheck = (Date.now() - lastCheck) / (1000 * 60 * 60);
+
+      if (lastCheck > 0 && hoursSinceLastCheck <= 72) {
+        setIsAuthorized(true);
+        setOfflineWarning(true);
+        if (receiptConfirmed !== 'true') setNeedsReceipt(true);
+      } else {
+        // NÃO apaga as credenciais, apenas desautoriza para forçar a tela de revalidação
+        setIsAuthorized(false);
+        setError(fallbackErrorMsg || 'Não foi possível verificar a licença e a tolerância offline de 72 horas expirou. Conecte-se à internet para revalidar.');
+      }
+    };
+
     if (!navigator.onLine) {
-      // Offline fallback
-      setIsAuthorized(true);
-      if (receiptConfirmed !== 'true') setNeedsReceipt(true);
+      applyOfflineFallback('Sistema offline e a tolerância de 72 horas para validação da licença expirou. Conecte-se à internet.');
       return;
     }
 
@@ -84,19 +98,22 @@ export const ActivationGate: React.FC<ActivationGateProps> = ({ children }) => {
       });
 
       if (!response.ok) {
-        throw new Error('Network error');
+        throw new Error('Serviço de licenças indisponível');
       }
 
       const data = await response.json();
 
       if (data.status === 'success' && data.license_status === 'active') {
         if (resolvedTenant && !data.is_master && (!data.tenant_id || data.tenant_id !== resolvedTenant)) {
-          clearStoredLicense();
+          clearLicenseCredentials();
           setIsAuthorized(false);
           setError('Licenca nao pertence a este restaurante.');
           return;
         }
         setIsAuthorized(true);
+        setOfflineWarning(false);
+        localStorage.setItem('gestao_gastro_last_license_check', new Date().toISOString());
+
         if (data.plan) {
           localStorage.setItem('gestao_gastro_verified_plan', data.plan);
         } else {
@@ -111,18 +128,16 @@ export const ActivationGate: React.FC<ActivationGateProps> = ({ children }) => {
         }
         if (receiptConfirmed !== 'true') setNeedsReceipt(true);
       } else if (data.status === 'success' && (data.license_status === 'blocked' || data.license_status === 'expired')) {
-        clearStoredLicense();
+        clearLicenseCredentials();
         setIsAuthorized(false);
         setError(data.message || 'Sua licença esta bloqueada ou expirada.');
       } else {
-        clearStoredLicense();
+        clearLicenseCredentials();
         setIsAuthorized(false);
         setError(data.message || 'Licenca invalida ou nao encontrada. Ative novamente com a chave correta deste restaurante.');
       }
     } catch (err) {
-      // Offline fallback if server is down
-      setIsAuthorized(true);
-      if (receiptConfirmed !== 'true') setNeedsReceipt(true);
+      applyOfflineFallback();
     }
   };
 
@@ -146,6 +161,10 @@ export const ActivationGate: React.FC<ActivationGateProps> = ({ children }) => {
         body: JSON.stringify({ license_key: licenseKey, email: normalizeEmailInput(email), device_id: deviceId, tenant_id: resolvedTenant, tenant_slug: tenantSlug })
       });
 
+      if (!response.ok) {
+        throw new Error('Serviço de licenças temporariamente indisponível. Tente novamente mais tarde.');
+      }
+
       const data = await response.json();
 
       if (data.status === 'success') {
@@ -155,6 +174,9 @@ export const ActivationGate: React.FC<ActivationGateProps> = ({ children }) => {
         }
         localStorage.setItem('plena_license', licenseKey);
         localStorage.setItem('ml_license_email', normalizeEmailInput(email));
+        localStorage.setItem('gestao_gastro_last_license_check', new Date().toISOString());
+        setOfflineWarning(false);
+
         if (data.plan) {
           localStorage.setItem('gestao_gastro_verified_plan', data.plan);
         } else {
@@ -177,7 +199,7 @@ export const ActivationGate: React.FC<ActivationGateProps> = ({ children }) => {
         setError(data.message || 'Licenca invalida ou ja utilizada.');
       }
     } catch (err) {
-      setError('Erro de conexao ao servidor de licenças. Tente novamente.');
+      setError(err instanceof Error ? err.message : 'Erro de conexao ao servidor de licenças. Tente novamente.');
     } finally {
       setLoading(false);
     }
@@ -208,6 +230,53 @@ export const ActivationGate: React.FC<ActivationGateProps> = ({ children }) => {
   }
 
   if (isAuthorized === false) {
+    const savedKey = localStorage.getItem('plena_license');
+    const savedEmail = localStorage.getItem('ml_license_email');
+    const hasSavedCredentials = !!savedKey && !!savedEmail;
+
+    if (hasSavedCredentials && error.includes('tolerância offline')) {
+      return (
+        <div className="min-h-screen bg-[#121214] flex flex-col items-center justify-center p-4">
+          <div className="bg-[#1A1A1D] p-8 rounded-lg shadow-sm max-w-md w-full border border-white/5 text-center">
+            <div className="flex justify-center mb-6">
+              <div className="w-16 h-16 bg-amber-500/10 rounded-full flex items-center justify-center">
+                <AlertCircle className="w-8 h-8 text-amber-500" />
+              </div>
+            </div>
+
+            <h2 className="text-2xl font-bold text-white mb-2">Conexão Necessária</h2>
+            <p className="text-gray-400 text-sm mb-8">{error}</p>
+
+            <div className="space-y-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setError('');
+                  checkLicense();
+                }}
+                className="w-full bg-[#475569] hover:bg-[#d6455d] text-white font-bold py-3 px-4 rounded-lg transition-colors flex justify-center items-center gap-2"
+              >
+                <RefreshCw className="w-4 h-4" />
+                <span>Revalidar Conexão</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  clearLicenseCredentials();
+                  setIsAuthorized(false);
+                  setError('');
+                }}
+                className="w-full text-xs text-gray-500 hover:text-gray-300 transition-colors py-2"
+              >
+                Digitar outra licença
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="min-h-screen bg-[#121214] flex flex-col items-center justify-center p-4">
         <div className="bg-[#1A1A1D] p-8 rounded-lg shadow-sm max-w-md w-full border border-white/5">
@@ -308,5 +377,15 @@ export const ActivationGate: React.FC<ActivationGateProps> = ({ children }) => {
     return <ReceiptConfirmation onConfirmed={() => setNeedsReceipt(false)} />;
   }
 
-  return <>{children}</>;
+  return (
+    <>
+      {offlineWarning && (
+        <div className="bg-amber-600 text-white text-xs font-semibold py-2 px-4 text-center flex items-center justify-center gap-2 animate-pulse z-50 relative">
+          <AlertCircle className="w-4 h-4" />
+          <span>Não foi possível verificar a licença; operação temporariamente offline.</span>
+        </div>
+      )}
+      {children}
+    </>
+  );
 };

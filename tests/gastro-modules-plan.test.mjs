@@ -95,7 +95,8 @@ test('Waiter role is restricted independently from the client plan', () => {
 
   assert.match(configContent, /waiterCapabilities/, 'Should document waiter operational capabilities');
   assert.match(configContent, /pre-fechamento/, 'waiter capabilities should include account pre-closing/request flow');
-  assert.match(hookContent, /gestao_gastro_user_role/, 'useModules should read the verified user role');
+  assert.match(hookContent, /currentUser\.role/, 'useModules should consume the verified role from the reactive user context');
+  assert.doesNotMatch(hookContent, /localStorage\.getItem\(['"]gestao_gastro_user_role/, 'useModules must not reuse a persistent role from another user');
   assert.match(hookContent, /isModuleAllowed\(module,\s*currentPlan,\s*currentRole\)/, 'checkAccess should consider plan and role');
 });
 

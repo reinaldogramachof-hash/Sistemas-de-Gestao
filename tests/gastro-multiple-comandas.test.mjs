@@ -25,6 +25,14 @@ const selectorComponent = readFileSync(
   join(root, 'gestao-gastro', 'src', 'components', 'ComandaMesaSelector.tsx'),
   'utf8',
 );
+const waiterTableGrid = readFileSync(
+  join(root, 'gestao-gastro', 'src', 'components', 'ComandaMesaGrid.tsx'),
+  'utf8',
+);
+const desktopTables = readFileSync(
+  join(root, 'gestao-gastro', 'src', 'components', 'Tables.tsx'),
+  'utf8',
+);
 
 const functionBody = (name) => {
   const match = migration.match(
@@ -164,4 +172,15 @@ test('mobile selector identifies, validates and opens individual table checks', 
   assert.match(selectorComponent, /Já existe uma comanda aberta com esse identificador/);
   assert.match(selectorComponent, /Cada conta é fechada separadamente no Caixa/);
   assert.match(selectorComponent, /Sem conexão: a nova comanda será enviada/);
+});
+
+test('waiter and desktop grids aggregate every open check instead of one active order', () => {
+  for (const component of [waiterTableGrid, desktopTables]) {
+    assert.match(component, /listOpenComandasForTable/);
+    assert.match(component, /tableOrders\.length/);
+    assert.match(component, /tableOrders\.reduce/);
+    assert.match(component, /contas abertas/);
+  }
+
+  assert.doesNotMatch(waiterTableGrid, /new Map\([\s\S]*order\.tableNumber, order/);
 });

@@ -1,5 +1,6 @@
 import React from 'react';
 import type { Order, Table } from '../types';
+import { listOpenComandasForTable } from '../utils/multipleComandas';
 
 interface ComandaMesaGridProps {
   tables: Table[];
@@ -31,20 +32,17 @@ export const ComandaMesaGrid: React.FC<ComandaMesaGridProps> = React.memo(({
   const [statusFilter, setStatusFilter] = React.useState<Table['status'] | 'todas'>('todas');
   const computedTables = tables.map(t => {
     let visualStatus = t.status;
-    if (visualStatus === 'ocupada' && t.activeOrderId) {
-      const activeOrder = openOrders.find(o => o.id === t.activeOrderId);
-      if (activeOrder && activeOrder.items.some(item => item.kitchenStatus === 'aguardando' || item.kitchenStatus === 'preparo')) {
+    if (visualStatus === 'ocupada') {
+      const tableOrders = listOpenComandasForTable(openOrders, t.number);
+      if (tableOrders.some(order => order.items.some(
+        item => item.kitchenStatus === 'aguardando' || item.kitchenStatus === 'preparo',
+      ))) {
         visualStatus = 'aguardando';
       }
     }
     return { ...t, status: visualStatus };
   });
 
-  const ordersByTable = new Map(
-    openOrders
-      .filter(order => order.mode === 'mesa' && typeof order.tableNumber === 'number')
-      .map(order => [order.tableNumber, order]),
-  );
   const filteredTables = statusFilter === 'todas'
     ? computedTables
     : computedTables.filter(table => table.status === statusFilter);
@@ -88,13 +86,18 @@ export const ComandaMesaGrid: React.FC<ComandaMesaGridProps> = React.memo(({
 
       <div className="grid grid-cols-2 gap-3">
         {filteredTables.map(table => {
-          const order = ordersByTable.get(table.number);
-          const itemCount = order?.items.reduce((sum, item) => sum + item.quantity, 0) ?? 0;
+          const tableOrders = listOpenComandasForTable(openOrders, table.number);
+          const itemCount = tableOrders.reduce(
+            (sum, order) => sum + order.items.reduce((orderSum, item) => orderSum + item.quantity, 0),
+            0,
+          );
+          const tableTotal = tableOrders.reduce((sum, order) => sum + order.total, 0);
 
           return (
             <button
               key={table.number}
               onClick={() => onSelectTable(table)}
+              aria-label={`Mesa ${table.number}, ${statusLabel[table.status]}, ${tableOrders.length} contas abertas`}
               className={`min-h-20 rounded-xl border-2 p-3 transition-all active:scale-[0.97] ${statusClass[table.status]}`}
             >
               <p className="text-base font-bold">Mesa {table.number}</p>
@@ -102,9 +105,11 @@ export const ComandaMesaGrid: React.FC<ComandaMesaGridProps> = React.memo(({
                 <p className="text-[10px] mt-0.5 opacity-70">{table.sector}</p>
               )}
               <p className="text-[11px] mt-1 opacity-80">{statusLabel[table.status]}</p>
-              {order && (
+              {tableOrders.length > 0 && (
                 <p className="text-[10px] mt-1 font-semibold opacity-90">
-                  {itemCount} item(ns) · {order.total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                  {tableOrders.length} {tableOrders.length === 1 ? 'conta' : 'contas'} · {itemCount} item(ns)
+                  <br />
+                  {tableTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                 </p>
               )}
             </button>

@@ -14,6 +14,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { ui } from '../ui/styles';
 import { HelpTooltip } from './HelpTooltip';
 import { OperationalState } from './OperationalState';
+import { listOpenComandasForTable } from '../utils/multipleComandas';
 
 const TableTimer: React.FC<{ timestamp: string; isDark: boolean; status: string }> = ({ timestamp, isDark, status }) => {
   const [now, setNow] = useState(Date.now());
@@ -59,9 +60,11 @@ export const Tables: React.FC = () => {
 
   const computedTables = tables.map(t => {
     let visualStatus = t.status;
-    if (visualStatus === 'ocupada' && t.activeOrderId) {
-      const activeOrder = orders.find(o => o.id === t.activeOrderId);
-      if (activeOrder && activeOrder.items.some(item => item.kitchenStatus === 'aguardando' || item.kitchenStatus === 'preparo')) {
+    if (visualStatus === 'ocupada') {
+      const tableOrders = listOpenComandasForTable(orders, t.number);
+      if (tableOrders.some(order => order.items.some(
+        item => item.kitchenStatus === 'aguardando' || item.kitchenStatus === 'preparo',
+      ))) {
         visualStatus = 'aguardando';
       }
     }
@@ -71,7 +74,9 @@ export const Tables: React.FC = () => {
   const occupiedCount = computedTables.filter(t => t.visualStatus === 'ocupada').length;
   const waitingCount = computedTables.filter(t => t.visualStatus === 'aguardando').length;
   const reservedCount = computedTables.filter(t => t.visualStatus === 'reservada').length;
-  const occupancyPercentage = tables.length > 0 ? Math.round((occupiedCount / tables.length) * 100) : 0;
+  const occupancyPercentage = tables.length > 0
+    ? Math.round(((occupiedCount + waitingCount) / tables.length) * 100)
+    : 0;
 
   const filteredTables = computedTables.filter(t => {
     const matchesSearch = t.number.toString().includes(searchTerm);
@@ -173,15 +178,9 @@ export const Tables: React.FC = () => {
             const isReservada = table.visualStatus === 'reservada';
             const isSelected = selectedForReservation.includes(table.number);
 
-            let orderTimestamp = '';
-            let orderSubtotal = 0;
-            if(!isLivre && table.activeOrderId) {
-               const order = orders.find(o => o.id === table.activeOrderId);
-               if(order) {
-                 orderTimestamp = order.timestamp;
-                 orderSubtotal = order.subtotal;
-               }
-            }
+            const tableOrders = listOpenComandasForTable(orders, table.number);
+            const orderTimestamp = tableOrders[0]?.timestamp ?? '';
+            const orderSubtotal = tableOrders.reduce((sum, order) => sum + order.subtotal, 0);
 
             return (
               <motion.div
@@ -192,6 +191,7 @@ export const Tables: React.FC = () => {
                 <button
                   onClick={() => handleTableClick(table.number)}
                   disabled={isSelecting && !isLivre && !isSelected}
+                  aria-label={`Mesa ${table.number}, ${tableOrders.length} contas abertas`}
                   className={`relative w-full aspect-[1/0.86] flex flex-col items-center justify-center rounded-lg transition-colors duration-200 overflow-hidden
                     ${isDark ? 'bg-[#1C1C1E]' : 'bg-white shadow-sm border border-gray-100'}
                     ${isLivre ? `border-dashed hover:border-slate-400` : ''}
@@ -210,6 +210,9 @@ export const Tables: React.FC = () => {
                   {(isOcupada || isAguardando) && orderTimestamp && (
                     <div className="flex flex-col items-center gap-1">
                       <TableTimer timestamp={orderTimestamp} isDark={isDark} status={table.visualStatus} />
+                      <span className="text-[9px] font-bold uppercase tracking-wide opacity-60">
+                        {tableOrders.length} {tableOrders.length === 1 ? 'conta' : 'contas'}
+                      </span>
                       <span className={`text-[10px] font-bold ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`}>
                         {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(orderSubtotal)}
                       </span>

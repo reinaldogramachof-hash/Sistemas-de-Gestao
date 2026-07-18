@@ -5,6 +5,7 @@ import { X } from 'lucide-react';
 import { ReceiptModal } from './ReceiptModal';
 import { calcEarnedPoints, getCustomerPoints } from '../services/salesService';
 import { formatCurrency } from '../utils/format';
+import { OperationFeedback, OperationFeedbackMessage } from './OperationFeedback';
 
 interface CheckoutModalProps {
   order: Order;
@@ -41,6 +42,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ order, onClose, on
   const [redeemLoyalty, setRedeemLoyalty] = useState(() => hasPartialPayments ? (order.loyaltyDiscount ?? 0) > 0 : false);
   const [isFinishing, setIsFinishing] = useState(false);
   const [syncResult, setSyncResult] = useState<{message: string, status: 'success'|'error'} | null>(null);
+  const [feedback, setFeedback] = useState<OperationFeedbackMessage | null>(null);
 
   const serviceChargeRate = settings.serviceChargeRate ?? 0.10;
   const serviceCharge = includeService && isMesa ? order.subtotal * serviceChargeRate : 0;
@@ -123,6 +125,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ order, onClose, on
     setCheckoutMode(mode);
     setPayments([]);
     setAmountInput('');
+    setFeedback(null);
   };
 
   const handleAddPayment = () => {
@@ -130,7 +133,11 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ order, onClose, on
     if (isNaN(value) || value <= 0) return;
 
     if (currentMethod !== 'dinheiro' && value > amountRemaining + 0.01) {
-      alert(`Valor para ${PAYMENT_METHODS.find(m => m.id === currentMethod)?.label} não pode ser maior que o saldo devedor.`);
+      setFeedback({
+        tone: 'warning',
+        title: 'Valor acima do saldo devedor',
+        description: `Informe no máximo ${formatCurrency(amountRemaining)} para ${PAYMENT_METHODS.find(m => m.id === currentMethod)?.label}.`,
+      });
       return;
     }
 
@@ -149,6 +156,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ order, onClose, on
       ...(currentMethod === 'dinheiro' ? { receivedAmount: value, changeAmount } : {}),
     }]);
     setAmountInput('');
+    setFeedback(null);
   };
 
   const handleRemovePayment = (idx: number) => {
@@ -161,7 +169,11 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ order, onClose, on
     if (isNaN(value) || value <= 0) return;
 
     if (value > amountRemaining + 0.01) {
-      alert('Valor não pode ser maior que o saldo da mesa. O troco não é suportado em pagamento parcial.');
+      setFeedback({
+        tone: 'warning',
+        title: 'Pagamento parcial acima do saldo',
+        description: `Informe no máximo ${formatCurrency(amountRemaining)}. Pagamentos parciais não geram troco.`,
+      });
       return;
     }
 
@@ -180,6 +192,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ order, onClose, on
 
     updateOrder(buildOrderSnapshot(nextPartialPayments));
     setAmountInput('');
+    setFeedback(null);
   };
 
   const handleFinish = () => {
@@ -210,6 +223,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ order, onClose, on
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+      <OperationFeedback feedback={feedback} onDismiss={() => setFeedback(null)} />
       <div className={`w-full max-w-2xl rounded-panel border shadow-2xl flex flex-col max-h-[92vh] overflow-hidden ${isDark ? 'bg-[var(--color-surface)] border-[var(--color-border)]' : 'bg-surface-light border-border-light'}`}>
         <div className={`px-5 py-4 flex justify-between items-center border-b ${isDark ? 'border-[var(--color-border)]' : 'border-border-light'}`}>
           <div>

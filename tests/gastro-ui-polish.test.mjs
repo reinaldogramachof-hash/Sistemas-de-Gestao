@@ -107,6 +107,16 @@ test('PDV uses accessible non-blocking operational feedback', () => {
   assert.ok(feedback.includes('aria-label="Fechar mensagem"'), 'feedback deve oferecer fechamento acessível');
 });
 
+test('Checkout uses accessible non-blocking validation feedback', () => {
+  const checkout = read('gestao-gastro/src/components/CheckoutModal.tsx');
+
+  assert.ok(checkout.includes("import { OperationFeedback"), 'Checkout deve importar o feedback operacional compartilhado');
+  assert.ok(checkout.includes('<OperationFeedback feedback={feedback}'), 'Checkout deve renderizar o feedback operacional');
+  assert.doesNotMatch(checkout, /\b(?:window\.)?alert\s*\(/, 'Checkout nao deve interromper o fechamento com alert()');
+  assert.ok(checkout.includes("title: 'Valor acima do saldo devedor'"), 'Checkout deve explicar valor acima do saldo');
+  assert.ok(checkout.includes("title: 'Pagamento parcial acima do saldo'"), 'Checkout deve explicar limite do pagamento parcial');
+});
+
 test('PDV cart supports touch targets and keyboard product search', () => {
   const pdv = read('gestao-gastro/src/components/PDV.tsx');
 

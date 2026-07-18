@@ -51,6 +51,7 @@ test('Touched shell and base views do not contain mojibake markers', () => {
     'gestao-gastro/src/App.tsx',
     'gestao-gastro/src/components/Layout.tsx',
     'gestao-gastro/src/components/PDV.tsx',
+    'gestao-gastro/src/components/OperationFeedback.tsx',
     'gestao-gastro/src/components/MenuList.tsx',
     'gestao-gastro/src/components/Dashboard.tsx',
     'gestao-gastro/src/components/Customers.tsx',
@@ -84,6 +85,25 @@ test('PDV keeps Portuguese accents and compact menu cards', () => {
   assert.ok(menu.includes('Disponível'), 'MenuList deve exibir Disponível com acento');
   assert.ok(menu.includes('min-h-[190px]'), 'Cards do PDV devem manter altura compacta e estavel');
   assert.ok(menu.includes('getCategoryIcon'), 'MenuList deve usar icones Lucide em vez de emojis quebraveis');
+});
+
+test('PDV uses accessible non-blocking operational feedback', () => {
+  const pdv = read('gestao-gastro/src/components/PDV.tsx');
+  const feedback = read('gestao-gastro/src/components/OperationFeedback.tsx');
+
+  assert.ok(pdv.includes("import { OperationFeedback"), 'PDV deve importar o feedback operacional compartilhado');
+  assert.ok(pdv.includes('<OperationFeedback feedback={feedback}'), 'PDV deve renderizar o feedback operacional');
+  assert.doesNotMatch(pdv, /\b(?:window\.)?alert\s*\(/, 'PDV não deve interromper a operação com alert()');
+  assert.match(pdv, /window\.confirm\('Deseja cancelar o pedido\?/, 'cancelamento crítico deve continuar exigindo confirmação');
+  assert.ok(pdv.includes("title: 'Venda bloqueada'"), 'bloqueio de estoque deve explicar o problema');
+  assert.ok(pdv.includes("title: 'Selecione um atendente'"), 'PDV deve orientar quando o atendente estiver ausente');
+  assert.ok(pdv.includes("title: 'Venda finalizada'"), 'PDV deve confirmar a conclusão da venda');
+
+  assert.ok(feedback.includes('aria-live={config.live}'), 'feedback deve anunciar mudanças para tecnologia assistiva');
+  assert.ok(feedback.includes('aria-atomic="true"'), 'feedback deve anunciar a mensagem completa');
+  assert.ok(feedback.includes("role: 'alert'"), 'erros e avisos devem usar role alert');
+  assert.ok(feedback.includes("role: 'status'"), 'sucesso e informação devem usar role status');
+  assert.ok(feedback.includes('aria-label="Fechar mensagem"'), 'feedback deve oferecer fechamento acessível');
 });
 
 test('Base modules keep Portuguese visible labels accented', () => {

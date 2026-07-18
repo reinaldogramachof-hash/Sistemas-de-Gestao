@@ -11,6 +11,7 @@ import { useAudit } from '../hooks/useAudit';
 import { allocateComboItems, calcComboOriginalPrice, getProductDiscount } from '../services/salesService';
 import { validateStock } from '../services/stockGuard';
 import { HelpTooltip } from './HelpTooltip';
+import { OperationFeedback, type OperationFeedbackMessage } from './OperationFeedback';
 
 export const PDV: React.FC = () => {
   const { collaborators, currentEmpresa, waiters, theme, promotions, campaigns, combos, products, customers, draftOrder, setDraftOrder, clearDraftOrder, stockItems } = useApp();
@@ -32,6 +33,7 @@ export const PDV: React.FC = () => {
   const [manualModalOpen, setManualModalOpen] = useState(false);
   const [manualName, setManualName] = useState('');
   const [manualPrice, setManualPrice] = useState('');
+  const [feedback, setFeedback] = useState<OperationFeedbackMessage | null>(null);
 
   const createOrder = (waiterId = selectedOperatorId): Order => ({
     id: Date.now().toString(),
@@ -78,9 +80,18 @@ export const PDV: React.FC = () => {
 
     const validation = validateStock(product, stockItems, currentQty, 1);
     if (!validation.available) {
-      alert(`Venda bloqueada: ${validation.insufficientItemName === 'Insumo não cadastrado' ? 'Ficha Técnica incompleta' : 'Estoque insuficiente'}`);
+      const incompleteRecipe = validation.insufficientItemName === 'Insumo não cadastrado';
+      setFeedback({
+        tone: 'error',
+        title: 'Venda bloqueada',
+        description: incompleteRecipe
+          ? `Ficha Técnica incompleta: ${product.name} precisa ser revisado no Cardápio antes de vender.`
+          : `${validation.insufficientItemName || product.name} não possui saldo suficiente. Ajuste a quantidade ou confira o Estoque.`,
+      });
       return;
     }
+
+    setFeedback(null);
 
     const discountInfo = getProductDiscount(product, promotions, campaigns);
     const itemPrice = Math.max(0, product.price - (discountInfo?.discount || 0));
@@ -136,7 +147,14 @@ export const PDV: React.FC = () => {
       addedAt: new Date().toISOString(),
     }));
 
-    if (comboItems.length === 0) return;
+    if (comboItems.length === 0) {
+      setFeedback({
+        tone: 'warning',
+        title: 'Combo indisponível',
+        description: 'Este combo não possui itens válidos. Revise a composição no Cardápio antes de lançar a venda.',
+      });
+      return;
+    }
     const updatedItems = [...activeOrder.items, ...comboItems];
     const subtotal = updatedItems.reduce((acc, item) => acc + item.price * item.quantity, 0);
     updateActiveOrder(order => ({ ...order, items: updatedItems, subtotal, total: subtotal }));
@@ -156,7 +174,14 @@ export const PDV: React.FC = () => {
 
   const addManualItem = () => {
     const price = parseFloat(manualPrice.replace(',', '.'));
-    if (!manualName.trim() || isNaN(price) || price <= 0) return;
+    if (!manualName.trim() || isNaN(price) || price <= 0) {
+      setFeedback({
+        tone: 'warning',
+        title: 'Revise o item avulso',
+        description: 'Informe uma descrição e um valor maior que zero para adicionar o item ao carrinho.',
+      });
+      return;
+    }
 
     const manualProduct: Product = {
       id: 'manual-' + Date.now(),
@@ -177,6 +202,11 @@ export const PDV: React.FC = () => {
   const handleSuccess = () => {
     setCheckoutOpen(false);
     clearDraftOrder();
+    setFeedback({
+      tone: 'success',
+      title: 'Venda finalizada',
+      description: 'O pagamento foi registrado e o PDV está pronto para iniciar uma nova venda.',
+    });
   };
 
   const handleCancelOrder = () => {
@@ -194,6 +224,7 @@ export const PDV: React.FC = () => {
 
   return (
     <div className="flex flex-col lg:flex-row h-[calc(100vh-112px)] gap-5">
+      <OperationFeedback feedback={feedback} onDismiss={() => setFeedback(null)} />
       <section className="flex-1 flex flex-col min-w-0">
         <div className="mb-5 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div className="space-y-1">
@@ -420,7 +451,11 @@ export const PDV: React.FC = () => {
               disabled={activeOrder.items.length === 0}
               onClick={() => {
                 if (!selectedOperatorId) {
-                  alert('Não há atendentes disponíveis. Por favor, cadastre um colaborador ativo em Configurações > Acessos ou selecione um atendente válido no topo do carrinho antes de finalizar a venda.');
+                  setFeedback({
+                    tone: 'warning',
+                    title: 'Selecione um atendente',
+                    description: 'Escolha um atendente no topo do carrinho ou cadastre um acesso ativo em Configurações > Acessos.',
+                  });
                   return;
                 }
                 setCheckoutOpen(true);

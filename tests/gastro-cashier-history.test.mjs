@@ -18,6 +18,18 @@ test('Inspect AppContext.tsx for closeCashier preserving snapshots', () => {
   assert.match(content, /expensesSnapshot:\s*expenses/, 'Should save expensesSnapshot in closeCashier');
 });
 
+test('Inspect AppContext.tsx for zero-value table release feeding cashier closure', () => {
+  const contextPath = path.join(gastroDir, 'src', 'store', 'AppContext.tsx');
+  const content = fs.readFileSync(contextPath, 'utf-8');
+
+  assert.match(content, /const closedWithoutPayment: Order/, 'clearTable should create a closed zero-value order when releasing an empty table');
+  assert.match(content, /status:\s*'closed'/, 'released empty table order must be marked closed');
+  assert.match(content, /payments:\s*\[\]/, 'released empty table order must have no payments');
+  assert.match(content, /Mesa liberada sem consumo/, 'released empty table order must keep an operational note');
+  assert.match(content, /ordersHook\.closeOrderLocal\(activeOrder\.id\)/, 'released empty table must leave open-order state immediately');
+  assert.match(content, /closeOrder\(effectiveTenantId, activeOrder\.id/, 'released empty table must close the remote order instead of deleting it');
+});
+
 test('Logical emulation of cashier session closing with snapshots', () => {
   // Emulate AppContext closeCashier logic
   let cashierSession = {

@@ -1025,10 +1025,39 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
 
     if (activeOrder) {
-      setLocalOrders(prev => prev.filter(order => order.id !== activeOrder.id));
+      const closedWithoutPayment: Order = {
+        ...activeOrder,
+        payments: [],
+        serviceCharge: 0,
+        total: 0,
+        status: 'closed',
+        generalObservation: [
+          activeOrder.generalObservation,
+          'Mesa liberada sem consumo.',
+        ].filter(Boolean).join('\n'),
+      };
+
+      setLocalOrders(prev => {
+        const exists = prev.some(order => order.id === activeOrder.id);
+        return exists
+          ? prev.map(order => order.id === activeOrder.id ? closedWithoutPayment : order)
+          : [...prev, closedWithoutPayment];
+      });
+      ordersHook.closeOrderLocal(activeOrder.id);
+
       if (isSupabaseConfigured && effectiveTenantId) {
-        void import('../services/ordersSupabaseService').then(({ deleteOrder }) => {
-          deleteOrder(effectiveTenantId, activeOrder.id).catch(console.error);
+        void import('../services/ordersSupabaseService').then(({ closeOrder, updateOrderMeta }) => {
+          updateOrderMeta(effectiveTenantId, activeOrder.id, {
+            generalObservation: closedWithoutPayment.generalObservation,
+          })
+            .catch(console.error)
+            .finally(() => {
+              closeOrder(effectiveTenantId, activeOrder.id, {
+                payments: [],
+                serviceCharge: 0,
+                total: 0,
+              }).catch(console.error);
+            });
         });
       }
     }

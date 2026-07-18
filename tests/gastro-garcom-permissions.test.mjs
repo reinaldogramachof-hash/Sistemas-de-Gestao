@@ -337,7 +337,7 @@ describe('Garçom Permissions — gestao-gastro', () => {
 
     assert.ok(content.includes('handleReleaseSelectedTable') && content.includes('clearTable(tenantId, selectedTable.number)'), 'garcom deve conseguir liberar mesa sem comanda aberta');
     assert.ok(content.includes('const [freshTables, freshOrders] = await Promise.all'), 'liberacao e transferencia devem revalidar mesas e pedidos antes de agir');
-    assert.ok(content.includes('deleteOrder(tenantId, activeOrder.id)'), 'comanda vazia deve ser removida ao liberar mesa sem consumo');
+    assert.ok(content.includes('closeOrder(tenantId, activeOrder.id') && content.includes('Mesa liberada sem consumo pelo garcom'), 'comanda vazia deve ser fechada com valor zero ao liberar mesa sem consumo');
     assert.ok(content.includes('Esta mesa possui consumo lancado'), 'mesa com consumo lancado nao deve ser liberada pelo garcom');
     assert.ok(content.includes('handleTransferSelectedTable') && content.includes('updateTable(tenantId, targetTableNumber'), 'garcom deve conseguir transferir comanda para mesa livre');
     assert.ok(content.includes("targetTable.status !== 'livre'") && content.includes('targetTable.activeOrderId'), 'transferencia deve revalidar que a mesa destino segue livre');
@@ -347,7 +347,7 @@ describe('Garçom Permissions — gestao-gastro', () => {
     assert.ok(orderModal.includes('Liberar mesa sem consumo') && orderModal.includes('activeOrderHasConsumption'), 'desktop deve liberar mesa vazia sem expor risco para mesa com consumo');
     assert.ok(tableService.includes('activeOrderId?: string | null') && tableService.includes('active_order_id = data.activeOrderId ?? null'), 'clearTable deve conseguir gravar null em active_order_id');
     assert.ok(orderService.includes('payload.table_number = data.tableNumber'), 'orders service deve permitir atualizar table_number na troca de mesa');
-    assert.ok(orderService.includes('export async function deleteOrder'), 'orders service deve permitir remover comanda vazia ao liberar mesa sem consumo');
+    assert.ok(orderService.includes('export async function closeOrder'), 'orders service deve permitir fechar comanda vazia ao liberar mesa sem consumo');
   });
 
   test('Confirmacao da comanda nao deve citar cozinha no plano base', () => {

@@ -5,7 +5,7 @@ import { ComandaMesaResumo } from './ComandaMesaResumo';
 import { ComandaLancamento, ComandaDraftItem } from './ComandaLancamento';
 import { ComandaConfirmacao } from './ComandaConfirmacao';
 import { clearTable, listTables, setTableOccupied, subscribeToTables, updateTable } from '../services/tablesSupabaseService';
-import { createOrder, deleteOrder, listOpenOrders, subscribeToOrders, updateOrderItems, updateOrderMeta } from '../services/ordersSupabaseService';
+import { closeOrder, createOrder, listOpenOrders, subscribeToOrders, updateOrderItems, updateOrderMeta } from '../services/ordersSupabaseService';
 import { isSupabaseConfigured } from '../lib/supabase';
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
@@ -348,7 +348,17 @@ export const ComandaMobile: React.FC<ComandaMobileProps> = ({
       }
 
       if (activeOrder) {
-        await deleteOrder(tenantId, activeOrder.id);
+        await updateOrderMeta(tenantId, activeOrder.id, {
+          generalObservation: mergeGeneralObservation(
+            activeOrder.generalObservation,
+            'Mesa liberada sem consumo pelo garcom.',
+          ),
+        });
+        await closeOrder(tenantId, activeOrder.id, {
+          payments: [],
+          serviceCharge: 0,
+          total: 0,
+        });
       }
 
       await clearTable(tenantId, selectedTable.number);

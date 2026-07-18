@@ -13,6 +13,7 @@ import { ui } from '../ui/styles';
 import { getProductIcon } from '../utils/productIcons';
 import { formatStockQuantity } from '../utils/format';
 import { OperationFeedback, type OperationFeedbackMessage } from './OperationFeedback';
+import { OperationalState } from './OperationalState';
 
 export const Products: React.FC = () => {
   const { products, stockItems, updateProduct, addProduct, deleteProduct, theme, productSyncErrors, retrySyncProduct, clearSyncError, supabaseOnline } = useApp();
@@ -29,6 +30,7 @@ export const Products: React.FC = () => {
   const [feedback, setFeedback] = useState<OperationFeedbackMessage | null>(null);
 
   const categories = ['Todas', ...Array.from(new Set(products.map(p => p.category)))];
+  const syncErrorCount = Object.keys(productSyncErrors).length;
 
   const filteredProducts = useMemo(() => {
     return products.filter(p => {
@@ -207,8 +209,42 @@ export const Products: React.FC = () => {
         </div>
       </div>
 
+      {!supabaseOnline && (
+        <OperationalState
+          variant="offline"
+          title="Cardápio em modo local"
+          description="As alterações permanecem neste dispositivo até a conexão e a sessão com a nuvem serem restabelecidas."
+          compact
+        />
+      )}
+
+      {supabaseOnline && syncErrorCount > 0 && (
+        <OperationalState
+          variant="error"
+          title="Sincronização pendente"
+          description={`${syncErrorCount} ${syncErrorCount === 1 ? 'produto precisa' : 'produtos precisam'} ser reenviado. Use “Erro Sync” no produto para tentar novamente.`}
+          compact
+        />
+      )}
+
       {/* Product List */}
-      {viewMode === 'grid' ? (
+      {filteredProducts.length === 0 ? (
+        <OperationalState
+          variant="empty"
+          title={products.length === 0 ? 'Cardápio ainda vazio' : 'Nenhum produto encontrado'}
+          description={products.length === 0
+            ? 'Cadastre o primeiro produto para começar a vender no PDV.'
+            : 'Revise a busca ou a categoria selecionada para voltar a exibir produtos.'}
+          actionLabel={products.length === 0 ? 'Cadastrar produto' : 'Limpar filtros'}
+          onAction={() => {
+            if (products.length === 0) openModal();
+            else {
+              setSearchTerm('');
+              setSelectedCategory('Todas');
+            }
+          }}
+        />
+      ) : viewMode === 'grid' ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {filteredProducts.map(p => {
             const cost = calculateProductionCost(p.recipe);

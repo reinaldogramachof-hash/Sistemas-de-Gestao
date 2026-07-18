@@ -52,6 +52,7 @@ test('Touched shell and base views do not contain mojibake markers', () => {
     'gestao-gastro/src/components/Layout.tsx',
     'gestao-gastro/src/components/PDV.tsx',
     'gestao-gastro/src/components/OperationFeedback.tsx',
+    'gestao-gastro/src/components/OperationalState.tsx',
     'gestao-gastro/src/components/MenuList.tsx',
     'gestao-gastro/src/components/Dashboard.tsx',
     'gestao-gastro/src/components/Customers.tsx',
@@ -123,6 +124,25 @@ test('Cardápio and Estoque use shared non-blocking feedback', () => {
   assert.ok(stock.includes("title: 'Exclusão bloqueada'"), 'Estoque deve explicar vínculo que impede exclusão');
   assert.ok(stock.includes("title: 'Perda registrada'"), 'Estoque deve confirmar a baixa registrada');
   assert.match(stock, /window\.confirm\(`Tem certeza que deseja excluir o insumo/, 'exclusão de insumo deve continuar confirmada');
+});
+
+test('Cardápio and Estoque expose shared operational states', () => {
+  const component = read('gestao-gastro/src/components/OperationalState.tsx');
+  const products = read('gestao-gastro/src/components/Products.tsx');
+  const stock = read('gestao-gastro/src/components/Stock.tsx');
+
+  for (const variant of ['empty', 'offline', 'error', 'loading']) {
+    assert.ok(component.includes(`${variant}: {`), `OperationalState deve suportar ${variant}`);
+  }
+  assert.ok(component.includes('aria-live={config.live}'), 'estado operacional deve anunciar mudanças');
+  assert.ok(component.includes("aria-busy={variant === 'loading'}"), 'carregamento deve expor aria-busy');
+  assert.ok(component.includes('React.memo'), 'estado visual puro deve evitar renderizações desnecessárias');
+
+  assert.ok(products.includes('variant="offline"'), 'Cardápio deve explicar operação local');
+  assert.ok(products.includes('variant="error"'), 'Cardápio deve resumir erros de sincronização');
+  assert.ok(products.includes('filteredProducts.length === 0'), 'Cardápio deve tratar busca vazia');
+  assert.ok(stock.includes('variant="offline"'), 'Estoque deve explicar operação local');
+  assert.ok(stock.includes('filteredItems.length === 0'), 'Estoque deve tratar busca vazia');
 });
 
 test('Base modules keep Portuguese visible labels accented', () => {

@@ -12,11 +12,12 @@ import { ui } from '../ui/styles';
 import { HelpTooltip } from './HelpTooltip';
 import { formatStockQuantity } from '../utils/format';
 import { OperationFeedback, type OperationFeedbackMessage } from './OperationFeedback';
+import { OperationalState } from './OperationalState';
 
 type TabType = 'overview' | 'movements' | 'losses';
 
 export const Stock: React.FC = () => {
-  const { stockItems, updateStockItem, addStockItem, deleteStockItem, suppliers, stockMovements, addStockMovement, theme, products } = useApp();
+  const { stockItems, updateStockItem, addStockItem, deleteStockItem, suppliers, stockMovements, addStockMovement, theme, products, supabaseOnline } = useApp();
   const isDark = theme === 'dark';
 
   const [activeTab, setActiveTab] = useState<TabType>('overview');
@@ -225,10 +226,14 @@ export const Stock: React.FC = () => {
 
       {activeTab === 'overview' && (
         <div className="space-y-8">
-          <div className={`p-4 rounded-xl border border-dashed flex items-center gap-3 text-[10px] font-bold uppercase tracking-wide opacity-70 ${isDark ? 'border-white/10 bg-white/5 text-white' : 'border-gray-200 bg-gray-50 text-gray-700'}`}>
-            <Info className="w-5 h-5 flex-shrink-0" />
-            Estoque salvo neste dispositivo. Para operação multi-dispositivo, a sincronização em nuvem precisa estar ativa.
-          </div>
+          {!supabaseOnline && (
+            <OperationalState
+              variant="offline"
+              title="Estoque em modo local"
+              description="Entradas, ajustes e perdas ficam neste dispositivo. Evite operar o mesmo estoque em outros aparelhos até restabelecer a conexão."
+              compact
+            />
+          )}
           {/* Controls */}
           <div className="flex flex-col lg:flex-row gap-4">
             <div className={`relative flex-1 group`}>
@@ -280,6 +285,23 @@ export const Stock: React.FC = () => {
           )}
 
           {/* Insumos Table */}
+          {filteredItems.length === 0 ? (
+            <OperationalState
+              variant="empty"
+              title={stockItems.length === 0 ? 'Estoque ainda vazio' : 'Nenhum insumo encontrado'}
+              description={stockItems.length === 0
+                ? 'Cadastre o primeiro insumo e informe o saldo inicial para começar o controle.'
+                : 'Revise a busca ou a categoria selecionada para voltar a exibir insumos.'}
+              actionLabel={stockItems.length === 0 ? 'Cadastrar insumo' : 'Limpar filtros'}
+              onAction={() => {
+                if (stockItems.length === 0) handleOpenModal();
+                else {
+                  setSearchTerm('');
+                  setSelectedCategory('Todas');
+                }
+              }}
+            />
+          ) : (
           <div className={`rounded-xl border overflow-hidden ${isDark ? 'bg-[#1C1C1E] border-[#2C2C2E]' : 'bg-white border-gray-100 shadow-sm'}`}>
             <div className="overflow-x-auto">
               <table className="w-full text-left">
@@ -356,6 +378,7 @@ export const Stock: React.FC = () => {
               </table>
             </div>
           </div>
+          )}
         </div>
       )}
 

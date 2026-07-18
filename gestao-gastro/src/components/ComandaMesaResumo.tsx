@@ -32,10 +32,23 @@ export const ComandaMesaResumo: React.FC<ComandaMesaResumoProps> = React.memo(({
   const hasConsumption = Boolean(order && (order.items.length > 0 || order.subtotal > 0 || order.total > 0));
   const [draftCustomerName, setDraftCustomerName] = React.useState(order?.customerName || '');
   const [showTransfer, setShowTransfer] = React.useState(false);
+  const [showPreClose, setShowPreClose] = React.useState(false);
   const freeTables = tables.filter(item => item.status === 'livre' && item.number !== table.number);
+  const partialPaymentsTotal = order?.partialPayments?.reduce((sum, payment) => sum + payment.amount, 0) ?? 0;
+  const hasCheckoutPricing = Boolean(
+    order && (order.serviceCharge > 0 || (order.loyaltyDiscount ?? 0) > 0 || partialPaymentsTotal > 0),
+  );
+  const currentTotal = order
+    ? (hasCheckoutPricing ? Math.max(0, order.total) : Math.max(order.subtotal, order.total))
+    : 0;
+  const remainingTotal = Math.max(0, currentTotal - partialPaymentsTotal);
+  const peopleCount = order
+    ? Math.max(0, order.customerCount ?? ((order.adultCount ?? 0) + (order.childrenCount ?? 0)))
+    : 0;
 
   React.useEffect(() => {
     setDraftCustomerName(order?.customerName || '');
+    setShowPreClose(false);
   }, [order?.customerName, order?.id]);
 
   return (
@@ -84,6 +97,64 @@ export const ComandaMesaResumo: React.FC<ComandaMesaResumoProps> = React.memo(({
           >
             Adicionar itens
           </button>
+
+          {hasConsumption && (
+            <div className="rounded-xl border border-blue-200 bg-blue-50/70 p-4 dark:border-blue-500/20 dark:bg-blue-900/10">
+              <button
+                type="button"
+                aria-expanded={showPreClose}
+                aria-controls={`pre-fechamento-mesa-${table.number}`}
+                onClick={() => setShowPreClose(current => !current)}
+                className="flex min-h-11 w-full items-center justify-between gap-3 text-left text-sm font-semibold text-blue-800 dark:text-blue-200"
+              >
+                <span>Conferir pré-fechamento</span>
+                <span aria-hidden="true">{showPreClose ? '−' : '+'}</span>
+              </button>
+
+              {showPreClose && (
+                <section
+                  id={`pre-fechamento-mesa-${table.number}`}
+                  aria-label={`Pré-fechamento da mesa ${table.number}`}
+                  className="mt-3 space-y-3 border-t border-blue-200 pt-3 text-xs dark:border-blue-500/20"
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-gray-600 dark:text-gray-300">Consumo lançado</span>
+                    <span className="font-semibold">{money(order.subtotal)}</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-gray-600 dark:text-gray-300">Taxa de serviço</span>
+                    <span className="font-semibold">
+                      {order.serviceCharge > 0 ? money(order.serviceCharge) : 'A confirmar no Caixa'}
+                    </span>
+                  </div>
+                  {(order.loyaltyDiscount ?? 0) > 0 && (
+                    <div className="flex items-center justify-between gap-3 text-emerald-700 dark:text-emerald-300">
+                      <span>Desconto aplicado</span>
+                      <span className="font-semibold">− {money(order.loyaltyDiscount ?? 0)}</span>
+                    </div>
+                  )}
+                  {partialPaymentsTotal > 0 && (
+                    <div className="flex items-center justify-between gap-3 text-emerald-700 dark:text-emerald-300">
+                      <span>Pagamentos já registrados</span>
+                      <span className="font-semibold">− {money(partialPaymentsTotal)}</span>
+                    </div>
+                  )}
+                  <div className="flex items-center justify-between gap-3 border-t border-blue-200 pt-3 text-sm dark:border-blue-500/20">
+                    <span className="font-semibold">Saldo parcial</span>
+                    <span className="font-bold">{money(remainingTotal)}</span>
+                  </div>
+                  {peopleCount > 1 && (
+                    <p className="rounded-lg bg-white/70 px-3 py-2 text-gray-600 dark:bg-black/20 dark:text-gray-300">
+                      Estimativa para {peopleCount} pessoas: <strong>{money(remainingTotal / peopleCount)} por pessoa</strong>.
+                    </p>
+                  )}
+                  <p className="leading-4 text-blue-700 dark:text-blue-200">
+                    Esta conferência não fecha a comanda. Taxa, descontos e pagamento final devem ser confirmados no Caixa.
+                  </p>
+                </section>
+              )}
+            </div>
+          )}
 
           <label className="space-y-1 block rounded-xl border border-gray-100 dark:border-white/10 p-4 bg-white dark:bg-white/5">
             <span className="text-xs text-gray-500">Nome do cliente</span>

@@ -196,10 +196,10 @@ export const Stock: React.FC = () => {
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div className="space-y-1">
           <div className="flex items-center gap-1.5">
-            <h2 className={ui.pageTitle}>Gestão de Suprimentos</h2>
+            <h2 className={ui.pageTitle}>Estoque</h2>
             <HelpTooltip moduleKey="stock" />
           </div>
-          <p className={ui.pageSubtitle}>Controle profundo de insumos e movimentações</p>
+          <p className={ui.pageSubtitle}>Controle de insumos e movimentações</p>
         </div>
 
         <div className={`flex p-1 rounded-lg ${isDark ? 'bg-white/5' : 'bg-gray-100'}`}>
@@ -264,7 +264,7 @@ export const Stock: React.FC = () => {
               onClick={() => handleOpenModal()}
               className="flex items-center justify-center gap-3 px-10 h-14 rounded-lg bg-[#475569] text-white font-bold text-[10px] uppercase tracking-wide transition-all shadow-sm"
             >
-              <Plus className="w-5 h-5" /> Novo Insumo / Entrada
+              <Plus className="w-5 h-5" /> Cadastrar insumo
             </button>
           </div>
 
@@ -462,7 +462,7 @@ export const Stock: React.FC = () => {
                     <Package className="w-8 h-8 text-[#475569]" />
                   </div>
                   <div>
-                    <h3 className="text-3xl font-bold tracking-tighter uppercase leading-tight ">{editingItem ? 'Gestão de Insumo' : 'Novo Insumo / Entrada'}</h3>
+                    <h3 className="text-3xl font-bold tracking-tighter uppercase leading-tight ">{editingItem ? 'Editar insumo' : 'Cadastrar insumo'}</h3>
                     <p className="text-[10px] font-bold uppercase tracking-wide opacity-40">Dados cadastrais e entrada de estoque</p>
                   </div>
                 </div>
@@ -555,7 +555,7 @@ export const Stock: React.FC = () => {
                 <div className="pt-6 flex gap-6">
                   <button type="button" onClick={() => setIsModalOpen(false)} className={`flex-1 h-16 rounded-lg font-bold uppercase tracking-wide text-[10px] ${isDark ? 'bg-white/5 hover:bg-white/10' : 'bg-gray-100 hover:bg-gray-200'}`}>Cancelar</button>
                   <button type="submit" className="flex-[2] h-16 rounded-lg bg-[#475569] text-white font-bold uppercase tracking-wide text-[10px] shadow-sm transition-all">
-                    Finalizar Lançamento
+                    {editingItem ? 'Salvar alterações' : 'Cadastrar insumo'}
                   </button>
                 </div>
               </form>

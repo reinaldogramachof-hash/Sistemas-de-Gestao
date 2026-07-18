@@ -54,7 +54,7 @@ export const Support: React.FC = () => {
         <div className="inline-flex p-4 rounded-xl bg-[#475569]/10 text-[#475569] mb-4">
           <Headphones className="w-10 h-10" />
         </div>
-        <h1 className="text-4xl font-black tracking-tighter uppercase flex items-center">Central de Suporte <HelpTooltip moduleKey="support" /></h1>
+        <h1 className="text-4xl font-black tracking-tighter uppercase flex items-center">Suporte <HelpTooltip moduleKey="support" /></h1>
         <p className="text-sm font-bold opacity-40 uppercase tracking-[0.2em] max-w-lg mx-auto">
           Estamos aqui para ajudar voce a tirar o máximo proveito do Gestão Gastro.
         </p>

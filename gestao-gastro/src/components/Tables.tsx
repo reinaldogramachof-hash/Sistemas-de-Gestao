@@ -101,10 +101,10 @@ export const Tables: React.FC = () => {
         <div className="flex flex-col md:flex-row justify-between md:items-end gap-6">
           <div className="space-y-1">
             <div className="flex items-center gap-1.5">
-              <h2 className={ui.pageTitle}>Mapa de Mesas</h2>
+              <h2 className={ui.pageTitle}>Mesas</h2>
               <HelpTooltip moduleKey="tables" />
             </div>
-            <p className={ui.pageSubtitle}>Gestão do Salão</p>
+            <p className={ui.pageSubtitle}>Mapa e gestão do salão</p>
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 flex-1 lg:max-w-3xl">

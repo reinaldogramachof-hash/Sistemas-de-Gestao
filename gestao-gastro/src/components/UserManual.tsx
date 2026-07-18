@@ -233,11 +233,11 @@ export const UserManual: React.FC = () => {
 
         <div className="space-y-4 text-center md:text-left relative z-10 flex-1">
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#475569]/10 text-[#475569] text-[10px] font-black uppercase tracking-widest">
-            <Award className="w-4 h-4" /> Academia de Gestão Gastro
+            <Award className="w-4 h-4" /> Rotinas do Gestão Gastro
           </div>
-          <h1 id="guide_manual" className="text-5xl font-black tracking-tighter uppercase italic leading-none flex items-center gap-3 scroll-mt-20">Manual de <span className="text-[#475569]">Alta Performance</span> <HelpTooltip moduleKey="manual" /></h1>
+          <h1 id="guide_manual" className="text-5xl font-black tracking-tighter uppercase italic leading-none flex items-center gap-3 scroll-mt-20">Manual de <span className="text-[#475569]">Uso</span> <HelpTooltip moduleKey="manual" /></h1>
           <p className="text-sm font-bold opacity-40 uppercase tracking-[0.2em] max-w-lg">
-            Domine as ferramentas do Gestão Gastro e transforme sua gestão.
+            Consulte os fluxos dos módulos disponíveis na sua operação.
           </p>
         </div>
 
@@ -459,9 +459,9 @@ export const UserManual: React.FC = () => {
         <div className="w-20 h-20 bg-[#475569] rounded-full mx-auto flex items-center justify-center text-white shadow-sm shadow-[#475569]/40 mb-4">
           <Lightbulb className="w-10 h-10" />
         </div>
-        <h3 className="text-2xl font-black uppercase italic tracking-tighter">Pronto para o Próximo Nível?</h3>
+        <h3 className="text-2xl font-black uppercase italic tracking-tighter">Precisa de ajuda?</h3>
         <p className="text-[11px] font-bold opacity-40 uppercase tracking-[0.3em] max-w-xl mx-auto">
-          O domínio operacional é o primeiro passo para a expansão. Use o suporte da Plena Informática para qualquer dúvida técnica.
+          Consulte este manual ou acesse o Suporte para esclarecer dúvidas técnicas da operação.
         </p>
       </div>
     </div>

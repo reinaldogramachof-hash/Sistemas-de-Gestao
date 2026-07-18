@@ -424,7 +424,7 @@ export const Reports: React.FC = () => {
     <div className="flex flex-col min-h-full gap-8 animate-in fade-in duration-200 pb-12">
       <div className="flex flex-col lg:flex-row justify-between lg:items-end gap-6">
         <div className="space-y-1">
-          <h2 className={ui.pageTitle}>BI e Financeiro</h2>
+          <h2 className={ui.pageTitle}>Financeiro</h2>
           <p className={ui.pageSubtitle}>Gestão consolidada de caixa, vendas e despesas</p>
         </div>
 
@@ -723,7 +723,7 @@ export const Reports: React.FC = () => {
               <div className="flex items-center gap-4 mb-8">
                 <div className="w-12 h-12 rounded-lg bg-[#475569]/20 text-[#475569] flex items-center justify-center"><Receipt className="w-6 h-6" /></div>
                 <div>
-                  <h3 className="text-2xl font-bold tracking-tighter uppercase">Novo Lançamento</h3>
+                  <h3 className="text-2xl font-bold tracking-tighter uppercase">Lançar despesa</h3>
                   <p className="text-[10px] font-bold uppercase opacity-40">Registre uma saída financeira</p>
                 </div>
               </div>

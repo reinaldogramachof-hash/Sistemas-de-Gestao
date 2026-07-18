@@ -201,7 +201,7 @@ ${Object.entries(paymentTotals).map(([method, amount]) => `${method}: ${formatCu
                 className={`w-full pl-10 pr-4 py-4 rounded-lg border outline-none font-bold text-sm ${isDark ? 'bg-[#121214] border-[#2C2C2E]' : 'bg-gray-50 border-gray-200'}`}
               />
             </div>
-            <button onClick={handleOpenCashier} className="shrink-0 w-full sm:w-auto flex items-center justify-center gap-3 px-8 py-4 bg-[#475569] text-white rounded-lg font-bold uppercase tracking-wide text-[11px] shadow-sm transition-all whitespace-nowrap"><Unlock className="w-4 h-4" /> Abrir Turno</button>
+            <button onClick={handleOpenCashier} className="shrink-0 w-full sm:w-auto flex items-center justify-center gap-3 px-8 py-4 bg-[#475569] text-white rounded-lg font-bold uppercase tracking-wide text-[11px] shadow-sm transition-all whitespace-nowrap"><Unlock className="w-4 h-4" /> Abrir caixa</button>
           </div>
         </div>
 
@@ -275,7 +275,7 @@ ${Object.entries(paymentTotals).map(([method, amount]) => `${method}: ${formatCu
   return (
     <div className="space-y-8 animate-in fade-in duration-200 pb-12">
       <div className="flex items-center gap-1.5 mb-2">
-        <h2 className="text-2xl font-bold uppercase tracking-tighter">Caixa e Finanças</h2>
+        <h2 className="text-2xl font-bold uppercase tracking-tighter">Caixa</h2>
         <HelpTooltip moduleKey="finance" />
       </div>
 
@@ -366,7 +366,7 @@ ${Object.entries(paymentTotals).map(([method, amount]) => `${method}: ${formatCu
               <div className="space-y-2"><label className="text-[10px] font-bold uppercase tracking-wide opacity-30 ml-2">Descrição</label><input type="text" placeholder={expenseType === 'saida' ? "Ex: Pagamento Gelo" : "Ex: Troco extra"} value={expenseDesc} onChange={e => setExpenseDesc(e.target.value)} className={`w-full p-4 rounded-lg border outline-none font-bold text-sm ${isDark ? 'bg-[#121214] border-[#2C2C2E]' : 'bg-gray-50 border-gray-200'}`} /></div>
               <div className="space-y-2"><label className="text-[10px] font-bold uppercase tracking-wide opacity-30 ml-2">Valor</label><div className="relative"><span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-sm opacity-20">R$</span><input type="text" placeholder="0,00" value={expenseVal} onChange={e => setExpenseVal(e.target.value)} className={`w-full pl-10 pr-4 py-4 rounded-lg border outline-none font-bold text-sm ${isDark ? 'bg-[#121214] border-[#2C2C2E]' : 'bg-gray-50 border-gray-200'}`} /></div></div>
               <button onClick={handleAddExpense} className={`w-full py-4 text-white rounded-lg font-bold uppercase tracking-wide text-[10px] shadow-sm transition-all ${expenseType === 'saida' ? 'bg-red-500 hover:bg-red-600' : 'bg-emerald-500 hover:bg-emerald-600'}`}>
-                {editingExpense ? 'Salvar Alterações' : 'Confirmar Movimentação'}
+                {editingExpense ? 'Salvar movimentação' : 'Registrar movimentação'}
               </button>
               {editingExpense && (
                 <button onClick={() => { setEditingExpense(null); setExpenseDesc(''); setExpenseVal(''); setExpenseType('saida'); }} className={`w-full py-3 font-bold text-xs uppercase tracking-wide rounded-lg transition-colors ${isDark ? 'bg-[#2C2C2E] hover:bg-[#3C3C3E]' : 'bg-gray-100 hover:bg-gray-200'}`}>Cancelar Edição</button>
@@ -424,7 +424,7 @@ ${Object.entries(paymentTotals).map(([method, amount]) => `${method}: ${formatCu
                 <button onClick={handleShareReport} className={`w-full py-3 rounded-lg font-bold uppercase tracking-wide text-[10px] flex items-center justify-center gap-2 border transition-all mt-6 ${isDark ? 'border-[#2C2C2E] hover:bg-white/5 text-gray-300' : 'border-gray-200 hover:bg-gray-50 text-gray-600'}`}>
                   {copied ? <><Check className="w-4 h-4 text-emerald-500" /> Resumo Copiado</> : <><Share2 className="w-4 h-4" /> Compartilhar Fechamento</>}
                 </button>
-                <button onClick={handleCloseCashier} className="w-full py-5 bg-red-500 text-white rounded-lg font-bold uppercase tracking-wide text-[11px] shadow-sm transition-all mt-2">Fechar Caixa Agora</button>
+                <button onClick={handleCloseCashier} className="w-full py-5 bg-red-500 text-white rounded-lg font-bold uppercase tracking-wide text-[11px] shadow-sm transition-all mt-2">Fechar caixa</button>
               </div>
             )}
           </div>

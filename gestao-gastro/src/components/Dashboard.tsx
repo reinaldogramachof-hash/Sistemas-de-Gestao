@@ -122,7 +122,7 @@ export const Dashboard: React.FC = () => {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="space-y-1">
           <div className="flex items-center gap-1.5">
-            <h1 className={ui.pageTitle}>Visão Geral</h1>
+            <h1 className={ui.pageTitle}>Dashboard</h1>
             <HelpTooltip moduleKey="dashboard" />
           </div>
           <p className={ui.pageSubtitle}>{currentEmpresa.name}</p>
@@ -203,7 +203,7 @@ export const Dashboard: React.FC = () => {
              <div className="flex items-center justify-between mb-8">
                <h3 className="font-bold text-sm uppercase tracking-wide">Últimos Pedidos</h3>
                <div className="flex gap-2">
-                 <button onClick={handleExportCSV} disabled={recentOrders.length === 0} className={`px-4 py-2 rounded-xl text-[9px] font-bold uppercase tracking-wide transition-colors disabled:opacity-30 ${isDark ? 'bg-white/5 hover:bg-white/10' : 'bg-gray-50 hover:bg-gray-100'}`}>Exportar</button>
+                 <button onClick={handleExportCSV} disabled={recentOrders.length === 0} className={`px-4 py-2 rounded-xl text-[9px] font-bold uppercase tracking-wide transition-colors disabled:opacity-30 ${isDark ? 'bg-white/5 hover:bg-white/10' : 'bg-gray-50 hover:bg-gray-100'}`}>Exportar CSV</button>
                </div>
              </div>
              <div className="overflow-x-auto -mx-2">

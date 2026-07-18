@@ -148,7 +148,8 @@ test('Cardápio and Estoque expose shared operational states', () => {
 test('Base modules keep Portuguese visible labels accented', () => {
   const expectations = {
     'gestao-gastro/src/components/Dashboard.tsx': [
-      'Visão Geral',
+      'Dashboard',
+      'Exportar CSV',
       'Ticket Médio',
       'Últimos Pedidos',
       'Estoque Crítico',
@@ -160,20 +161,23 @@ test('Base modules keep Portuguese visible labels accented', () => {
       'Salvar Alterações',
     ],
     'gestao-gastro/src/components/Products.tsx': [
-      'Cardápio e Vendas',
+      'Cardápio',
+      'Cadastrar produto',
       'Gestão de catálogo e fichas técnicas',
       'Ficha Técnica',
       'Informações Básicas',
     ],
     'gestao-gastro/src/components/Reports.tsx': [
+      'Financeiro',
       'Gestão consolidada de caixa, vendas e despesas',
       'Lançar Despesa',
       'Lucro Líquido',
       'Comissão Acumulada',
     ],
     'gestao-gastro/src/components/Stock.tsx': [
-      'Gestão de Suprimentos',
-      'Controle profundo de insumos e movimentações',
+      'Estoque',
+      'Cadastrar insumo',
+      'Controle de insumos e movimentações',
       'Histórico',
       'Insumos em Nível Crítico',
     ],
@@ -183,6 +187,49 @@ test('Base modules keep Portuguese visible labels accented', () => {
     const source = read(path);
     for (const label of labels) {
       assert.ok(source.includes(label), `${path} deve conter "${label}"`);
+    }
+  }
+});
+
+test('Contracted modules use canonical names and action-first primary labels', () => {
+  const expectations = {
+    'gestao-gastro/src/components/Tables.tsx': ['Mesas', 'Mapa e gestão do salão'],
+    'gestao-gastro/src/components/Cashier.tsx': [
+      '>Caixa</h2>',
+      'Abrir caixa',
+      'Registrar movimentação',
+      'Fechar caixa',
+    ],
+    'gestao-gastro/src/components/UserManual.tsx': [
+      'Manual de <span className="text-[#475569]">Uso</span>',
+      'Precisa de ajuda?',
+    ],
+    'gestao-gastro/src/components/Support.tsx': [
+      '>Suporte <HelpTooltip moduleKey="support"',
+    ],
+  };
+
+  for (const [path, labels] of Object.entries(expectations)) {
+    const source = read(path);
+    for (const label of labels) {
+      assert.ok(source.includes(label), `${path} deve conter "${label}"`);
+    }
+  }
+
+  const legacyLabels = {
+    'gestao-gastro/src/components/Dashboard.tsx': ['Visão Geral</h1>', '>Exportar</button>'],
+    'gestao-gastro/src/components/Cashier.tsx': ['Caixa e Finanças', 'Abrir Turno', 'Fechar Caixa Agora'],
+    'gestao-gastro/src/components/Products.tsx': ['Cardápio e Vendas', 'Novo Produto'],
+    'gestao-gastro/src/components/Reports.tsx': ['BI e Financeiro', 'Novo Lançamento'],
+    'gestao-gastro/src/components/Stock.tsx': ['Gestão de Suprimentos', 'Novo Insumo / Entrada'],
+    'gestao-gastro/src/components/UserManual.tsx': ['Manual de Alta Performance', 'Pronto para o Próximo Nível?'],
+    'gestao-gastro/src/components/Support.tsx': ['Central de Suporte'],
+  };
+
+  for (const [path, labels] of Object.entries(legacyLabels)) {
+    const source = read(path);
+    for (const label of labels) {
+      assert.equal(source.includes(label), false, `${path} não deve manter o rótulo ambíguo "${label}"`);
     }
   }
 });

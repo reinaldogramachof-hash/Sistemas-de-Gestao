@@ -164,7 +164,7 @@ export const Products: React.FC = () => {
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div className="space-y-1">
           <div className="flex items-center gap-1.5">
-            <h2 className={ui.pageTitle}>Cardápio e Vendas</h2>
+            <h2 className={ui.pageTitle}>Cardápio</h2>
             <HelpTooltip moduleKey="menu" />
           </div>
           <p className={ui.pageSubtitle}>Gestão de catálogo e fichas técnicas</p>
@@ -179,7 +179,7 @@ export const Products: React.FC = () => {
             onClick={() => openModal()}
             className={`px-8 h-12 ${ui.primaryButton} flex items-center gap-2 text-[10px]`}
           >
-            <Plus className="w-4 h-4" /> Novo Produto
+            <Plus className="w-4 h-4" /> Cadastrar produto
           </button>
         </div>
       </div>
@@ -440,7 +440,7 @@ export const Products: React.FC = () => {
             >
               <div className="p-8 md:p-10 border-b flex justify-between items-center">
                 <div>
-                  <h3 className="text-2xl font-bold uppercase  tracking-tighter">{editingProduct ? 'Editar Produto' : 'Novo Produto'}</h3>
+                  <h3 className="text-2xl font-bold uppercase  tracking-tighter">{editingProduct ? 'Editar produto' : 'Cadastrar produto'}</h3>
                   <p className="text-[10px] font-bold uppercase tracking-wide opacity-40 mt-1">configuração de venda e produção</p>
                 </div>
                 <button onClick={() => setIsModalOpen(false)} className="p-4 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 opacity-40"><X className="w-6 h-6" /></button>
@@ -549,7 +549,7 @@ export const Products: React.FC = () => {
 
                 <div className="pt-4 flex gap-4">
                   <button type="button" onClick={() => setIsModalOpen(false)} className={`flex-1 h-16 rounded-lg font-bold uppercase tracking-wide text-[10px] ${isDark ? 'bg-white/5' : 'bg-gray-100'}`}>Cancelar</button>
-                  <button type="submit" className="flex-[2] h-16 rounded-lg bg-[#475569] text-white font-bold uppercase tracking-wide text-[10px] shadow-sm">Salvar Produto</button>
+                  <button type="submit" className="flex-[2] h-16 rounded-lg bg-[#475569] text-white font-bold uppercase tracking-wide text-[10px] shadow-sm">{editingProduct ? 'Salvar alterações' : 'Cadastrar produto'}</button>
                 </div>
               </form>
             </motion.div>

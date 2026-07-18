@@ -18,6 +18,21 @@ test('Gestao Gastro build must be published under /gestao-gastro/', () => {
   );
 });
 
+test('local runtime proxies the waiter manifest and keeps PWA updates automatic', () => {
+  const viteConfig = read('gestao-gastro/vite.config.ts');
+
+  assert.match(
+    viteConfig,
+    /['"]\/api_comanda_manifest\.php['"]:\s*\{[\s\S]*?target:\s*['"]http:\/\/127\.0\.0\.1:8000['"]/,
+    'Vite deve encaminhar o manifest dinamico da comanda ao backend PHP local',
+  );
+  assert.match(
+    viteConfig,
+    /registerType:\s*['"]autoUpdate['"]/,
+    'PWA deve buscar e ativar novas versoes automaticamente',
+  );
+});
+
 test('Gestao Gastro build must include Apache SPA fallback for client routes', () => {
   const htaccess = read('gestao-gastro/public/.htaccess');
 

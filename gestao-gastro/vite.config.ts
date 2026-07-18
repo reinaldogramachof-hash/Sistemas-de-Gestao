@@ -51,6 +51,10 @@ export default defineConfig(({mode}) => {
           target: 'http://127.0.0.1:8000',
           changeOrigin: true,
         },
+        '/api_comanda_manifest.php': {
+          target: 'http://127.0.0.1:8000',
+          changeOrigin: true,
+        },
       }
     },
   };

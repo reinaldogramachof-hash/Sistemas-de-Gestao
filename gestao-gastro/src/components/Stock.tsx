@@ -11,6 +11,7 @@ import { StockMovement, StockItem } from '../types';
 import { ui } from '../ui/styles';
 import { HelpTooltip } from './HelpTooltip';
 import { formatStockQuantity } from '../utils/format';
+import { OperationFeedback, type OperationFeedbackMessage } from './OperationFeedback';
 
 type TabType = 'overview' | 'movements' | 'losses';
 
@@ -27,6 +28,7 @@ export const Stock: React.FC = () => {
   const [editingItem, setEditingItem] = useState<StockItem | null>(null);
   const [isLossModalOpen, setIsLossModalOpen] = useState(false);
   const [selectedItemId, setSelectedItemId] = useState<string>('');
+  const [feedback, setFeedback] = useState<OperationFeedbackMessage | null>(null);
 
   // Form State for Entry/Register
   const [formData, setFormData] = useState({
@@ -49,11 +51,20 @@ export const Stock: React.FC = () => {
   const handleDeleteStockItem = (id: string, name: string) => {
     const isUsed = products.some(p => p.recipe?.some(r => r.stockItemId === id));
     if (isUsed) {
-      window.alert(`Este insumo está vinculado a produtos do cardápio. Remova ou substitua na ficha técnica antes de excluir.`);
+      setFeedback({
+        tone: 'warning',
+        title: 'Exclusão bloqueada',
+        description: `${name} está vinculado a produtos do Cardápio. Remova ou substitua o insumo nas fichas técnicas antes de excluir.`,
+      });
       return;
     }
     if (window.confirm(`Tem certeza que deseja excluir o insumo ${name}?`)) {
       deleteStockItem(id);
+      setFeedback({
+        tone: 'success',
+        title: 'Insumo excluído',
+        description: `${name} foi removido do Estoque.`,
+      });
     }
   };
 
@@ -135,6 +146,13 @@ export const Stock: React.FC = () => {
     }
 
     setIsModalOpen(false);
+    setFeedback({
+      tone: 'success',
+      title: editingItem ? 'Insumo atualizado' : 'Insumo cadastrado',
+      description: Number(formData.addQuantity) > 0
+        ? `${item.name} foi salvo com uma entrada de ${formatStockQuantity(Number(formData.addQuantity), item.unit)}.`
+        : `${item.name} foi salvo sem alteração de saldo.`,
+    });
   };
 
   const handleSaveLoss = (e: React.FormEvent) => {
@@ -154,6 +172,11 @@ export const Stock: React.FC = () => {
       setIsLossModalOpen(false);
       setSelectedItemId('');
       setLossData({ quantity: 0, reason: '' });
+      setFeedback({
+        tone: 'success',
+        title: 'Perda registrada',
+        description: `A baixa de ${formatStockQuantity(lossData.quantity, si.unit)} em ${si.name} foi registrada no histórico.`,
+      });
     }
   };
 
@@ -167,6 +190,7 @@ export const Stock: React.FC = () => {
 
   return (
     <div className="space-y-8 animate-in fade-in duration-200 pb-24">
+      <OperationFeedback feedback={feedback} onDismiss={() => setFeedback(null)} />
       {/* Header & Stats */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div className="space-y-1">

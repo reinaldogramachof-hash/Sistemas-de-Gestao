@@ -106,6 +106,24 @@ test('PDV uses accessible non-blocking operational feedback', () => {
   assert.ok(feedback.includes('aria-label="Fechar mensagem"'), 'feedback deve oferecer fechamento acessível');
 });
 
+test('Cardápio and Estoque use shared non-blocking feedback', () => {
+  const products = read('gestao-gastro/src/components/Products.tsx');
+  const stock = read('gestao-gastro/src/components/Stock.tsx');
+
+  for (const [name, source] of [['Cardápio', products], ['Estoque', stock]]) {
+    assert.ok(source.includes("import { OperationFeedback"), `${name} deve importar o feedback compartilhado`);
+    assert.ok(source.includes('<OperationFeedback feedback={feedback}'), `${name} deve renderizar o feedback compartilhado`);
+    assert.doesNotMatch(source, /\b(?:window\.)?alert\s*\(/, `${name} não deve usar alert() bloqueante`);
+  }
+
+  assert.ok(products.includes("title: 'Ficha Técnica incompleta'"), 'Cardápio deve orientar ficha técnica incompleta');
+  assert.ok(products.includes("title: 'Sincronização pendente'"), 'Cardápio deve explicar falha de sincronização');
+  assert.match(products, /window\.confirm\(`Excluir \$\{product\.name\}/, 'exclusão de produto deve exigir confirmação');
+  assert.ok(stock.includes("title: 'Exclusão bloqueada'"), 'Estoque deve explicar vínculo que impede exclusão');
+  assert.ok(stock.includes("title: 'Perda registrada'"), 'Estoque deve confirmar a baixa registrada');
+  assert.match(stock, /window\.confirm\(`Tem certeza que deseja excluir o insumo/, 'exclusão de insumo deve continuar confirmada');
+});
+
 test('Base modules keep Portuguese visible labels accented', () => {
   const expectations = {
     'gestao-gastro/src/components/Dashboard.tsx': [

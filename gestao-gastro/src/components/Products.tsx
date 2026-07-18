@@ -12,6 +12,7 @@ import { Product, RecipeItem } from '../types';
 import { ui } from '../ui/styles';
 import { getProductIcon } from '../utils/productIcons';
 import { formatStockQuantity } from '../utils/format';
+import { OperationFeedback, type OperationFeedbackMessage } from './OperationFeedback';
 
 export const Products: React.FC = () => {
   const { products, stockItems, updateProduct, addProduct, deleteProduct, theme, productSyncErrors, retrySyncProduct, clearSyncError, supabaseOnline } = useApp();
@@ -25,6 +26,7 @@ export const Products: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [recipeItems, setRecipeItems] = useState<RecipeItem[]>([]);
+  const [feedback, setFeedback] = useState<OperationFeedbackMessage | null>(null);
 
   const categories = ['Todas', ...Array.from(new Set(products.map(p => p.category)))];
 
@@ -59,11 +61,19 @@ export const Products: React.FC = () => {
       const hasEmpty = recipeItems.some(r => !r.stockItemId);
       const hasInvalidQty = recipeItems.some(r => r.quantity <= 0 || isNaN(r.quantity));
       if (hasEmpty) {
-        window.alert('Ficha Técnica incompleta: preencha todos os insumos selecionados ou remova os vazios.');
+        setFeedback({
+          tone: 'warning',
+          title: 'Ficha Técnica incompleta',
+          description: 'Preencha todos os insumos selecionados ou remova as linhas vazias antes de salvar.',
+        });
         return;
       }
       if (hasInvalidQty) {
-        window.alert('Ficha Técnica inválida: a quantidade dos insumos deve ser maior que zero.');
+        setFeedback({
+          tone: 'warning',
+          title: 'Ficha Técnica inválida',
+          description: 'Informe uma quantidade maior que zero para cada insumo vinculado.',
+        });
         return;
       }
     }
@@ -83,6 +93,40 @@ export const Products: React.FC = () => {
     else addProduct(product);
 
     setIsModalOpen(false);
+    setFeedback({
+      tone: 'success',
+      title: editingProduct ? 'Produto atualizado' : 'Produto cadastrado',
+      description: `${product.name} foi salvo no Cardápio${supabaseOnline ? ' e será sincronizado com a nuvem.' : ' neste dispositivo.'}`,
+    });
+  };
+
+  const handleRetrySync = async (product: Product) => {
+    try {
+      await retrySyncProduct(product);
+      clearSyncError(product.id);
+      setFeedback({
+        tone: 'success',
+        title: 'Produto sincronizado',
+        description: `${product.name} foi enviado para a nuvem com sucesso.`,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Falha desconhecida ao sincronizar.';
+      setFeedback({
+        tone: 'error',
+        title: 'Sincronização pendente',
+        description: `${product.name} continua salvo neste dispositivo. Verifique a conexão e tente novamente. Detalhe: ${message}`,
+      });
+    }
+  };
+
+  const handleDeleteProduct = (product: Product) => {
+    if (!window.confirm(`Excluir ${product.name} do Cardápio? Esta ação não pode ser desfeita.`)) return;
+    deleteProduct(product.id);
+    setFeedback({
+      tone: 'success',
+      title: 'Produto excluído',
+      description: `${product.name} foi removido do Cardápio.`,
+    });
   };
 
   const addRecipeItem = () => {
@@ -114,6 +158,7 @@ export const Products: React.FC = () => {
 
   return (
     <div className="space-y-8 animate-in fade-in duration-200 pb-24">
+      <OperationFeedback feedback={feedback} onDismiss={() => setFeedback(null)} />
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div className="space-y-1">
           <div className="flex items-center gap-1.5">
@@ -191,18 +236,13 @@ export const Products: React.FC = () => {
                       )}
                       {supabaseOnline && (
                         productSyncErrors[p.id] ? (
-                          <div className="flex items-center gap-1 text-red-500 cursor-pointer" title={`Erro ao sincronizar: ${productSyncErrors[p.id]}. Clique para re-sincronizar.`} onClick={async (e) => {
+                          <button type="button" className="flex items-center gap-1 text-red-500 hover:underline" title={`Erro ao sincronizar: ${productSyncErrors[p.id]}. Clique para re-sincronizar.`} onClick={async (e) => {
                             e.stopPropagation();
-                            try {
-                              await retrySyncProduct(p);
-                              alert('Produto sincronizado com sucesso!');
-                            } catch (err: any) {
-                              alert(`Erro de sincronização: ${err.message}`);
-                            }
+                            await handleRetrySync(p);
                           }}>
                             <CloudOff className="w-3.5 h-3.5 animate-pulse" />
                             <span className="text-[8px] font-bold uppercase tracking-wider underline">Erro Sync</span>
-                          </div>
+                          </button>
                         ) : (
                           <div className="flex w-fit max-w-full items-center gap-1 rounded bg-emerald-500/10 px-1.5 py-0.5 text-emerald-600">
                             <CheckCircle2 className="h-3 w-3 flex-shrink-0" /> <span className="text-[10px] font-bold uppercase tracking-widest hidden lg:block">Sincronizado</span>
@@ -220,7 +260,7 @@ export const Products: React.FC = () => {
                   </div>
                   <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0">
                     <button onClick={() => openModal(p)} className="p-2.5 rounded-xl hover:bg-[#475569]/10 hover:text-[#475569] transition-all"><Edit2 className="w-4 h-4" /></button>
-                    <button onClick={() => deleteProduct(p.id)} className="p-2.5 rounded-xl hover:bg-red-500/10 hover:text-red-500 transition-all"><Trash2 className="w-4 h-4" /></button>
+                    <button onClick={() => handleDeleteProduct(p)} className="p-2.5 rounded-xl hover:bg-red-500/10 hover:text-red-500 transition-all" aria-label={`Excluir ${p.name}`}><Trash2 className="w-4 h-4" /></button>
                   </div>
                 </div>
 
@@ -293,14 +333,9 @@ export const Products: React.FC = () => {
                           <div className="mt-1 flex items-center gap-2">
                             {supabaseOnline && (
                               productSyncErrors[p.id] ? (
-                                <button className="flex items-center gap-1 text-red-500 hover:underline" title={`Erro ao sincronizar: ${productSyncErrors[p.id]}. Clique para re-sincronizar.`} onClick={async (e) => {
+                                <button type="button" className="flex items-center gap-1 text-red-500 hover:underline" title={`Erro ao sincronizar: ${productSyncErrors[p.id]}. Clique para re-sincronizar.`} onClick={async (e) => {
                                   e.stopPropagation();
-                                  try {
-                                    await retrySyncProduct(p);
-                                    alert('Produto sincronizado com sucesso!');
-                                  } catch (err: any) {
-                                    alert(`Erro de sincronização: ${err.message}`);
-                                  }
+                                  await handleRetrySync(p);
                                 }}>
                                   <CloudOff className="w-3.5 h-3.5 animate-pulse" />
                                   <span className="text-[8px] font-bold uppercase tracking-wider">Erro Sync</span>

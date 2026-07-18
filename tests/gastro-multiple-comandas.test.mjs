@@ -21,6 +21,10 @@ const tableService = readFileSync(
   join(root, 'gestao-gastro', 'src', 'services', 'tablesSupabaseService.ts'),
   'utf8',
 );
+const selectorComponent = readFileSync(
+  join(root, 'gestao-gastro', 'src', 'components', 'ComandaMesaSelector.tsx'),
+  'utf8',
+);
 
 const functionBody = (name) => {
   const match = migration.match(
@@ -150,4 +154,14 @@ test('frontend services expose atomic RPC operations without security definer sh
   assert.match(orderService, /\.rpc\('gastro_transfer_comanda_rpc'/);
   assert.match(tableService, /export async function releaseTableSafely\(/);
   assert.match(tableService, /\.rpc\('gastro_release_table_rpc'/);
+});
+
+test('mobile selector identifies, validates and opens individual table checks', () => {
+  assert.match(selectorComponent, /getComandaDisplayLabel/);
+  assert.match(selectorComponent, /onSelect: \(order: Order\) => void/);
+  assert.match(selectorComponent, /onCreate: \(label: string\)/);
+  assert.match(selectorComponent, /maxLength=\{80\}/);
+  assert.match(selectorComponent, /Já existe uma comanda aberta com esse identificador/);
+  assert.match(selectorComponent, /Cada conta é fechada separadamente no Caixa/);
+  assert.match(selectorComponent, /Sem conexão: a nova comanda será enviada/);
 });

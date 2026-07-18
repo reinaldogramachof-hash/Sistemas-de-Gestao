@@ -54,7 +54,7 @@ const AppContent = () => {
     }
 
     switch(currentView) {
-      case 'dashboard': return <Dashboard />;
+      case 'dashboard': return <Dashboard onNavigate={setCurrentView} />;
       case 'pdv': return <PDV />;
       case 'mesas': return <Tables />;
       case 'cozinha': return <Kitchen />;

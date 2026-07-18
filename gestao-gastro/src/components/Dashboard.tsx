@@ -2,23 +2,42 @@ import React from 'react';
 import { useApp } from '../store/AppContext';
 import {
   TrendingUp,
-  Users,
   ShoppingBag,
   Table as TableIcon,
-  ArrowUpRight,
-  ArrowDownRight,
   Clock,
-  CheckCircle2
+  CheckCircle2,
+  AlertTriangle,
+  Wallet,
+  ChevronRight,
+  PackageSearch,
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion } from 'motion/react';
 import { ui } from '../ui/styles';
 import { getComandaAccessUrl } from '../utils/comandaAccess';
 import { HelpTooltip } from './HelpTooltip';
 import { formatCurrency } from '../utils/format';
 import { OperationalState } from './OperationalState';
+import type { View } from '../hooks/useNavigation';
+import { useModules } from '../hooks/useModules';
 
-export const Dashboard: React.FC = () => {
-  const { orders, tables, products, stockItems, theme, currentEmpresa, supabaseOnline } = useApp();
+interface DashboardProps {
+  onNavigate: (view: View) => void;
+}
+
+type DecisionTone = 'critical' | 'attention' | 'info';
+
+interface DecisionItem {
+  id: string;
+  title: string;
+  description: string;
+  action: string;
+  target: View;
+  tone: DecisionTone;
+}
+
+export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
+  const { orders, tables, products, stockItems, cashierSession, productSyncErrors, theme, currentEmpresa, supabaseOnline } = useApp();
+  const { checkAccess } = useModules();
   const isDark = theme === 'dark';
 
   const isToday = (timestampStr: string) => {
@@ -71,6 +90,68 @@ export const Dashboard: React.FC = () => {
     return diffDays <= 7;
   }).sort((a, b) => new Date(a.expiryDate!).getTime() - new Date(b.expiryDate!).getTime());
 
+  const expiredItemsCount = expiringItems.filter(item => new Date(`${item.expiryDate}T23:59:59`).getTime() < Date.now()).length;
+  const productsWithIncompleteRecipe = products.filter(product => {
+    if (product.active === false) return false;
+    if (!product.recipe || product.recipe.length === 0) return true;
+    return product.recipe.some(recipeItem => !stockItems.some(stockItem => stockItem.id === recipeItem.stockItemId));
+  });
+  const syncPendingCount = Object.keys(productSyncErrors).length;
+  const isCashierOpen = cashierSession?.status === 'open';
+
+  const decisions: DecisionItem[] = [];
+  if (!isCashierOpen) {
+    decisions.push({
+      id: 'cashier-closed',
+      title: 'Caixa fechado',
+      description: 'Abra o caixa antes de iniciar as vendas para manter o fechamento e as formas de pagamento rastreáveis.',
+      action: 'Abrir caixa',
+      target: 'caixa',
+      tone: 'critical',
+    });
+  }
+  if (expiredItemsCount > 0 && checkAccess('estoque')) {
+    decisions.push({
+      id: 'expired-stock',
+      title: `${expiredItemsCount} ${expiredItemsCount === 1 ? 'insumo vencido' : 'insumos vencidos'}`,
+      description: 'Revise os lotes e registre a perda antes de utilizar esses insumos em novas vendas.',
+      action: 'Revisar estoque',
+      target: 'estoque',
+      tone: 'critical',
+    });
+  }
+  if (lowStockItems.length > 0 && checkAccess('estoque')) {
+    decisions.push({
+      id: 'low-stock',
+      title: `${lowStockItems.length} ${lowStockItems.length === 1 ? 'insumo no nível crítico' : 'insumos no nível crítico'}`,
+      description: 'Confira os saldos mínimos e programe a reposição para evitar indisponibilidade no Cardápio.',
+      action: 'Conferir saldos',
+      target: 'estoque',
+      tone: 'attention',
+    });
+  }
+  if (openOrders.length > 0) {
+    decisions.push({
+      id: 'open-orders',
+      title: `${openOrders.length} ${openOrders.length === 1 ? 'pedido em aberto' : 'pedidos em aberto'}`,
+      description: 'Acompanhe as mesas e comandas pendentes antes do fechamento do caixa.',
+      action: 'Ver mesas',
+      target: 'mesas',
+      tone: 'attention',
+    });
+  }
+  if ((productsWithIncompleteRecipe.length > 0 || syncPendingCount > 0) && checkAccess('produtos')) {
+    const menuIssues = productsWithIncompleteRecipe.length + syncPendingCount;
+    decisions.push({
+      id: 'menu-pending',
+      title: `${menuIssues} ${menuIssues === 1 ? 'pendência no Cardápio' : 'pendências no Cardápio'}`,
+      description: `${productsWithIncompleteRecipe.length} ficha(s) técnica(s) incompleta(s) e ${syncPendingCount} falha(s) de sincronização aguardam revisão.`,
+      action: 'Revisar Cardápio',
+      target: 'produtos',
+      tone: 'info',
+    });
+  }
+
   const getCategoryCode = (cat: string) => {
     switch (cat) {
       case 'Drinks': return 'DR';
@@ -84,11 +165,46 @@ export const Dashboard: React.FC = () => {
   const comparisonLabelClosed = 'Baseado nos pedidos fechados hoje';
   const comparisonLabelRealtime = 'Atualizado em tempo real';
   const kpis = [
-    { label: 'Vendas Hoje', value: formatCurrency(salesToday), icon: TrendingUp, color: 'text-emerald-500', bg: 'bg-emerald-500/10', trend: comparisonLabelClosed },
-    { label: 'Ticket Médio', value: formatCurrency(avgTicket), icon: ShoppingBag, color: 'text-blue-500', bg: 'bg-blue-500/10', trend: comparisonLabelClosed },
-    { label: 'Pedidos', value: totalOrdersToday.toString(), icon: Clock, color: 'text-accent', bg: 'bg-accent/10', trend: `${totalOrdersToday} fechados hoje · ${openOrders.length} ${openOrders.length === 1 ? 'aberto' : 'abertos'}` },
-    { label: 'Mesas Ocupadas', value: occupiedTables.toString(), icon: TableIcon, color: 'text-amber-500', bg: 'bg-amber-500/10', trend: comparisonLabelRealtime },
+    { label: 'Vendas Hoje', value: formatCurrency(salesToday), icon: TrendingUp, color: 'text-emerald-500', bg: 'bg-emerald-500/10', trend: comparisonLabelClosed, definition: 'Soma do total final dos pedidos fechados hoje.', source: 'Pedidos fechados', target: 'relatorios' as View },
+    { label: 'Ticket Médio', value: formatCurrency(avgTicket), icon: ShoppingBag, color: 'text-blue-500', bg: 'bg-blue-500/10', trend: comparisonLabelClosed, definition: 'Vendas de hoje divididas pela quantidade de pedidos fechados.', source: 'Pedidos fechados', target: 'relatorios' as View },
+    { label: 'Pedidos', value: totalOrdersToday.toString(), icon: Clock, color: 'text-accent', bg: 'bg-accent/10', trend: `${totalOrdersToday} fechados hoje · ${openOrders.length} ${openOrders.length === 1 ? 'aberto' : 'abertos'}`, definition: 'Pedidos concluídos hoje; abertos aparecem separadamente.', source: 'Pedidos e comandas', target: 'mesas' as View },
+    { label: 'Mesas Ocupadas', value: occupiedTables.toString(), icon: TableIcon, color: 'text-amber-500', bg: 'bg-amber-500/10', trend: comparisonLabelRealtime, definition: 'Mesas ocupadas, aguardando ou reservadas neste momento.', source: 'Mapa de mesas', target: 'mesas' as View },
   ];
+
+  const operationalOverview = [
+    {
+      label: 'Caixa',
+      value: isCashierOpen ? 'Aberto' : 'Fechado',
+      detail: isCashierOpen && cashierSession ? `Desde ${new Date(cashierSession.openedAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}` : 'Abertura necessária',
+      icon: Wallet,
+      target: 'caixa' as View,
+      tone: isCashierOpen ? 'text-emerald-500' : 'text-red-500',
+    },
+    {
+      label: 'Mesas',
+      value: `${occupiedTables}/${tables.length}`,
+      detail: `${openOrders.length} pedido(s) em aberto`,
+      icon: TableIcon,
+      target: 'mesas' as View,
+      tone: openOrders.length > 0 ? 'text-amber-500' : 'text-emerald-500',
+    },
+    {
+      label: 'Vendas',
+      value: formatCurrency(salesToday),
+      detail: `${totalOrdersToday} pedido(s) fechado(s) hoje`,
+      icon: TrendingUp,
+      target: 'relatorios' as View,
+      tone: 'text-emerald-500',
+    },
+    {
+      label: 'Estoque',
+      value: `${lowStockItems.length + expiredItemsCount} alerta(s)`,
+      detail: `${lowStockItems.length} crítico(s) · ${expiredItemsCount} vencido(s)`,
+      icon: PackageSearch,
+      target: 'estoque' as View,
+      tone: lowStockItems.length + expiredItemsCount > 0 ? 'text-red-500' : 'text-emerald-500',
+    },
+  ].filter(item => checkAccess(item.target));
 
   const handleExportCSV = () => {
     if (recentOrders.length === 0) return;
@@ -143,15 +259,95 @@ export const Dashboard: React.FC = () => {
         </div>
       </div>
 
+      <section className="grid grid-cols-1 xl:grid-cols-5 gap-6" aria-labelledby="dashboard-priorities-title">
+        <div className={`xl:col-span-3 p-6 ${ui.panel(isDark)}`}>
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
+            <div>
+              <h2 id="dashboard-priorities-title" className="font-bold text-sm uppercase tracking-wide">Prioridades de agora</h2>
+              <p className="mt-1 text-xs font-semibold opacity-50">Pendências ordenadas para orientar a próxima ação.</p>
+            </div>
+            <span className={`px-3 py-1.5 rounded-full text-[9px] font-bold uppercase tracking-wide ${decisions.length > 0 ? 'bg-amber-500/10 text-amber-600' : 'bg-emerald-500/10 text-emerald-600'}`}>
+              {decisions.length > 0 ? `${decisions.length} ${decisions.length === 1 ? 'pendência' : 'pendências'}` : 'Operação em dia'}
+            </span>
+          </div>
+
+          {decisions.length === 0 ? (
+            <div className="flex items-center gap-4 rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-5 text-emerald-600" role="status">
+              <CheckCircle2 className="h-6 w-6 shrink-0" aria-hidden="true" />
+              <div>
+                <p className="text-sm font-bold">Nenhuma pendência operacional prioritária</p>
+                <p className="mt-1 text-xs font-semibold opacity-75">Os módulos disponíveis para este perfil não apresentam alertas neste dispositivo.</p>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {decisions.map(decision => {
+                const toneClasses = decision.tone === 'critical'
+                  ? 'border-red-500/20 bg-red-500/5 text-red-600'
+                  : decision.tone === 'attention'
+                    ? 'border-amber-500/20 bg-amber-500/5 text-amber-600'
+                    : 'border-blue-500/20 bg-blue-500/5 text-blue-600';
+                return (
+                  <div key={decision.id} className={`flex flex-col sm:flex-row sm:items-center gap-4 rounded-lg border p-4 ${toneClasses}`}>
+                    <AlertTriangle className="h-5 w-5 shrink-0" aria-hidden="true" />
+                    <div className="min-w-0 flex-1">
+                      <h3 className="text-xs font-bold uppercase tracking-wide">{decision.title}</h3>
+                      <p className="mt-1 text-xs font-semibold leading-5 opacity-75">{decision.description}</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => onNavigate(decision.target)}
+                      className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-control border border-current/20 px-4 py-2 text-[9px] font-bold uppercase tracking-wide transition-colors hover:bg-current/10 focus:outline-none focus:ring-2 focus:ring-current/30"
+                    >
+                      {decision.action}
+                      <ChevronRight className="h-4 w-4" aria-hidden="true" />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        <div className={`xl:col-span-2 p-6 ${ui.panel(isDark)}`}>
+          <div className="mb-5">
+            <h2 className="font-bold text-sm uppercase tracking-wide">Pulso da operação</h2>
+            <p className="mt-1 text-xs font-semibold opacity-50">Acesso direto às quatro rotinas centrais.</p>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {operationalOverview.map(item => (
+              <button
+                key={item.label}
+                type="button"
+                onClick={() => onNavigate(item.target)}
+                aria-label={`Abrir ${item.label}: ${item.value}`}
+                className={`group min-h-28 rounded-lg border p-4 text-left transition-all focus:outline-none focus:ring-2 focus:ring-accent/30 ${isDark ? 'border-white/5 bg-white/[0.03] hover:bg-white/[0.06]' : 'border-gray-100 bg-gray-50 hover:bg-gray-100'}`}
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <item.icon className={`h-5 w-5 ${item.tone}`} aria-hidden="true" />
+                  <ChevronRight className="h-4 w-4 opacity-20 transition-transform group-hover:translate-x-0.5 group-hover:opacity-60" aria-hidden="true" />
+                </div>
+                <p className="mt-3 text-[9px] font-bold uppercase tracking-wide opacity-40">{item.label}</p>
+                <p className={`mt-0.5 text-lg font-bold ${item.tone}`}>{item.value}</p>
+                <p className="mt-1 text-[9px] font-semibold opacity-45">{item.detail}</p>
+              </button>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* KPIs */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
          {kpis.map((kpi, i) => (
-           <motion.div
-             key={i}
+           <motion.button
+             key={kpi.label}
+             type="button"
+             onClick={() => onNavigate(kpi.target)}
+             aria-label={`Detalhar ${kpi.label}: ${kpi.value}`}
              initial={{ opacity: 0, y: 20 }}
              animate={{ opacity: 1, y: 0 }}
              transition={{ delay: i * 0.1 }}
-             className={`p-6 transition-all hover:border-accent/20 ${ui.panel(isDark)}`}
+             className={`p-6 text-left transition-all hover:border-accent/20 focus:outline-none focus:ring-2 focus:ring-accent/30 ${ui.panel(isDark)}`}
            >
              <div className="flex justify-between items-start gap-3 mb-4">
                <div className={`p-2.5 rounded-xl ${kpi.bg}`}>
@@ -166,8 +362,13 @@ export const Dashboard: React.FC = () => {
              <div>
                <h3 className={`${ui.eyebrow} mb-1`}>{kpi.label}</h3>
                <p className="text-2xl font-bold tracking-tight">{kpi.value}</p>
+               <p className="mt-3 text-[10px] font-semibold leading-4 opacity-55">{kpi.definition}</p>
+               <p className="mt-2 inline-flex items-center gap-1 text-[8px] font-bold uppercase tracking-wide opacity-35">
+                 Origem: {kpi.source}
+                 <ChevronRight className="h-3 w-3" aria-hidden="true" />
+               </p>
              </div>
-           </motion.div>
+           </motion.button>
          ))}
       </div>
 

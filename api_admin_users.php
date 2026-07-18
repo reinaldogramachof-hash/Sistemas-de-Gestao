@@ -151,6 +151,62 @@ function supabase_admin_request($method, $endpoint, $body = null)
     ];
 }
 
+function sanitize_audit_metadata($metadata)
+{
+    if (!is_array($metadata)) return [];
+
+    $safe = [];
+    $blocked = '/password|token|secret|license|email|phone|name|description|observation|customer|item|address/i';
+    foreach (array_slice($metadata, 0, 20, true) as $key => $value) {
+        $key = substr(preg_replace('/[^a-z0-9_.-]/i', '_', (string)$key), 0, 48);
+        if ($key === '' || preg_match($blocked, $key)) continue;
+        if (is_bool($value) || is_int($value) || is_float($value)) {
+            $safe[$key] = $value;
+        } elseif (is_string($value)) {
+            $safe[$key] = substr($value, 0, 120);
+        }
+    }
+    return $safe;
+}
+
+function write_saas_audit($actorUserId, $tenantId, $action, array $payload = [])
+{
+    $safeAction = preg_replace('/[^a-z0-9_.-]/i', '_', substr((string)$action, 0, 80));
+    $correlationId = trim((string)($payload['correlation_id'] ?? ''));
+    $safePayload = [
+        'correlation_id' => substr($correlationId !== '' ? $correlationId : bin2hex(random_bytes(8)), 0, 64),
+        'metadata' => sanitize_audit_metadata($payload['metadata'] ?? []),
+    ];
+    $tenant = supabase_admin_request('GET', '/rest/v1/tenants?select=customer_id,system_id&id=eq.' . urlencode($tenantId) . '&limit=1');
+    $tenantRow = ($tenant['code'] === 200 && !empty($tenant['data'][0])) ? $tenant['data'][0] : [];
+    return supabase_admin_request('POST', '/rest/v1/saas_audit_logs', [
+        'actor_user_id' => $actorUserId,
+        'action' => $safeAction,
+        'customer_id' => $tenantRow['customer_id'] ?? null,
+        'tenant_id' => $tenantId,
+        'system_id' => $tenantRow['system_id'] ?? null,
+        'payload' => $safePayload,
+    ]);
+}
+
+function is_valid_private_lan_origin($origin)
+{
+    if ($origin === '') return true;
+    $parts = parse_url($origin);
+    if (!is_array($parts)) return false;
+    if (!in_array($parts['scheme'] ?? '', ['http', 'https'], true)) return false;
+    if (!isset($parts['host'], $parts['port']) || isset($parts['user']) || isset($parts['pass'])) return false;
+    if (($parts['path'] ?? '') !== '' || isset($parts['query']) || isset($parts['fragment'])) return false;
+
+    $host = (string)$parts['host'];
+    $port = (int)$parts['port'];
+    if ($port < 1 || $port > 65535 || filter_var($host, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4) === false) return false;
+
+    return preg_match('/^10\./', $host) === 1
+        || preg_match('/^192\.168\./', $host) === 1
+        || preg_match('/^172\.(1[6-9]|2\d|3[01])\./', $host) === 1;
+}
+
 // VALIDA TOKEN JWT DO USUÁRIO LOGADO
 function get_authenticated_user($jwt) {
     global $SUPABASE_URL, $SUPABASE_KEY;
@@ -502,7 +558,14 @@ if ($action === 'validate_member_access') {
     }
 
     $member = get_member_role($adminUserId, $tenantId);
-    if (!$member || $member['active'] !== true) {
+    if (!$member) {
+        http_response_code(403);
+        echo json_encode(['status' => 'error', 'message' => 'Usuario nao esta ativo neste restaurante.']);
+        exit;
+    }
+
+    if ($member['active'] !== true) {
+        write_saas_audit($adminUserId, $tenantId, 'comanda_access_denied', ['metadata' => ['reason' => 'inactive_member']]);
         http_response_code(403);
         echo json_encode(['status' => 'error', 'message' => 'Usuario nao esta ativo neste restaurante.']);
         exit;
@@ -510,12 +573,14 @@ if ($action === 'validate_member_access') {
 
     $allowedRoles = ['owner', 'admin', 'cashier', 'waiter'];
     if (!in_array($member['role'] ?? '', $allowedRoles, true)) {
+        write_saas_audit($adminUserId, $tenantId, 'comanda_access_denied', ['metadata' => ['reason' => 'role_mismatch']]);
         http_response_code(403);
         echo json_encode(['status' => 'error', 'message' => 'Usuario nao possui cargo valido neste restaurante.']);
         exit;
     }
 
     if ($requiredRole !== '' && $requiredRole !== 'team' && ($member['role'] ?? '') !== $requiredRole) {
+        write_saas_audit($adminUserId, $tenantId, 'comanda_access_denied', ['metadata' => ['reason' => 'role_mismatch_specific']]);
         http_response_code(403);
         echo json_encode(['status' => 'error', 'message' => 'Usuario nao possui o cargo especifico requerido.']);
         exit;
@@ -531,6 +596,76 @@ if ($action === 'validate_member_access') {
             'display_name' => $member['display_name'] ?? ''
         ]
     ]);
+    exit;
+}
+
+if ($action === 'get_waiter_access_settings') {
+    $tenantId = trim($jsonData['tenant_id'] ?? '');
+    $member = get_member_role($adminUserId, $tenantId);
+    if (!$tenantId || !$member || ($member['active'] ?? false) !== true) {
+        http_response_code(403);
+        echo json_encode(['status' => 'error', 'message' => 'Permissao negada.']);
+        exit;
+    }
+    $res = supabase_admin_request('GET', '/rest/v1/tenants?select=metadata&id=eq.' . urlencode($tenantId) . '&limit=1');
+    if ($res['code'] !== 200) {
+        http_response_code(503);
+        echo json_encode(['status' => 'error', 'message' => 'Configuracao temporariamente indisponivel.']);
+        exit;
+    }
+    $metadata = ($res['code'] === 200 && !empty($res['data'][0]['metadata']) && is_array($res['data'][0]['metadata'])) ? $res['data'][0]['metadata'] : [];
+    echo json_encode(['status' => 'success', 'settings' => $metadata['waiter_access'] ?? []]);
+    exit;
+}
+
+if ($action === 'save_waiter_access_settings') {
+    $tenantId = trim($jsonData['tenant_id'] ?? '');
+    $member = get_member_role($adminUserId, $tenantId);
+    if (!$tenantId || !$member || ($member['active'] ?? false) !== true || !in_array($member['role'] ?? '', ['owner', 'admin'], true)) {
+        http_response_code(403);
+        echo json_encode(['status' => 'error', 'message' => 'Apenas proprietario ou administrador pode alterar o acesso dos garçons.']);
+        exit;
+    }
+    $input = is_array($jsonData['settings'] ?? null) ? $jsonData['settings'] : [];
+    $mode = ($input['waiterAccessMode'] ?? 'local') === 'external' ? 'external' : 'local';
+    $origin = trim((string)($input['waiterLocalOrigin'] ?? ''));
+    if (strlen($origin) > 180 || !is_valid_private_lan_origin($origin)) {
+        http_response_code(400);
+        echo json_encode(['status' => 'error', 'message' => 'Endereco de rede local invalido.']);
+        exit;
+    }
+    $updated = supabase_admin_request('POST', '/rest/v1/rpc/set_tenant_waiter_access_settings', [
+        'p_tenant_id' => $tenantId,
+        'p_settings' => ['waiterAccessMode' => $mode, 'waiterLocalOrigin' => $origin],
+    ]);
+    if ($updated['code'] >= 400) {
+        http_response_code(503);
+        echo json_encode(['status' => 'error', 'message' => 'Falha ao salvar configuracao de acesso.']);
+        exit;
+    }
+    if (($updated['data'] ?? false) !== true) {
+        http_response_code(404);
+        echo json_encode(['status' => 'error', 'message' => 'Restaurante nao encontrado.']);
+        exit;
+    }
+    write_saas_audit($adminUserId, $tenantId, 'waiter_access_configuration_updated', ['metadata' => ['mode' => $mode, 'has_lan_origin' => $origin !== '']]);
+    echo json_encode(['status' => 'success']);
+    exit;
+}
+
+if ($action === 'write_audit_event') {
+    $tenantId = trim($jsonData['tenant_id'] ?? '');
+    $member = get_member_role($adminUserId, $tenantId);
+    if (!$tenantId || !$member || ($member['active'] ?? false) !== true) {
+        http_response_code(403);
+        echo json_encode(['status' => 'error', 'message' => 'Permissao negada.']);
+        exit;
+    }
+    $event = is_array($jsonData['event'] ?? null) ? $jsonData['event'] : [];
+    $actionName = 'client.' . trim((string)($event['action'] ?? 'operational_event'));
+    $metadata = is_array($event['metadata'] ?? null) ? $event['metadata'] : [];
+    write_saas_audit($adminUserId, $tenantId, $actionName, ['correlation_id' => $event['correlation_id'] ?? '', 'metadata' => $metadata]);
+    echo json_encode(['status' => 'success']);
     exit;
 }
 

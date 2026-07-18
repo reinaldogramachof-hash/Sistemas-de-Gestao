@@ -1,11 +1,14 @@
 import { useEffect, useState } from 'react';
 import { AppModule, PlanType, UserRole, isModuleAllowed } from '../config/modulesConfig';
 import { useApp } from '../store/AppContext';
+import { isSupabaseConfigured } from '../lib/supabase';
+import { listEnabledTenantModules } from '../services/tenantModulesService';
 
 export const useModules = () => {
-  const { currentUser } = useApp();
+  const { currentEmpresa, currentUser, supabaseOnline } = useApp();
   const [currentPlan, setCurrentPlan] = useState<PlanType>('base');
   const [currentRole, setCurrentRole] = useState<UserRole>('admin');
+  const [tenantModules, setTenantModules] = useState<AppModule[] | null>(null);
 
   useEffect(() => {
     const storedPlan = localStorage.getItem('gestao_gastro_verified_plan') as PlanType;
@@ -22,13 +25,35 @@ export const useModules = () => {
     setCurrentRole(activeRole && validRoles.includes(activeRole) ? activeRole : 'admin');
   }, [currentUser.role]);
 
+  useEffect(() => {
+    let active = true;
+    const load = async () => {
+      if (!isSupabaseConfigured || !supabaseOnline || !currentEmpresa.tenantId) {
+        if (active) setTenantModules(null);
+        return;
+      }
+      try {
+        const modules = await listEnabledTenantModules(currentEmpresa.tenantId);
+        if (active) setTenantModules(modules);
+      } catch (error) {
+        console.error('Falha ao carregar módulos do tenant:', error);
+        if (active) setTenantModules([]);
+      }
+    };
+    void load();
+    return () => { active = false; };
+  }, [currentEmpresa.tenantId, supabaseOnline]);
+
   const checkAccess = (module: AppModule): boolean => {
-    return isModuleAllowed(module, currentPlan, currentRole);
+    const requiresTenantContract = isSupabaseConfigured && supabaseOnline && Boolean(currentEmpresa.tenantId);
+    const allowedByTenant = requiresTenantContract ? tenantModules?.includes(module) === true : true;
+    return isModuleAllowed(module, currentPlan, currentRole) && allowedByTenant;
   };
 
   return {
     currentPlan,
     currentRole,
+    tenantModules,
     checkAccess,
   };
 };

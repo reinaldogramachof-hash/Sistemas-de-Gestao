@@ -35,9 +35,7 @@ test('Inspect modulesConfig.ts for correct planMatrix', () => {
       'estoque',
       'manual',
       'configuracoes',
-      'suporte',
-      'seguranca',
-      'evolucao'
+      'suporte'
     ],
     'Base plan should match the client module package'
   );
@@ -46,8 +44,8 @@ test('Inspect modulesConfig.ts for correct planMatrix', () => {
   assert.ok(!baseModules.includes("'clientes'"), 'Base plan should NOT have clientes');
   assert.ok(!baseModules.includes("'fornecedores'"), 'Base plan should NOT have fornecedores');
   assert.ok(!baseModules.includes("'colaboradores'"), 'Base plan should NOT have colaboradores');
-  assert.ok(baseModules.includes("'seguranca'"), 'Base plan should have seguranca');
-  assert.ok(baseModules.includes("'evolucao'"), 'Base plan should have evolucao');
+  assert.ok(!baseModules.includes("'seguranca'"), 'Base plan should not expose an uncontracted seguranca module');
+  assert.ok(!baseModules.includes("'evolucao'"), 'Base plan should not expose an uncontracted evolucao module');
 
   // Verifica premium e master plan tem os módulos que faltam
   const premiumMatch = configContent.match(/premium:\s*\{[\s\S]*?allowedModules:\s*\[([\s\S]*?)\]/);
@@ -63,6 +61,9 @@ test('Inspect useModules.ts for localStorage usage and fallback', () => {
 
   assert.match(hookContent, /localStorage\.getItem\('gestao_gastro_verified_plan'\)/, 'Should read plan from verified localStorage key');
   assert.match(hookContent, /setCurrentPlan\('base'\)/, 'Should have fallback to base plan');
+  assert.match(hookContent, /listEnabledTenantModules/, 'Should load the tenant module contract after authentication');
+  assert.match(hookContent, /requiresTenantContract/, 'Online tenants should require the remote module contract');
+  assert.match(hookContent, /tenantModules\?\.includes\(module\) === true/, 'The UI should fail closed while the tenant contract is loading');
 });
 
 test('Base plan exposes commercial module aliases for licensing', () => {

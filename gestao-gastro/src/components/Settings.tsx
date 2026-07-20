@@ -8,12 +8,15 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { AppSettings, Collaborator } from '../types';
-import { getComandaAccessUrl, getComandaQrImageUrl, validateLanOrigin } from '../utils/comandaAccess';
+import { getComandaAccessUrl, validateLanOrigin } from '../utils/comandaAccess';
 import { supabase } from '../lib/supabase';
 import { HelpTooltip } from './HelpTooltip';
+import { OperationFeedback, type OperationFeedbackMessage } from './OperationFeedback';
 import { useModules } from '../hooks/useModules';
+import { LocalQrCode } from './LocalQrCode';
 
 type EditableMemberRole = 'waiter' | 'cashier' | 'admin';
+type WaiterSettingsStatus = 'idle' | 'loading' | 'saving' | 'saved' | 'pending' | 'error';
 
 export const Settings: React.FC = () => {
   const { settings, updateSettings, exportData, importData, resetToMocks, theme, collaborators, tables, currentEmpresa, supabaseOnline, reloadCollaborators, initializeTables, currentUser } = useApp();
@@ -21,9 +24,13 @@ export const Settings: React.FC = () => {
   const isDark = theme === 'dark';
 
   const [formData, setFormData] = useState<AppSettings>(settings);
+  const [feedback, setFeedback] = useState<OperationFeedbackMessage | null>(null);
   const [activeTab, setActiveTab] = useState<'store' | 'tables' | 'access' | 'kitchen' | 'printer' | 'data'>('store');
   const [isSaving, setIsSaving] = useState(false);
   const [copiedAccess, setCopiedAccess] = useState(false);
+  const [qrDataUrl, setQrDataUrl] = useState('');
+  const [waiterSettingsStatus, setWaiterSettingsStatus] = useState<WaiterSettingsStatus>('idle');
+  const savingTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [modalOpen, setModalOpen] = useState(false);
   const [newUserName, setNewUserName] = useState('');
@@ -96,6 +103,61 @@ export const Settings: React.FC = () => {
     };
   }, [currentUser.name, supabaseOnline]);
 
+  React.useEffect(() => {
+    let active = true;
+    const controller = new AbortController();
+    const loadWaiterAccess = async () => {
+      if (!supabaseOnline || !currentEmpresa.tenantId || !supabase) return;
+      setWaiterSettingsStatus('loading');
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) throw new Error('Sessão expirada');
+        const pendingKey = `gestao_gastro_waiter_access_pending_${currentEmpresa.tenantId}`;
+        const pendingSettings = localStorage.getItem(pendingKey);
+
+        if (pendingSettings) {
+          const response = await fetch('/api_admin_users.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+            body: JSON.stringify({ action: 'save_waiter_access_settings', tenant_id: currentEmpresa.tenantId, settings: JSON.parse(pendingSettings) }),
+            signal: controller.signal,
+          });
+          if (!response.ok) throw new Error('Sincronização pendente');
+          localStorage.removeItem(pendingKey);
+          if (active) setWaiterSettingsStatus('saved');
+          return;
+        }
+
+        const response = await fetch('/api_admin_users.php', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+          body: JSON.stringify({ action: 'get_waiter_access_settings', tenant_id: currentEmpresa.tenantId }),
+          signal: controller.signal,
+        });
+        const data = await response.json().catch(() => null);
+        if (!response.ok) throw new Error(data?.message || 'Configuração indisponível');
+        if (active && data?.settings) {
+          setFormData(previous => ({ ...previous, ...data.settings }));
+          setWaiterSettingsStatus('saved');
+        }
+      } catch {
+        if (active && !controller.signal.aborted) {
+          const pendingKey = `gestao_gastro_waiter_access_pending_${currentEmpresa.tenantId}`;
+          setWaiterSettingsStatus(localStorage.getItem(pendingKey) ? 'pending' : 'error');
+        }
+      }
+    };
+    void loadWaiterAccess();
+    return () => {
+      active = false;
+      controller.abort();
+    };
+  }, [currentEmpresa.tenantId, supabaseOnline]);
+
+  React.useEffect(() => () => {
+    if (savingTimerRef.current) clearTimeout(savingTimerRef.current);
+  }, []);
+
   const getEditableRoleFromMember = (member: Collaborator): EditableMemberRole => {
     const normalizedRole = `${member.role || ''} ${member.permissions || ''}`.toLowerCase();
     if (normalizedRole.includes('admin') || normalizedRole.includes('propriet')) return 'admin';
@@ -124,13 +186,13 @@ export const Settings: React.FC = () => {
 
   const handleToggleStatus = async (collabId: string, currentStatus: string) => {
     if (!supabaseOnline || !currentEmpresa.tenantId) {
-      alert('Operação remota indisponível no momento.');
+      setFeedback({ tone: 'error', title: 'Ação não permitida', description: 'Operação remota indisponível no momento.' });
       return;
     }
 
     const { data: { session } } = await supabase!.auth.getSession();
     if (!session) {
-      alert('Sessão expirada. Faça login novamente.');
+      setFeedback({ tone: 'error', title: 'Sessão expirada', description: 'Faça login novamente.' });
       return;
     }
 
@@ -155,10 +217,59 @@ export const Settings: React.FC = () => {
       if (response.ok && data.status === 'success') {
         await reloadCollaborators();
       } else {
-        alert(data.message || 'Erro ao alterar status do colaborador.');
+        setFeedback({ tone: 'error', title: 'Erro', description: data.message || 'Erro ao alterar status do colaborador.' });
       }
     } catch (err) {
-      alert('Erro de conexão ao servidor.');
+      setFeedback({ tone: 'error', title: 'Erro de conexão', description: 'Não foi possível conectar ao servidor.' });
+    }
+  };
+
+  const handleDeleteMember = async (collabId: string) => {
+    if (!window.confirm("ATENÇÃO: Deseja realmente excluir este colaborador? Esta ação não pode ser desfeita e removerá o login do usuário permanentemente.")) {
+      return;
+    }
+
+    if (!supabaseOnline || !currentEmpresa.tenantId) {
+      setFeedback({ tone: 'error', title: 'Ação não permitida', description: 'Operação remota indisponível no momento.' });
+      return;
+    }
+
+    const { data: { session } } = await supabase!.auth.getSession();
+    if (!session) {
+      setFeedback({ tone: 'error', title: 'Sessão expirada', description: 'Faça login novamente.' });
+      return;
+    }
+
+    setEditMemberLoading(true);
+
+    try {
+      const response = await fetch('/api_admin_users.php', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({
+          action: 'delete_member',
+          tenant_id: currentEmpresa.tenantId,
+          user_id: collabId
+        })
+      });
+
+      const data = await response.json();
+      if (response.ok && data.status === 'success') {
+        setFeedback({ tone: 'success', title: 'Sucesso', description: 'Colaborador excluído com sucesso.' });
+        closeEditMemberModal(true);
+        await reloadCollaborators();
+      } else {
+        setEditMemberError(data.message || 'Erro ao excluir colaborador.');
+        setFeedback({ tone: 'error', title: 'Erro', description: data.message || 'Erro ao excluir colaborador.' });
+      }
+    } catch (err) {
+      setEditMemberError('Não foi possível conectar ao servidor.');
+      setFeedback({ tone: 'error', title: 'Erro de conexão', description: 'Não foi possível conectar ao servidor.' });
+    } finally {
+      setEditMemberLoading(false);
     }
   };
 
@@ -267,7 +378,7 @@ export const Settings: React.FC = () => {
 
       const data = await response.json();
       if (response.ok && data.status === 'success') {
-        alert('Colaborador cadastrado com sucesso!');
+        setFeedback({ tone: 'success', title: 'Sucesso', description: 'Colaborador cadastrado com sucesso!' });
         setModalOpen(false);
         setNewUserName('');
         setNewUserEmail('');
@@ -337,12 +448,12 @@ export const Settings: React.FC = () => {
   const handleInitializeTables = async () => {
     const userRole = currentUser.role ? currentUser.role.toLowerCase() : '';
     if (userRole !== 'owner' && userRole !== 'admin' && userRole !== 'proprietário' && userRole !== 'administrador') {
-      alert('Apenas o proprietário ou administrador podem gerenciar as mesas do salão.');
+      setFeedback({ tone: 'error', title: 'Acesso Negado', description: 'Apenas o proprietário ou administrador podem gerenciar as mesas do salão.' });
       return;
     }
 
     if (initTablesCount <= 0 || initTablesCount > 100) {
-      alert('Quantidade inválida. Escolha entre 1 e 100 mesas.');
+      setFeedback({ tone: 'warning', title: 'Atenção', description: 'Quantidade inválida. Escolha entre 1 e 100 mesas.' });
       return;
     }
 
@@ -356,9 +467,9 @@ export const Settings: React.FC = () => {
         20000,
         'A sincronizaÃ§Ã£o com o Supabase demorou mais que o esperado. Recarregue a tela e confira sua conexÃ£o antes de tentar novamente.'
       );
-      alert('Mesas inicializadas com sucesso no restaurante!');
+      setFeedback({ tone: 'success', title: 'Sucesso', description: 'Mesas inicializadas com sucesso no restaurante!' });
     } catch (err: any) {
-      alert(err.message || 'Erro ao inicializar mesas. Verifique sua conexão com o banco.');
+      setFeedback({ tone: 'error', title: 'Erro', description: err.message || 'Erro ao inicializar mesas. Verifique sua conexão com o banco.' });
     } finally {
       setIsInitializingTables(false);
     }
@@ -373,7 +484,24 @@ export const Settings: React.FC = () => {
         source: 'settings-panel'
       }
     });
-    setTimeout(() => setIsSaving(false), 800);
+    if (savingTimerRef.current) clearTimeout(savingTimerRef.current);
+    savingTimerRef.current = setTimeout(() => setIsSaving(false), 800);
+  };
+
+  const persistWaiterAccessSettings = async (nextSettings: AppSettings) => {
+    persistSettings(nextSettings);
+    if (!supabaseOnline || !currentEmpresa.tenantId || !supabase) return;
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return;
+    const response = await fetch('/api_admin_users.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+      body: JSON.stringify({ action: 'save_waiter_access_settings', tenant_id: currentEmpresa.tenantId, settings: {
+        waiterAccessMode: nextSettings.waiterAccessMode || 'local',
+        waiterLocalOrigin: nextSettings.waiterLocalOrigin || '',
+      } }),
+    });
+    if (!response.ok) setLanValidationMsg({ type: 'error', text: 'Não foi possível salvar o acesso dos garçons na nuvem.' });
   };
 
   const handleSave = () => {
@@ -385,7 +513,7 @@ export const Settings: React.FC = () => {
       ? { ...formData, waiterAccessMode: mode }
       : { ...formData, waiterAccessMode: mode };
     setFormData(updated);
-    persistSettings(updated);
+    void persistWaiterAccessSettings(updated);
     setLanValidationMsg(
       mode === 'external'
         ? { type: 'warn', text: 'Acesso externo salvo. O QR Code abrira a comanda pela internet para garcons autenticados.' }
@@ -402,7 +530,7 @@ export const Settings: React.FC = () => {
       return;
     }
 
-    const result = validateLanOrigin(value);
+    const result = validateLanOrigin(value, window.location.origin);
     setLanValidationMsg({
       type: result.valid ? 'ok' : 'error',
       text: result.message || (result.valid ? 'Endereco de rede local valido.' : 'Endereco de rede local invalido.')
@@ -410,35 +538,32 @@ export const Settings: React.FC = () => {
   };
 
   const handleLanOriginBlur = () => {
-    const result = validateLanOrigin(formData.waiterLocalOrigin || formData.localTestOrigin || '');
+    const result = validateLanOrigin(formData.waiterLocalOrigin || formData.localTestOrigin || '', window.location.origin);
     if (!result.valid || !result.origin) return;
 
     const updated = { ...formData, waiterAccessMode: 'local' as const, waiterLocalOrigin: result.origin, localTestOrigin: '' };
     setFormData(updated);
-    persistSettings(updated);
+    void persistWaiterAccessSettings(updated);
     setLanValidationMsg({ type: 'ok', text: result.message || 'Endereco de rede local salvo.' });
   };
 
   const handleUseCurrentLanOrigin = () => {
     const hostname = window.location.hostname;
     const isLoopbackOrigin = hostname === 'localhost' || hostname.startsWith('127.');
-    const result = validateLanOrigin(window.location.origin);
+    const result = validateLanOrigin(window.location.origin, window.location.origin);
 
     if (result.valid && result.origin) {
       const updated = { ...formData, waiterAccessMode: 'local' as const, waiterLocalOrigin: result.origin, localTestOrigin: '' };
       setFormData(updated);
-      persistSettings(updated);
-      setLanValidationMsg({ type: 'ok', text: 'Endereco atual salvo para o QR Code local.' });
+      void persistWaiterAccessSettings(updated);
+      setLanValidationMsg({ type: 'ok', text: `Rede local detectada e salva: ${result.origin}.` });
     } else if (!isLoopbackOrigin) {
-      const updated = { ...formData, waiterAccessMode: 'external' as const, waiterLocalOrigin: '', localTestOrigin: '' };
-      setFormData(updated);
-      persistSettings(updated);
       setLanValidationMsg({
         type: 'warn',
-        text: 'Ambiente online detectado. O QR Code foi configurado para acesso externo seguro. Para rede local, informe o IP privado do computador.'
+        text: 'Deteccao automatica indisponivel neste endereco online. Para QR local, abra o painel pelo IP do computador servidor na rede Wi-Fi ou use acesso externo.'
       });
     } else {
-      setLanValidationMsg({ type: 'error', text: 'Abra este painel pelo IP da maquina na rede Wi-Fi ou digite o endereco manualmente, como http://192.168.0.10:3000.' });
+      setLanValidationMsg({ type: 'error', text: 'Abra este painel pelo IP da maquina na rede Wi-Fi ou digite o IPv4 do Windows, como 192.168.1.105. A porta sera preenchida automaticamente quando possivel.' });
     }
   };
 
@@ -464,18 +589,21 @@ export const Settings: React.FC = () => {
     reader.readAsText(file);
   };
 
+  const currentPort = window.location.port || '3000';
+  const lanExample = `192.168.1.105:${currentPort}`;
+  const currentLanDetection = validateLanOrigin(window.location.origin, window.location.origin);
+  const canAutoDetectLan = currentLanDetection.valid && Boolean(currentLanDetection.origin);
   const isCurrentOriginLocal =
     window.location.origin.includes('localhost') ||
     window.location.origin.includes('127.0.0.1') ||
-    validateLanOrigin(window.location.origin).valid;
+    canAutoDetectLan;
   const configuredLanOrigin = formData.waiterLocalOrigin || formData.localTestOrigin || '';
-  const configuredLanValidation = configuredLanOrigin ? validateLanOrigin(configuredLanOrigin) : null;
+  const configuredLanValidation = configuredLanOrigin ? validateLanOrigin(configuredLanOrigin, window.location.origin) : null;
   const isLocalAccessMode = (formData.waiterAccessMode || 'local') !== 'external';
   const canGenerateLocalAccess = !isLocalAccessMode || Boolean(configuredLanValidation?.valid) || isCurrentOriginLocal;
   const comandaAccessUrl = canGenerateLocalAccess
     ? getComandaAccessUrl(window.location.origin, window.location.pathname, formData.waiterAccessMode || 'local', formData.waiterLocalOrigin, formData.localTestOrigin)
     : '';
-  const comandaQrUrl = comandaAccessUrl ? getComandaQrImageUrl(comandaAccessUrl) : '';
   const waiterMembers = collaborators.filter(member => member.permissions === 'waiter');
   const activeWaiterMembers = waiterMembers.filter(member => member.status === 'active');
   const freeTables = tables.filter(table => table.status === 'livre').length;
@@ -512,6 +640,7 @@ export const Settings: React.FC = () => {
 
   return (
     <div className="space-y-8 animate-in fade-in duration-200 pb-24">
+      <OperationFeedback feedback={feedback} onDismiss={() => setFeedback(null)} />
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div>
@@ -878,14 +1007,20 @@ export const Settings: React.FC = () => {
 
                 {formData.waiterAccessMode !== 'external' && (
                   <div className="mt-4 p-5 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
-                    <p className="text-xs font-bold text-emerald-600 dark:text-emerald-400 mb-3">Informe o endereco deste computador na rede Wi-Fi do restaurante.</p>
+                    <p className="text-xs font-bold text-emerald-600 dark:text-emerald-400 mb-3">Informe o IPv4 deste computador na rede Wi-Fi do restaurante.</p>
+                    {!canAutoDetectLan && !window.location.hostname.includes('localhost') && !window.location.hostname.startsWith('127.') && (
+                      <div className="mb-3 rounded-lg border border-amber-500/20 bg-amber-500/10 p-3 text-[10px] font-bold leading-relaxed text-amber-600 dark:text-amber-400">
+                        A deteccao automatica da rede local so funciona quando este painel e aberto pelo IP local do servidor.
+                        No dominio online, o navegador nao permite descobrir o IPv4 da sua maquina automaticamente.
+                      </div>
+                    )}
                     <div className="flex flex-col sm:flex-row gap-3">
                       <input
                         type="text"
                         value={formData.waiterLocalOrigin || formData.localTestOrigin || ''}
                         onChange={e => handleLanOriginInput(e.target.value)}
                         onBlur={handleLanOriginBlur}
-                        placeholder="http://192.168.0.10:3000"
+                        placeholder={lanExample}
                         className={`flex-1 h-11 px-4 rounded-lg border outline-none text-sm font-mono opacity-70 ${
                           isDark ? 'bg-black/20 border-[#2C2C2E]' : 'bg-white border-gray-200'
                         }`}
@@ -895,7 +1030,7 @@ export const Settings: React.FC = () => {
                         onClick={handleUseCurrentLanOrigin}
                         className="h-11 px-6 rounded-lg bg-emerald-500 text-white text-[10px] font-bold uppercase tracking-wide hover:opacity-90 active:scale-95 transition-all"
                       >
-                        Usar endereco atual
+                        Detectar endereco atual
                       </button>
                     </div>
                     {lanValidationMsg && (
@@ -905,7 +1040,12 @@ export const Settings: React.FC = () => {
                     )}
                     {(!formData.waiterLocalOrigin && !formData.localTestOrigin && !lanValidationMsg) && (
                       <p className="text-[10px] font-semibold opacity-80 mt-3 text-emerald-600 dark:text-emerald-400">
-                         Use o endereco atual se o painel ja abriu pelo IP da rede, ou digite o IP manualmente.
+                         Abra o painel pelo IP local para detectar automaticamente, ou digite o IPv4 exibido no Windows. Exemplo: {lanExample}.
+                      </p>
+                    )}
+                    {isLocalAccessMode && configuredLanValidation?.valid && configuredLanValidation.origin && (
+                      <p className="text-[10px] font-bold mt-3 text-emerald-600 dark:text-emerald-400">
+                        QR local pronto para a rede: {configuredLanValidation.origin}
                       </p>
                     )}
                   </div>
@@ -933,7 +1073,7 @@ export const Settings: React.FC = () => {
                             <HelpTooltip id="help-comanda-link" content="Este link permite que os garçons façam login e acessem o fluxo de comanda mobile pelo celular." anchorId="comanda-mobile" />
                           </p>
                           <p className="text-[11px] font-semibold opacity-50 break-all mt-1">
-                            {comandaAccessUrl || 'Informe um IP local valido para gerar o link e o QR Code da comanda.'}
+                            {comandaAccessUrl || `Informe o IPv4 local, como ${lanExample}, para gerar o link e o QR Code da comanda.`}
                           </p>
                         </div>
                       </div>
@@ -979,64 +1119,76 @@ export const Settings: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Tabela de Colaboradores e Cadastro */}
-                  <div className={`rounded-xl border overflow-hidden ${isDark ? 'bg-white/5 border-white/5' : 'bg-gray-50 border-gray-100'}`}>
-                    <div className="p-5 border-b border-current/10 flex items-center justify-between gap-4">
+                  {/* Grade de Colaboradores e Cadastro */}
+                  <div className="space-y-4">
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                       <div>
-                        <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-wide">Membros da Equipe <HelpTooltip content="Atenção: Administradores têm acesso irrestrito ao sistema. Atendentes operam Caixa e Mesas. Garçons usam acesso móvel para comandas." /></p>
+                        <p className="flex items-center gap-2 text-base font-bold tracking-tighter uppercase">Membros da Equipe <HelpTooltip content="Atenção: Administradores têm acesso irrestrito ao sistema. Atendentes operam Caixa e Mesas. Garçons usam acesso móvel para comandas." /></p>
                         <p className="text-[9px] font-bold uppercase tracking-wide opacity-40">Equipe gerenciada na nuvem para este restaurante</p>
                       </div>
                       {supabaseOnline && isAdminOrOwner && (
                         <button
                           type="button"
                           onClick={() => setModalOpen(true)}
-                          className="px-4 h-9 rounded-lg bg-emerald-500 text-white text-[9px] font-bold uppercase tracking-wide flex items-center gap-1.5 active:scale-95 transition-all"
+                          className="px-6 h-10 rounded-xl bg-emerald-500 text-white text-[10px] font-bold uppercase tracking-wide flex items-center justify-center gap-2 hover:opacity-90 active:scale-95 transition-all shadow-sm"
                         >
-                          <UserPlus className="w-3.5 h-3.5" />
-                          Adicionar Usuário
+                          <UserPlus className="w-4 h-4" />
+                          Adicionar Novo
                         </button>
                       )}
                     </div>
-                    <div className="divide-y divide-current/10">
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-4">
                       {collaborators.length === 0 ? (
-                        <div className="p-6 text-xs font-semibold opacity-40 text-center">Nenhum colaborador cadastrado.</div>
-                      ) : collaborators.map(member => (
-                        <div key={member.id} className="p-5 flex flex-col md:flex-row md:items-center justify-between gap-3">
-                          <div>
-                            <p className="text-sm font-bold">{member.name}</p>
-                            <p className="text-[10px] font-semibold opacity-40">{member.role}</p>
-                          </div>
-                          <div className="flex items-center gap-3">
-                            <span className={`px-3 py-1 rounded-lg text-[9px] font-bold uppercase tracking-wide ${member.status === 'active' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-gray-500/10 text-gray-500'}`}>
-                              {member.status === 'active' ? 'Ativo' : 'Inativo'}
-                            </span>
+                        <div className={`col-span-full p-8 rounded-xl border text-center ${isDark ? 'bg-white/5 border-white/5 text-white/40' : 'bg-gray-50 border-gray-100 text-gray-400'}`}>
+                          <p className="text-xs font-bold uppercase tracking-wide">Nenhum colaborador cadastrado</p>
+                        </div>
+                      ) : collaborators.map(member => {
+                        const isAtivo = member.status === 'active';
+                        const initials = member.name?.substring(0, 2).toUpperCase() || 'US';
+                        return (
+                          <div key={member.id} className={`p-5 rounded-xl border flex flex-col justify-between gap-4 transition-all hover:shadow-md ${isDark ? 'bg-[#1C1C1E] border-[#2C2C2E]' : 'bg-white border-gray-100'}`}>
+                            
+                            {/* Avatar & Info */}
+                            <div className="flex items-start gap-4">
+                              <div className={`w-12 h-12 rounded-full flex items-center justify-center text-sm font-black tracking-tighter shrink-0 ${isAtivo ? 'bg-emerald-500/10 text-emerald-500' : 'bg-gray-500/10 text-gray-500'}`}>
+                                {initials}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center justify-between gap-2">
+                                  <p className="text-sm font-bold truncate">{member.name}</p>
+                                  <span className={`px-2 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider shrink-0 ${isAtivo ? 'bg-emerald-500 text-white' : 'bg-gray-500 text-white'}`}>
+                                    {isAtivo ? 'Ativo' : 'Inativo'}
+                                  </span>
+                                </div>
+                                <p className="text-[10px] font-bold uppercase tracking-wide opacity-50 mt-1">{member.role}</p>
+                              </div>
+                            </div>
+
+                            {/* Actions */}
                             {supabaseOnline && isAdminOrOwner && member.id !== currentUser.id && (
-                              <>
+                              <div className="grid grid-cols-2 gap-2 mt-2 border-t border-current/5 pt-4">
                                 <button
                                   type="button"
                                   onClick={() => openEditMemberModal(member)}
-                                  className="px-3 py-1 rounded-lg border bg-blue-500/10 border-blue-500/20 text-blue-500 hover:bg-blue-500/20 text-[9px] font-bold uppercase tracking-wide transition-all active:scale-95 flex items-center gap-1.5"
+                                  className="h-9 rounded-lg bg-[#475569]/10 text-[#475569] dark:bg-white/5 dark:text-white dark:hover:bg-white/10 hover:bg-[#475569]/20 text-[9px] font-bold uppercase tracking-wide transition-all flex items-center justify-center gap-1.5"
                                 >
-                                  <Pencil className="w-3 h-3" />
+                                  <Pencil className="w-3.5 h-3.5" />
                                   Editar
                                 </button>
                                 <button
                                   type="button"
-                                  onClick={() => handleToggleStatus(member.id, member.status)}
-                                  className={`px-3 py-1 rounded-lg border text-[9px] font-bold uppercase tracking-wide transition-all active:scale-95
-                                    ${member.status === 'active'
-                                      ? 'bg-red-500/10 border-red-500/20 text-red-500 hover:bg-red-500/20'
-                                      : 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500 hover:bg-emerald-500/20'
-                                    }
-                                  `}
+                                  onClick={() => handleDeleteMember(member.id)}
+                                  className="h-9 rounded-lg bg-red-500/10 text-red-500 hover:bg-red-500/20 text-[9px] font-bold uppercase tracking-wide transition-all flex items-center justify-center gap-1.5"
                                 >
-                                  {member.status === 'active' ? 'Desativar' : 'Ativar'}
+                                  <XIcon className="w-3.5 h-3.5" />
+                                  Excluir
                                 </button>
-                              </>
+                              </div>
                             )}
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
 
@@ -1065,11 +1217,11 @@ export const Settings: React.FC = () => {
 
                 <div className={`p-6 rounded-xl border flex flex-col items-center text-center gap-5 ${isDark ? 'bg-white/5 border-white/5' : 'bg-gray-50 border-gray-100'}`}>
                   <div className="w-full max-w-[240px] rounded-xl bg-white p-4 shadow-sm">
-                    {comandaQrUrl ? (
-                      <img src={comandaQrUrl} alt="QR Code da comanda mobile" className="w-full aspect-square object-contain" />
+                    {comandaAccessUrl ? (
+                      <LocalQrCode value={comandaAccessUrl} label="QR Code da comanda mobile" />
                     ) : (
                       <div className="w-full aspect-square rounded-lg border border-dashed border-slate-300 bg-slate-50 text-slate-500 flex items-center justify-center p-5 text-center text-xs font-bold leading-relaxed">
-                        Informe o IP local para gerar o QR.
+                        Informe o IPv4 local para gerar o QR.
                       </div>
                     )}
                   </div>
@@ -1083,8 +1235,8 @@ export const Settings: React.FC = () => {
                   </div>
                   <button
                     type="button"
-                    onClick={() => window.open(comandaQrUrl, '_blank', 'noopener,noreferrer')}
-                    disabled={!comandaQrUrl}
+                    onClick={() => window.print()}
+                    disabled={!comandaAccessUrl}
                     className="w-full h-11 rounded-lg bg-emerald-500 text-white text-[9px] font-bold uppercase tracking-wide flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
                   >
                     <QrCode className="w-4 h-4" />
@@ -1399,7 +1551,7 @@ export const Settings: React.FC = () => {
                   <button
                     onClick={() => {
                       setFormData({ ...formData, thermalPrinter: { ...formData.thermalPrinter, testPrint: true } });
-                      alert("Testando comunicação... Em breve esta função imprimirá o cupom diretamente.");
+                      setFeedback({ tone: 'info', title: 'Em breve', description: 'Testando comunicação... Em breve esta função imprimirá o cupom diretamente.' });
                       setTimeout(() => setFormData({ ...formData, thermalPrinter: { ...formData.thermalPrinter, testPrint: false } }), 1000);
                     }}
                     className={`px-4 h-8 rounded-lg font-bold text-[9px] uppercase tracking-wide transition-all bg-[#475569] text-white`}

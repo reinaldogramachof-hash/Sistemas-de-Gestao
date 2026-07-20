@@ -27,6 +27,7 @@ export const AdminAuthGate: React.FC<AdminAuthGateProps> = ({ children }) => {
   const [name, setName] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
   const [formLoading, setFormLoading] = useState(false);
 
   // 1. Verifica se já existe owner no tenant (consulta anônima ao PHP)
@@ -196,6 +197,7 @@ export const AdminAuthGate: React.FC<AdminAuthGateProps> = ({ children }) => {
     if (!isSupabaseConfigured || !supabase) return;
 
     setError('');
+    setSuccessMsg('');
     setFormLoading(true);
 
     try {
@@ -221,6 +223,7 @@ export const AdminAuthGate: React.FC<AdminAuthGateProps> = ({ children }) => {
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setSuccessMsg('');
 
     if (password.length < 6) {
       setError('A senha deve ter pelo menos 6 caracteres.');
@@ -260,7 +263,7 @@ export const AdminAuthGate: React.FC<AdminAuthGateProps> = ({ children }) => {
       const data = await response.json();
 
       if (response.ok && data.status === 'success') {
-        alert('Cadastro realizado com sucesso! Efetue o login para acessar o painel.');
+        setSuccessMsg('Cadastro realizado com sucesso! Efetue o login para acessar o painel.');
         setAuthMode('login');
         setHasOwner(true);
         setPassword('');
@@ -430,6 +433,12 @@ export const AdminAuthGate: React.FC<AdminAuthGateProps> = ({ children }) => {
         ) : (
           /* Formulário de Login */
           <form onSubmit={handleLogin} className="space-y-4">
+            {successMsg && (
+              <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl flex items-center gap-2">
+                <ShieldCheck className="w-4 h-4 text-emerald-500 shrink-0" />
+                <p className="text-emerald-400 text-xs font-semibold leading-normal">{successMsg}</p>
+              </div>
+            )}
             <div className="space-y-1">
               <label className="text-[9px] font-bold text-gray-400 uppercase tracking-wide ml-1">E-mail Administrativo</label>
               <div className="relative">

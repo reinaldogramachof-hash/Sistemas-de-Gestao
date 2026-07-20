@@ -53,13 +53,15 @@ test('comandaAccess.ts: deve rejeitar localhost, 127.0.0.1, URLs com caminho e I
   // Verifica que IPs privados validos sao aceitos (regex presente)
   assert.ok(source.includes('192.168'), 'Deve aceitar 192.168.x.x via regex');
   assert.ok(source.includes('10.'), 'Deve aceitar 10.x.x.x via regex');
+  assert.ok(source.includes('normalizeLanInput'), 'Deve normalizar IP puro ou IP:porta antes de gerar o QR');
+  assert.ok(source.includes('porta ${normalized.parsed.port} adicionada'), 'Deve informar quando a porta foi inferida automaticamente');
 });
 
 test('comandaAccess.ts: getComandaAccessUrl deve usar validateLanOrigin internamente', () => {
   const source = read('gestao-gastro/src/utils/comandaAccess.ts');
   assert.ok(
-    source.includes('validateLanOrigin(targetOrigin)'),
-    'getComandaAccessUrl deve chamar validateLanOrigin ao processar o origin local'
+    source.includes('validateLanOrigin(targetOrigin, windowOrigin)'),
+    'getComandaAccessUrl deve chamar validateLanOrigin com origem atual ao processar o origin local'
   );
   assert.ok(
     source.includes("'https://www.sistemasdegestao.tech'"),

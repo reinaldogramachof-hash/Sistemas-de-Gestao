@@ -2,12 +2,14 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useApp } from '../store/AppContext';
 import { Product, Order } from '../types';
 import { MenuList } from './MenuList';
-import { X, Search, Minus, Trash2, Plus, MoveRight, Merge, Clock, Settings, Users, Baby, User, CalendarCheck, PlayCircle, Loader2, AlertTriangle, RefreshCw, ShoppingBag, ChevronRight, LayoutGrid, List, CheckCircle } from 'lucide-react';
+import { X, Search, Minus, Trash2, Plus, MoveRight, Merge, Clock, Settings, Users, Baby, User, CalendarCheck, PlayCircle, Loader2, AlertTriangle, RefreshCw, ShoppingBag, ChevronRight, LayoutGrid, List, CheckCircle, Printer } from 'lucide-react';
 import { CheckoutModal } from './CheckoutModal';
+import { ReceiptModal } from './ReceiptModal';
 import { motion, AnimatePresence } from 'motion/react';
 import { validateStock } from '../services/stockGuard';
 import { isSupabaseConfigured } from '../lib/supabase';
 import { OperationFeedback, OperationFeedbackMessage } from './OperationFeedback';
+import { listOpenComandasForTable, getComandaDisplayLabel } from '../utils/multipleComandas';
 
 interface OrderModalProps {
   tableNumber: number | null;
@@ -16,7 +18,7 @@ interface OrderModalProps {
 }
 
 export const OrderModal: React.FC<OrderModalProps> = ({ tableNumber, mode, onClose }) => {
-  const { tables, orders, waiters, theme, addOrder, updateOrder, transferTable, mergeTables, clearTable, stockItems } = useApp();
+  const { tables, orders, waiters, theme, addOrder, updateOrder, transferComanda, mergeTables, clearTable, stockItems } = useApp();
   const isDark = theme === 'dark';
 
   const table = useMemo(() => tableNumber ? tables.find(t => t.number === tableNumber) : null, [tableNumber, tables]);
@@ -28,21 +30,33 @@ export const OrderModal: React.FC<OrderModalProps> = ({ tableNumber, mode, onClo
   const [childrenCount, setChildrenCount] = useState(0);
   const [selectedWaiterId, setSelectedWaiterId] = useState(waiters[0]?.id || 'w1');
 
+  const tableOrders = useMemo(() => {
+    return tableNumber ? listOpenComandasForTable(orders, tableNumber) : [];
+  }, [orders, tableNumber]);
+
+  const [selectedComandaId, setSelectedComandaId] = useState<string | null>(null);
+
   const initialOrder = useMemo(() => {
-    if (mode === 'mesa' && table?.activeOrderId) {
-      return orders.find(o => o.id === table.activeOrderId) || null;
+    if (mode === 'mesa') {
+      if (selectedComandaId) return tableOrders.find(o => o.id === selectedComandaId) || null;
+      if (tableOrders.length === 1) return tableOrders[0];
+      if (tableOrders.length > 1 && !selectedComandaId) return null; // Force selection
+      if (table?.activeOrderId) return orders.find(o => o.id === table.activeOrderId) || null;
     }
     return null;
-  }, [table?.activeOrderId, orders, mode]);
+  }, [tableOrders, selectedComandaId, table?.activeOrderId, orders, mode]);
 
   const [activeOrder, setActiveOrder] = useState<Order | null>(initialOrder);
   const [isOpening, setIsOpening] = useState(isLivre && mode === 'mesa');
   const [isCreating, setIsCreating] = useState(false);
   const [isManaging, setIsManaging] = useState(false);
-  const [isAddingItems, setIsAddingItems] = useState(true); // Default to true on desktop
+  const [isAddingItems, setIsAddingItems] = useState(true);
+  
+  const isComandaSelection = mode === 'mesa' && tableOrders.length > 1 && !selectedComandaId && !isCreating;
   const [searchTerm, setSearchTerm] = useState('');
   const [category, setCategory] = useState('Todos');
   const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const [receiptOpen, setReceiptOpen] = useState(false);
   const [showFeedback, setShowFeedback] = useState(false);
   const [operationFeedback, setOperationFeedback] = useState<OperationFeedbackMessage | null>(null);
   const activeOrderHasConsumption = Boolean(
@@ -204,6 +218,44 @@ export const OrderModal: React.FC<OrderModalProps> = ({ tableNumber, mode, onClo
         onClick={e => e.stopPropagation()}
       >
         {(() => {
+          // --- COMANDA SELECTION ---
+          if (isComandaSelection) {
+            return (
+              <div className="w-full h-full flex items-center justify-center">
+                <div className={`w-full max-w-lg rounded-xl border flex flex-col overflow-hidden shadow-sm ${isDark ? 'bg-[#1C1C1E] border-[#2C2C2E]' : 'bg-white border-gray-100'}`}>
+                  <div className={`p-8 flex justify-between items-center border-b ${isDark ? 'bg-[#252527] border-[#2C2C2E]' : 'bg-gray-50 border-gray-200'}`}>
+                    <div>
+                      <h3 className="font-bold text-2xl">Mesa {tableNumber}</h3>
+                      <p className="text-xs font-semibold opacity-40">Selecione a comanda para visualizar</p>
+                    </div>
+                    <button onClick={onClose} className="p-3 rounded-lg hover:bg-black/5 transition-colors"><X className="w-6 h-6 opacity-40" /></button>
+                  </div>
+                  <div className="p-10 space-y-4">
+                    {tableOrders.map((order, index) => {
+                      const itemCount = order.items.reduce((sum, i) => sum + i.quantity, 0);
+                      const label = getComandaDisplayLabel(order, index);
+                      return (
+                        <button
+                          key={order.id}
+                          onClick={() => setSelectedComandaId(order.id)}
+                          className={`w-full p-6 flex items-center justify-between rounded-xl border text-left transition-all hover:border-[#475569] ${isDark ? 'bg-[#121214] border-[#2C2C2E] hover:bg-[#1C1C1E]' : 'bg-white border-gray-200 hover:bg-gray-50'}`}
+                        >
+                          <div>
+                            <p className="font-bold text-lg">{label}</p>
+                            <p className="text-xs opacity-60 mt-1">{itemCount} itens lançados</p>
+                          </div>
+                          <p className="font-black text-emerald-500">
+                            {order.total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                          </p>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            );
+          }
+
           // --- RESERVATION & OPENING VIEWS (Keep them centered/compact) ---
           if (isReservada || isOpening || isManaging || (!activeOrder && !isLivre)) {
              return (
@@ -252,9 +304,9 @@ export const OrderModal: React.FC<OrderModalProps> = ({ tableNumber, mode, onClo
                       <div className="p-10 space-y-10 overflow-y-auto max-h-[75vh] custom-scrollbar">
                         <div><h4 className="text-xs font-bold uppercase tracking-wider mb-6 opacity-40 flex items-center gap-3"><Users className="w-5 h-5" /> Pessoas na Mesa</h4><div className="grid grid-cols-2 gap-6"><CountInput label="Adultos" value={adultCount} onChange={(v:number) => { setAdultCount(v); handleUpdateCounts(v, childrenCount); }} isDark={isDark} min={1} /><CountInput label="Crianças" value={childrenCount} onChange={(v:number) => { setChildrenCount(v); handleUpdateCounts(adultCount, v); }} isDark={isDark} min={0} /></div></div>
                         <div>
-                          <h4 className="text-xs font-bold uppercase tracking-wider mb-6 flex items-center gap-3 text-[#475569]"><MoveRight className="w-5 h-5" /> Transferir Mesa</h4>
+                          <h4 className="text-xs font-bold uppercase tracking-wider mb-6 flex items-center gap-3 text-[#475569]"><MoveRight className="w-5 h-5" /> Transferir Comanda</h4>
                           <div className="grid grid-cols-6 gap-3">
-                            {tables.filter(t => t.status === 'livre' && t.number !== tableNumber).map(t => (<button key={t.number} onClick={() => { transferTable(tableNumber!, t.number); onClose(); }} className={`aspect-square rounded-lg border flex items-center justify-center text-sm font-bold transition-all hover:bg-[#475569] hover:text-white hover:border-[#475569] ${isDark ? 'bg-[#121214] border-[#2C2C2E]' : 'bg-gray-50 border-gray-100'}`}>{t.number}</button>))}
+                            {tables.filter(t => t.status === 'livre' && t.number !== tableNumber).map(t => (<button key={t.number} onClick={() => { if(activeOrder) transferComanda(activeOrder.id, t.number); onClose(); }} className={`aspect-square rounded-lg border flex items-center justify-center text-sm font-bold transition-all hover:bg-[#475569] hover:text-white hover:border-[#475569] ${isDark ? 'bg-[#121214] border-[#2C2C2E]' : 'bg-gray-50 border-gray-100'}`}>{t.number}</button>))}
                           </div>
                         </div>
                       </div>
@@ -305,6 +357,9 @@ export const OrderModal: React.FC<OrderModalProps> = ({ tableNumber, mode, onClo
                     <div className="flex items-start justify-between gap-5">
                       <div className="min-w-0 space-y-4">
                         <h3 className="font-bold uppercase tracking-tighter text-3xl leading-none">Mesa {tableNumber?.toString().padStart(2, '0')}</h3>
+                        {mode === 'mesa' && activeOrder.comandaLabel && (
+                          <p className="text-sm font-bold text-amber-500 uppercase">{activeOrder.comandaLabel}</p>
+                        )}
                         {mode === 'mesa' && (
                           <div className={`w-fit max-w-full flex items-center gap-2 px-4 py-2 rounded-full text-[10px] font-bold tracking-wide uppercase transition-all duration-300 ${showFeedback ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' : 'bg-slate-500/10 text-slate-500 border border-slate-500/20'}`}>
                             {showFeedback ? (
@@ -316,6 +371,11 @@ export const OrderModal: React.FC<OrderModalProps> = ({ tableNumber, mode, onClo
                         )}
                       </div>
                       <div className="flex shrink-0 gap-2">
+                        {tableOrders.length > 1 && (
+                          <button onClick={() => setSelectedComandaId(null)} className={`h-14 px-4 rounded-lg border flex items-center justify-center font-bold text-xs uppercase tracking-wider transition-all ${isDark ? 'bg-white/5 border-white/10 text-white hover:bg-white/10' : 'bg-white border-gray-200 text-[#475569] shadow-sm hover:bg-gray-50'}`}>
+                            Ver Comandas
+                          </button>
+                        )}
                         <button onClick={() => setIsManaging(true)} className={`w-14 h-14 rounded-lg border flex items-center justify-center transition-all ${isDark ? 'bg-white/5 border-white/10 text-white' : 'bg-white border-gray-200 shadow-sm'}`}><Settings className="w-5 h-5 opacity-60" /></button>
                         <button onClick={onClose} className={`w-14 h-14 rounded-lg border flex items-center justify-center transition-all ${isDark ? 'bg-white/5 border-white/10 text-white' : 'bg-white border-gray-200 shadow-sm'}`}><X className="w-5 h-5 opacity-60" /></button>
                       </div>
@@ -359,9 +419,10 @@ export const OrderModal: React.FC<OrderModalProps> = ({ tableNumber, mode, onClo
                         <p className="text-[10px] font-bold uppercase tracking-wide opacity-40">Total da Mesa</p>
                         <div className="flex items-baseline gap-1.5"><span className="text-xl font-bold text-[#475569] opacity-50">R$</span><span className="text-4xl font-bold text-[#475569] tracking-tighter">{activeOrder.total.toFixed(2)}</span></div>
                       </div>
-                      <div className="grid grid-cols-2 gap-3 w-full">
-                        <button onClick={onClose} className={`min-h-[64px] px-4 py-4 rounded-lg font-bold uppercase tracking-wide text-[11px] border transition-all ${isDark ? 'bg-transparent border-white/10 text-white hover:bg-white/5' : 'bg-transparent border-[#475569]/20 text-[#475569] hover:bg-[#475569]/5'}`}>Concluir Lançamento</button>
-                        <button disabled={activeOrder.items.length === 0} onClick={() => setCheckoutOpen(true)} className="min-h-[64px] px-4 py-4 bg-[#475569] text-white rounded-lg font-bold uppercase tracking-wide text-[11px] shadow-sm disabled:opacity-30 disabled:scale-100 disabled:shadow-none transition-all">Pagar Conta</button>
+                      <div className="grid grid-cols-3 gap-3 w-full">
+                        <button onClick={onClose} className={`min-h-[64px] px-2 py-4 rounded-lg font-bold uppercase tracking-wide text-[11px] border transition-all flex flex-col items-center justify-center gap-1 ${isDark ? 'bg-transparent border-white/10 text-white hover:bg-white/5' : 'bg-transparent border-[#475569]/20 text-[#475569] hover:bg-[#475569]/5'}`}>Concluir</button>
+                        <button disabled={activeOrder.items.length === 0} onClick={() => setReceiptOpen(true)} className={`min-h-[64px] px-2 py-4 rounded-lg font-bold uppercase tracking-wide text-[11px] border transition-all flex flex-col items-center justify-center gap-1 ${isDark ? 'bg-transparent border-white/10 text-amber-500 hover:bg-white/5' : 'bg-transparent border-amber-500/20 text-amber-600 hover:bg-amber-50'} disabled:opacity-30 disabled:border-transparent`}><Printer className="w-5 h-5 mb-0.5" /> Conferir</button>
+                        <button disabled={activeOrder.items.length === 0} onClick={() => setCheckoutOpen(true)} className="min-h-[64px] px-2 py-4 bg-[#475569] text-white rounded-lg font-bold uppercase tracking-wide text-[11px] shadow-sm disabled:opacity-30 disabled:scale-100 disabled:shadow-none transition-all flex flex-col items-center justify-center gap-1">Pagar</button>
                       </div>
                       {!activeOrderHasConsumption && mode === 'mesa' && (
                         <button
@@ -383,6 +444,7 @@ export const OrderModal: React.FC<OrderModalProps> = ({ tableNumber, mode, onClo
         })()}
 
         {checkoutOpen && activeOrder && <CheckoutModal order={activeOrder} onClose={() => setCheckoutOpen(false)} onSuccess={() => { setCheckoutOpen(false); onClose(); }} />}
+        {receiptOpen && activeOrder && <ReceiptModal order={activeOrder} onClose={() => setReceiptOpen(false)} isConference={true} />}
       </motion.div>
     </div>
   );

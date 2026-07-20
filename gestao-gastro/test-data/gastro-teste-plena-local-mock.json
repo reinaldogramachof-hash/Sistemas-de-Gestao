@@ -1,0 +1,84 @@
+{
+  "package": "plena-gastro-teste-local-mock",
+  "version": 1,
+  "scope": "local-browser-only",
+  "generatedAt": "2026-07-17T12:00:00.000Z",
+  "products": [
+    { "id": "gt-prod-001", "name": "Burger Plena", "description": "Blend, queijo e molho da casa", "price": 32, "category": "Hambúrgueres", "active": true, "recipe": [{ "stockItemId": "gt-stock-001", "quantity": 0.16 }, { "stockItemId": "gt-stock-002", "quantity": 1 }] },
+    { "id": "gt-prod-002", "name": "Frango Crocante", "description": "Frango empanado e maionese verde", "price": 29, "category": "Hambúrgueres", "active": true, "recipe": [{ "stockItemId": "gt-stock-003", "quantity": 0.18 }, { "stockItemId": "gt-stock-002", "quantity": 1 }] },
+    { "id": "gt-prod-003", "name": "Batata Rústica", "description": "Porção com páprica defumada", "price": 22, "category": "Porções", "active": true, "recipe": [{ "stockItemId": "gt-stock-004", "quantity": 0.35 }] },
+    { "id": "gt-prod-004", "name": "Espetinho Misto", "description": "Carne, frango e legumes", "price": 18, "category": "Espetinhos", "active": true, "recipe": [{ "stockItemId": "gt-stock-001", "quantity": 0.12 }, { "stockItemId": "gt-stock-003", "quantity": 0.08 }] },
+    { "id": "gt-prod-005", "name": "Refrigerante Lata", "description": "350 ml", "price": 7, "category": "Bebidas", "active": true, "recipe": [{ "stockItemId": "gt-stock-005", "quantity": 1 }] },
+    { "id": "gt-prod-006", "name": "Cerveja Long Neck", "description": "330 ml", "price": 12, "category": "Bebidas", "active": true, "recipe": [{ "stockItemId": "gt-stock-006", "quantity": 1 }] },
+    { "id": "gt-prod-007", "name": "Caipirinha de Limão", "description": "Limão, gelo e destilado", "price": 20, "category": "Drinks", "active": true, "recipe": [{ "stockItemId": "gt-stock-007", "quantity": 0.05 }] },
+    { "id": "gt-prod-008", "name": "Brownie com Sorvete", "description": "Sobremesa individual", "price": 16, "category": "Sobremesas", "active": true, "recipe": [] },
+    { "id": "gt-prod-009", "name": "Combo Teste", "description": "Produto inativo para testar filtro de cardápio", "price": 0, "category": "Combos", "active": false, "recipe": [] }
+  ],
+  "stockItems": [
+    { "id": "gt-stock-001", "name": "Blend bovino", "category": "Proteínas", "unit": "kg", "currentStock": 8.5, "minStock": 3, "costPrice": 38, "supplierId": "gt-supplier-001" },
+    { "id": "gt-stock-002", "name": "Pão brioche", "category": "Padaria", "unit": "un", "currentStock": 24, "minStock": 30, "costPrice": 1.8, "supplierId": "gt-supplier-002" },
+    { "id": "gt-stock-003", "name": "Filé de frango", "category": "Proteínas", "unit": "kg", "currentStock": 6, "minStock": 2, "costPrice": 22, "supplierId": "gt-supplier-001" },
+    { "id": "gt-stock-004", "name": "Batata asterix", "category": "Hortifruti", "unit": "kg", "currentStock": 18, "minStock": 5, "costPrice": 6.2, "supplierId": "gt-supplier-003" },
+    { "id": "gt-stock-005", "name": "Refrigerante lata", "category": "Bebidas", "unit": "un", "currentStock": 48, "minStock": 24, "costPrice": 3.1, "supplierId": "gt-supplier-004" },
+    { "id": "gt-stock-006", "name": "Cerveja long neck", "category": "Bebidas", "unit": "un", "currentStock": 12, "minStock": 24, "costPrice": 5.8, "supplierId": "gt-supplier-004" },
+    { "id": "gt-stock-007", "name": "Destilado para drinks", "category": "Bebidas", "unit": "L", "currentStock": 2.2, "minStock": 1, "costPrice": 42, "supplierId": "gt-supplier-004" },
+    { "id": "gt-stock-008", "name": "Embalagem delivery", "category": "Descartáveis", "unit": "un", "currentStock": 7, "minStock": 20, "costPrice": 1.2, "supplierId": "gt-supplier-002" }
+  ],
+  "suppliers": [
+    { "id": "gt-supplier-001", "companyName": "Fornecedor Proteína Teste Ltda.", "category": "Proteínas", "contactName": "Contato Teste", "phone": "(00) 0000-0001", "email": "proteinas@example.test", "lastDelivery": "2026-07-16", "deliveryPerformance": 92, "rating": 4, "paymentTerms": "14 dias" },
+    { "id": "gt-supplier-002", "companyName": "Padaria Modelo Teste", "category": "Padaria", "contactName": "Contato Teste", "phone": "(00) 0000-0002", "email": "padaria@example.test", "lastDelivery": "2026-07-15", "deliveryPerformance": 97, "rating": 5, "paymentTerms": "7 dias" },
+    { "id": "gt-supplier-003", "companyName": "Hortifruti Cenário", "category": "Hortifruti", "contactName": "Contato Teste", "phone": "(00) 0000-0003", "email": "hortifruti@example.test", "lastDelivery": "2026-07-17", "deliveryPerformance": 88, "rating": 4, "paymentTerms": "À vista" },
+    { "id": "gt-supplier-004", "companyName": "Bebidas de Homologação", "category": "Bebidas", "contactName": "Contato Teste", "phone": "(00) 0000-0004", "email": "bebidas@example.test", "lastDelivery": "2026-07-14", "deliveryPerformance": 90, "rating": 4, "paymentTerms": "21 dias" }
+  ],
+  "tables": [
+    { "number": 1, "status": "livre", "sector": "Salão" },
+    { "number": 2, "status": "reservada", "sector": "Salão", "reservationReason": "Teste de reserva" },
+    { "number": 3, "status": "ocupada", "sector": "Salão", "activeOrderId": "gt-order-open-001" },
+    { "number": 4, "status": "livre", "sector": "Varanda" },
+    { "number": 5, "status": "aguardando", "sector": "Varanda" },
+    { "number": 6, "status": "livre", "sector": "Varanda" },
+    { "number": 7, "status": "ocupada", "sector": "Salão", "activeOrderId": "gt-order-open-002" },
+    { "number": 8, "status": "livre", "sector": "Salão" }
+  ],
+  "waiters": [
+    { "id": "gt-waiter-001", "name": "Garçom Teste Um" },
+    { "id": "gt-waiter-002", "name": "Garçom Teste Dois" }
+  ],
+  "orders": [
+    { "id": "gt-order-open-001", "mode": "mesa", "tableNumber": 3, "customerName": "Cliente Mesa 3", "customerCount": 2, "adultCount": 2, "childrenCount": 0, "items": [{ "id": "gt-item-001", "product": { "id": "gt-prod-001", "name": "Burger Plena", "description": "Blend, queijo e molho da casa", "price": 32, "category": "Hambúrgueres", "active": true }, "quantity": 2, "price": 32, "kitchenStatus": "preparo" }, { "id": "gt-item-002", "product": { "id": "gt-prod-005", "name": "Refrigerante Lata", "description": "350 ml", "price": 7, "category": "Bebidas", "active": true }, "quantity": 2, "price": 7, "kitchenStatus": "aguardando" }], "subtotal": 78, "serviceCharge": 7.8, "total": 85.8, "payments": [], "status": "open", "waiterId": "gt-waiter-001", "timestamp": "2026-07-17T15:30:00.000Z" },
+    { "id": "gt-order-open-002", "mode": "mesa", "tableNumber": 7, "customerName": "Cliente Mesa 7", "customerCount": 3, "adultCount": 2, "childrenCount": 1, "items": [{ "id": "gt-item-003", "product": { "id": "gt-prod-003", "name": "Batata Rústica", "description": "Porção com páprica defumada", "price": 22, "category": "Porções", "active": true }, "quantity": 1, "price": 22, "kitchenStatus": "pronto" }, { "id": "gt-item-004", "product": { "id": "gt-prod-007", "name": "Caipirinha de Limão", "description": "Limão, gelo e destilado", "price": 20, "category": "Drinks", "active": true }, "quantity": 2, "price": 20, "kitchenStatus": "aguardando" }], "subtotal": 62, "serviceCharge": 6.2, "total": 68.2, "payments": [], "status": "open", "waiterId": "gt-waiter-002", "timestamp": "2026-07-17T16:00:00.000Z" },
+    { "id": "gt-order-closed-001", "mode": "balcao", "customerName": "Venda Balcão Teste", "items": [{ "id": "gt-item-005", "product": { "id": "gt-prod-004", "name": "Espetinho Misto", "description": "Carne, frango e legumes", "price": 18, "category": "Espetinhos", "active": true }, "quantity": 2, "price": 18 }], "subtotal": 36, "serviceCharge": 0, "total": 36, "payments": [{ "method": "pix", "amount": 36 }], "status": "closed", "waiterId": "gt-admin-001", "timestamp": "2026-07-17T13:00:00.000Z" }
+  ],
+  "expenses": [
+    { "id": "gt-expense-001", "description": "Compra teste de insumos", "amount": 125.4, "category": "Insumos", "status": "pago", "paymentMethod": "pix", "timestamp": "2026-07-17T10:00:00.000Z", "entryType": "saida" },
+    { "id": "gt-expense-002", "description": "Conta de utilidade fictícia", "amount": 89.9, "category": "Utilidades", "status": "pendente", "dueDate": "2026-07-25", "timestamp": "2026-07-17T11:00:00.000Z", "entryType": "saida" }
+  ],
+  "cashierSession": { "id": "gt-cash-open-001", "openedAt": "2026-07-17T09:00:00.000Z", "initialBalance": 150, "salesTotal": 36, "serviceTaxTotal": 0, "expensesTotal": 125.4, "tipsTotal": 0, "ordersCount": 1, "status": "open" },
+  "cashierHistory": [
+    { "id": "gt-cash-closed-001", "openedAt": "2026-07-16T09:00:00.000Z", "closedAt": "2026-07-16T23:00:00.000Z", "initialBalance": 100, "salesTotal": 742.5, "serviceTaxTotal": 59.4, "expensesTotal": 180, "tipsTotal": 12, "finalBalance": 733.9, "ordersCount": 14, "status": "closed", "closedOrderIds": ["gt-order-closed-001"] }
+  ],
+  "customers": [
+    { "id": "gt-customer-001", "name": "Cliente Exemplo A", "email": "cliente.a@example.test", "phone": "(00) 0000-0101", "totalSpent": 210, "lastVisit": "2026-07-17", "loyaltyPoints": 21 },
+    { "id": "gt-customer-002", "name": "Cliente Exemplo B", "email": "cliente.b@example.test", "phone": "(00) 0000-0102", "totalSpent": 85.8, "lastVisit": "2026-07-17", "loyaltyPoints": 8 }
+  ],
+  "collaborators": [
+    { "id": "gt-admin-001", "name": "Admin Homologação", "role": "Administrador", "email": "admin.gastro-teste@example.test", "status": "active", "joinedAt": "2026-07-01", "permissions": "admin", "totalSales": 36 },
+    { "id": "gt-waiter-001", "name": "Garçom Teste Um", "role": "Garçom", "email": "garcom.um@example.test", "status": "active", "joinedAt": "2026-07-01", "permissions": "waiter", "totalSales": 85.8 },
+    { "id": "gt-waiter-002", "name": "Garçom Teste Dois", "role": "Garçom", "email": "garcom.dois@example.test", "status": "break", "joinedAt": "2026-07-02", "permissions": "waiter", "totalSales": 68.2 }
+  ],
+  "stockMovements": [
+    { "id": "gt-move-001", "stockItemId": "gt-stock-002", "type": "out", "quantity": 6, "reason": "Teste de consumo", "timestamp": "2026-07-17T14:00:00.000Z", "collaboratorId": "gt-waiter-001" },
+    { "id": "gt-move-002", "stockItemId": "gt-stock-006", "type": "loss", "quantity": 2, "reason": "Teste de perda", "timestamp": "2026-07-17T14:30:00.000Z", "collaboratorId": "gt-admin-001" }
+  ],
+  "settings": {
+    "establishment": { "name": "Plena Gestão Gastro — Homologação", "address": "Ambiente local de testes", "phone": "(00) 0000-0000", "document": "00.000.000/0000-00", "website": "" },
+    "thermalPrinter": { "enabled": true, "autoPrint": false, "showLogo": true, "paperWidth": "80mm" },
+    "paymentMethods": ["dinheiro", "credito", "debito", "pix"],
+    "kitchenMode": "interactive",
+    "serviceChargeRate": 0.1,
+    "waiterAccessMode": "external",
+    "waiterLocalOrigin": "",
+    "metadata": { "updatedAt": "2026-07-17T12:00:00.000Z", "source": "plena-gastro-teste-local-mock" }
+  },
+  "readGuides": []
+}

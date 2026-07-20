@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Table } from '../types';
 import { isSupabaseConfigured } from '../lib/supabase';
+import { isLocalHomologationMode } from '../utils/localHomologation';
 import {
   clearTable as clearTableInSupabase,
   initializeTables,
@@ -33,7 +34,7 @@ export function useTables(tenantId: string): UseTablesReturn {
   const [error, setError] = useState<string | null>(null);
   const unsubscribeRef = useRef<(() => void) | null>(null);
 
-  const online = isSupabaseConfigured && Boolean(tenantId);
+  const online = isSupabaseConfigured && Boolean(tenantId) && !isLocalHomologationMode(tenantId);
 
   const refresh = useCallback(async () => {
     if (!online) {

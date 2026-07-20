@@ -56,7 +56,7 @@ const DateTimeDisplay = () => {
 };
 
 export const Layout: React.FC<LayoutProps> = ({ currentView, setCurrentView, children }) => {
-  const { theme, setTheme, cashierSession, currentUser, draftOrder, clearDraftOrder } = useApp();
+  const { theme, setTheme, cashierSession, currentUser, draftOrder, clearDraftOrder, supabaseOnline } = useApp();
   const { checkAccess } = useModules();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
@@ -187,42 +187,47 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setCurrentView, chi
           </div>
 
           <nav className="flex-1 overflow-y-auto overflow-x-hidden p-3 space-y-3 scrollbar-none">
-            {navGroups.map((group, gIdx) => (
-              <div key={gIdx} className="space-y-1">
-                {!isCollapsed && (
-                  <h3 className={`px-3 text-[9px] font-bold uppercase tracking-widest opacity-30 mb-1`}>{group.title}</h3>
-                )}
-                <div className="space-y-0.5">
-                  {group.items.filter((item: any) => checkAccess(item.id)).map((item: any) => {
-                    const active = currentView === item.id;
-                    const Icon = item.icon;
-                    return (
-                      <button
-                        key={item.id}
-                        onClick={() => setCurrentView(item.id as View)}
-                        title={isCollapsed ? item.label : ''}
-                        className={`w-full flex items-center gap-3 px-3 py-2.5 transition-all rounded-control group relative
-                          ${active
-                            ? 'bg-accent text-white'
-                            : `${isDark ? 'text-muted hover:bg-white/5 hover:text-white' : 'text-gray-500 hover:bg-gray-100 hover:text-gray-900'}`
-                          }
-                          ${isCollapsed ? 'justify-center' : ''}
-                        `}
-                      >
-                        <div className="relative">
-                          <Icon className={`w-4 h-4 flex-shrink-0 ${active ? 'opacity-100' : 'opacity-50 group-hover:opacity-80'}`} />
-                        </div>
-                        {!isCollapsed && (
-                          <div className="flex-1 flex items-center justify-between overflow-hidden">
-                            <span className="font-medium text-[13px] transition-opacity duration-150 truncate">{item.label}</span>
+            {navGroups.map((group, gIdx) => {
+              const allowedItems = group.items.filter((item: any) => checkAccess(item.id));
+              if (allowedItems.length === 0) return null;
+
+              return (
+                <div key={gIdx} className="space-y-1">
+                  {!isCollapsed && (
+                    <h3 className={`px-3 text-[9px] font-bold uppercase tracking-widest opacity-30 mb-1`}>{group.title}</h3>
+                  )}
+                  <div className="space-y-0.5">
+                    {allowedItems.map((item: any) => {
+                      const active = currentView === item.id;
+                      const Icon = item.icon;
+                      return (
+                        <button
+                          key={item.id}
+                          onClick={() => setCurrentView(item.id as View)}
+                          title={isCollapsed ? item.label : ''}
+                          className={`w-full flex items-center gap-3 px-3 py-2.5 transition-all rounded-control group relative
+                            ${active
+                              ? 'bg-accent text-white'
+                              : `${isDark ? 'text-muted hover:bg-white/5 hover:text-white' : 'text-gray-500 hover:bg-gray-100 hover:text-gray-900'}`
+                            }
+                            ${isCollapsed ? 'justify-center' : ''}
+                          `}
+                        >
+                          <div className="relative">
+                            <Icon className={`w-4 h-4 flex-shrink-0 ${active ? 'opacity-100' : 'opacity-50 group-hover:opacity-80'}`} />
                           </div>
-                        )}
-                      </button>
-                    );
-                  })}
+                          {!isCollapsed && (
+                            <div className="flex-1 flex items-center justify-between overflow-hidden">
+                              <span className="font-medium text-[13px] transition-opacity duration-150 truncate">{item.label}</span>
+                            </div>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </nav>
 
           <div className="mt-auto px-4 py-4">
@@ -263,6 +268,15 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setCurrentView, chi
 
             <div className="flex items-center gap-3">
               <div className="hidden sm:flex items-center gap-3 pr-3 border-r border-current/5">
+                <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wide border ${
+                  supabaseOnline 
+                    ? 'bg-blue-500/10 text-blue-500 border-blue-500/20' 
+                    : 'bg-amber-500/10 text-amber-500 border-amber-500/20'
+                }`}>
+                  <div className={`w-1.5 h-1.5 rounded-full ${supabaseOnline ? 'bg-blue-500' : 'bg-amber-500 animate-pulse'}`} />
+                  {supabaseOnline ? 'Online' : 'Offline'}
+                </div>
+
                 {cashierSession ? (
                   <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 text-[10px] font-bold uppercase tracking-wide">
                     <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />

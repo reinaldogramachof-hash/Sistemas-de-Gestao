@@ -17,10 +17,10 @@ test('Cantinho da Resenha has a faithful local fallback menu for homologation', 
 test('AppContext selects the client menu only for the Cantinho route and preserves saved data', () => {
   const context = read('gestao-gastro/src/store/AppContext.tsx');
 
-  assert.match(context, /getClientSlugFromPath\(window\.location\.pathname\) === CANTINHO_DA_RESENHA_SLUG/);
+  assert.match(context, /clientSlug === CANTINHO_DA_RESENHA_SLUG/);
   assert.match(context, /\? cantinhoDaResenhaProducts/);
   assert.match(context, /parseJSON\('products', initialProductsFallback\)/);
   assert.match(context, /isSaaS && !isCantinhoRoute \? \[\] : defaultProducts/);
-  assert.match(context, /\[supabaseOnline\]/);
+  assert.match(context, /supabaseOnline/);
   assert.match(context, /activeProducts\.length === 0/);
 });

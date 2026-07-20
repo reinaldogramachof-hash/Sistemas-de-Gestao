@@ -1,6 +1,10 @@
 export const CANTINHO_DA_RESENHA_SLUG = 'cantinhodaresenha';
 export const CANTINHO_DA_RESENHA_SLUG_ALIAS = 'cantinho-da-resenha';
 export const CANTINHO_DA_RESENHA_TENANT_ID = '4c628b1b-a1ce-498e-b302-0344a81de4cb';
+
+export const GASTRO_TESTE_SLUG = 'gastro-teste';
+export const GASTRO_TESTE_TENANT_ID = '552e5a5a-6bb7-49ee-abd4-51614e3ebdf3';
+
 const TENANT_SLUG_KEY_PREFIX = 'gestao_gastro_tenant_id:';
 const RETIRED_TENANT_IDS = new Set([
   'cd8f21f4-73a1-4c87-a385-9b6deacaeae7',
@@ -28,6 +32,13 @@ export const clientRoutes: Record<string, ClientRouteConfig> = {
     basePath: `/gestao-gastro/${CANTINHO_DA_RESENHA_SLUG_ALIAS}`,
     comandaPath: `/gestao-gastro/${CANTINHO_DA_RESENHA_SLUG_ALIAS}/comanda`,
     tenantId: CANTINHO_DA_RESENHA_TENANT_ID,
+  },
+  [GASTRO_TESTE_SLUG]: {
+    slug: GASTRO_TESTE_SLUG,
+    displayName: 'Gestão Gastro Teste',
+    basePath: `/gestao-gastro/${GASTRO_TESTE_SLUG}`,
+    comandaPath: `/gestao-gastro/${GASTRO_TESTE_SLUG}/comanda`,
+    tenantId: GASTRO_TESTE_TENANT_ID,
   },
 };
 

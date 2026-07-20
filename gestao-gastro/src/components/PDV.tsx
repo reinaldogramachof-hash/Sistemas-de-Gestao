@@ -38,15 +38,57 @@ export const PDV: React.FC = () => {
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    const focusProductSearch = (event: KeyboardEvent) => {
-      if (!(event.ctrlKey || event.metaKey) || event.key.toLowerCase() !== 'k') return;
-      event.preventDefault();
-      searchInputRef.current?.focus();
-      searchInputRef.current?.select();
+    const handleKeyDown = (event: KeyboardEvent) => {
+      // Ctrl+K -> Search
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault();
+        searchInputRef.current?.focus();
+        searchInputRef.current?.select();
+        return;
+      }
+
+      const target = event.target as HTMLElement;
+      const isInput = ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName);
+      
+      // Permitir ESC em qualquer lugar para fechar modais
+      if (event.key === 'Escape') {
+        setManualModalOpen(false);
+        setComboMenuOpen(false);
+        setWaiterMenuOpen(false);
+        setCheckoutOpen(false);
+        setFeedback(null);
+        return;
+      }
+
+      // Evita atalhos se o usuário estiver digitando (exceto F-keys)
+      if (isInput && !event.key.startsWith('F')) return;
+
+      switch (event.key) {
+        case 'F2':
+          event.preventDefault();
+          setManualModalOpen(true);
+          break;
+        case 'F3':
+          event.preventDefault();
+          document.getElementById('pdv-customer-select')?.focus();
+          break;
+        case 'F4':
+          event.preventDefault();
+          setWaiterMenuOpen(prev => !prev);
+          break;
+        case 'F7':
+          event.preventDefault();
+          document.getElementById('btn-checkout')?.click();
+          break;
+        case 'F9':
+          event.preventDefault();
+          document.getElementById('btn-cancel-order')?.click();
+          break;
+      }
     };
 
-    window.addEventListener('keydown', focusProductSearch);
-    return () => window.removeEventListener('keydown', focusProductSearch);
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
   const createOrder = (waiterId = selectedOperatorId): Order => ({
@@ -331,7 +373,8 @@ export const PDV: React.FC = () => {
             </div>
           </div>
           <button
-            onClick={handleCancelOrder}
+              id="btn-cancel-order"
+              onClick={handleCancelOrder}
             className="p-2 rounded-control transition-all hover:bg-danger/10 hover:text-danger text-muted"
             aria-label="Limpar carrinho"
           >
@@ -390,6 +433,7 @@ export const PDV: React.FC = () => {
               </AnimatePresence>
             </div>
             <select
+              id="pdv-customer-select"
               value={selectedCustomerId}
               onChange={event => handleSelectCustomer(event.target.value)}
               className={`w-full h-10 px-3 rounded-control border text-sm font-medium outline-none ${fieldClass}`}
@@ -483,6 +527,7 @@ export const PDV: React.FC = () => {
               </div>
             </div>
             <button
+              id="btn-checkout"
               disabled={activeOrder.items.length === 0}
               onClick={() => {
                 if (!selectedOperatorId) {
@@ -500,6 +545,51 @@ export const PDV: React.FC = () => {
               Finalizar venda
               <ArrowRight className="w-4 h-4" />
             </button>
+          </div>
+          
+          <div className="grid grid-cols-3 gap-x-2 gap-y-2.5 text-xs text-muted border-t pt-3 border-current/10">
+            <span className="flex items-center gap-2">
+              <kbd className={`px-2 py-0.5 rounded-md border font-semibold font-mono text-[10px] shadow-[0_1.5px_0_rgba(0,0,0,0.15)] dark:shadow-[0_1.5px_0_rgba(255,255,255,0.15)] ${
+                isDark ? 'bg-surface border-border text-muted' : 'bg-surface-light border-border-light text-muted-light'
+              }`}>Ctrl+K</kbd>
+              <span>Buscar</span>
+            </span>
+            <span className="flex items-center gap-2">
+              <kbd className={`px-2 py-0.5 rounded-md border font-semibold font-mono text-[10px] shadow-[0_1.5px_0_rgba(0,0,0,0.15)] dark:shadow-[0_1.5px_0_rgba(255,255,255,0.15)] ${
+                isDark ? 'bg-surface border-border text-muted' : 'bg-surface-light border-border-light text-muted-light'
+              }`}>F2</kbd>
+              <span>Avulso</span>
+            </span>
+            <span className="flex items-center gap-2">
+              <kbd className={`px-2 py-0.5 rounded-md border font-semibold font-mono text-[10px] shadow-[0_1.5px_0_rgba(0,0,0,0.15)] dark:shadow-[0_1.5px_0_rgba(255,255,255,0.15)] ${
+                isDark ? 'bg-surface border-border text-muted' : 'bg-surface-light border-border-light text-muted-light'
+              }`}>F3</kbd>
+              <span>Cliente</span>
+            </span>
+            <span className="flex items-center gap-2">
+              <kbd className={`px-2 py-0.5 rounded-md border font-semibold font-mono text-[10px] shadow-[0_1.5px_0_rgba(0,0,0,0.15)] dark:shadow-[0_1.5px_0_rgba(255,255,255,0.15)] ${
+                isDark ? 'bg-surface border-border text-muted' : 'bg-surface-light border-border-light text-muted-light'
+              }`}>F4</kbd>
+              <span>Atendente</span>
+            </span>
+            <span className="flex items-center gap-2">
+              <kbd className={`px-2 py-0.5 rounded-md border font-semibold font-mono text-[10px] shadow-[0_1.5px_0_rgba(0,0,0,0.15)] dark:shadow-[0_1.5px_0_rgba(255,255,255,0.15)] ${
+                isDark ? 'bg-surface border-border text-muted' : 'bg-surface-light border-border-light text-muted-light'
+              }`}>F7</kbd>
+              <span>Pagar</span>
+            </span>
+            <span className="flex items-center gap-2">
+              <kbd className={`px-2 py-0.5 rounded-md border font-semibold font-mono text-[10px] shadow-[0_1.5px_0_rgba(0,0,0,0.15)] dark:shadow-[0_1.5px_0_rgba(255,255,255,0.15)] ${
+                isDark ? 'bg-surface border-border text-muted' : 'bg-surface-light border-border-light text-muted-light'
+              }`}>F9</kbd>
+              <span>Limpar</span>
+            </span>
+            <span className="flex items-center gap-2">
+              <kbd className={`px-2 py-0.5 rounded-md border font-semibold font-mono text-[10px] shadow-[0_1.5px_0_rgba(0,0,0,0.15)] dark:shadow-[0_1.5px_0_rgba(255,255,255,0.15)] ${
+                isDark ? 'bg-surface border-border text-muted' : 'bg-surface-light border-border-light text-muted-light'
+              }`}>ESC</kbd>
+              <span>Sair</span>
+            </span>
           </div>
         </div>
       </aside>

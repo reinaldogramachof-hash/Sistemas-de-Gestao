@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Order, OrderItem, PaymentItem } from '../types';
 import { isSupabaseConfigured } from '../lib/supabase';
+import { isLocalHomologationMode } from '../utils/localHomologation';
 import {
   closeOrder as closeOrderInSupabase,
   CloseOrderInput,
@@ -35,7 +36,7 @@ export function useOrders(tenantId: string): UseOrdersReturn {
   const [error, setError] = useState<string | null>(null);
   const unsubscribeRef = useRef<(() => void) | null>(null);
 
-  const online = isSupabaseConfigured && Boolean(tenantId);
+  const online = isSupabaseConfigured && Boolean(tenantId) && !isLocalHomologationMode(tenantId);
 
   const refresh = useCallback(async () => {
     if (!online) {

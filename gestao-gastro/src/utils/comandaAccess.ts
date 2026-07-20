@@ -1,12 +1,12 @@
 /**
- * Regex: aceita somente origens LAN privadas com protocolo e porta obrigatória.
+ * Regex: aceita somente origens LAN privadas com protocolo e porta obrigatoria.
  * Aceita: http://192.168.x.x:PORTA, http://10.x.x.x:PORTA, http://172.16-31.x.x:PORTA
- * Rejeita: localhost, 127.x.x.x, IPs públicos, caminhos, query, hash, porta ausente.
+ * Rejeita: localhost, 127.x.x.x, IPs publicos e formatos sem IP privado.
  */
 const PRIVATE_LAN_ORIGIN_REGEX =
   /^https?:\/\/(?:10\.\d{1,3}\.\d{1,3}\.\d{1,3}|172\.(?:1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3}|192\.168\.\d{1,3}\.\d{1,3}):\d{2,5}$/;
 
-/** Motivos de rejeição da origem LAN (para feedback ao usuário). */
+/** Motivos de rejeicao da origem LAN para feedback ao usuario. */
 export type LanValidationError =
   | 'empty'
   | 'has_path'
@@ -22,96 +22,125 @@ export interface LanValidationResult {
   message?: string;
 }
 
+const getFallbackLanParts = (fallbackOrigin?: string) => {
+  try {
+    const parsed = fallbackOrigin ? new URL(fallbackOrigin) : null;
+    return {
+      protocol: parsed?.protocol === 'https:' ? 'https' : 'http',
+      port: parsed?.port || '3000',
+    };
+  } catch {
+    return { protocol: 'http', port: '3000' };
+  }
+};
+
+const normalizeLanInput = (raw: string, fallbackOrigin?: string) => {
+  const trimmed = raw.trim();
+  const fallback = getFallbackLanParts(fallbackOrigin);
+  const hasScheme = /^https?:\/\//i.test(trimmed);
+  const candidate = hasScheme ? trimmed : `${fallback.protocol}://${trimmed}`;
+  const parsed = new URL(candidate);
+  const originalPort = parsed.port;
+
+  if (!parsed.port && fallback.port) {
+    parsed.port = fallback.port;
+  }
+
+  return {
+    parsed,
+    normalized: parsed.origin,
+    inferredProtocol: !hasScheme,
+    inferredPort: !originalPort && Boolean(fallback.port),
+    hadPath: parsed.pathname !== '/' || Boolean(parsed.search) || Boolean(parsed.hash),
+  };
+};
+
 /**
  * Valida e normaliza um valor digitado pelo administrador no campo de origem LAN.
- * Extrai somente `protocolo://IP:porta`, descartando qualquer caminho, query ou hash.
+ * Aceita IP puro, IP:porta ou URL completa e retorna `protocolo://IP:porta`.
  */
-export function validateLanOrigin(raw: string): LanValidationResult {
+export function validateLanOrigin(raw: string, fallbackOrigin?: string): LanValidationResult {
   const trimmed = raw.trim();
 
   if (!trimmed) {
-    return { valid: false, origin: null, error: 'empty', message: 'Informe um endereço de rede local.' };
+    return { valid: false, origin: null, error: 'empty', message: 'Informe um endereco de rede local.' };
   }
 
-  // Se contiver localhost ou 127.x, rejeitar
   if (/localhost/i.test(trimmed) || /127\.\d+\.\d+\.\d+/.test(trimmed)) {
     return {
       valid: false,
       origin: null,
       error: 'loopback',
-      message: 'Não é permitido usar "localhost" ou "127.0.0.1". Informe o IP da sua máquina na rede Wi-Fi (ex: 192.168.0.10).'
+      message: 'Nao use localhost ou 127.0.0.1. Informe o IPv4 da maquina na rede Wi-Fi, como 192.168.1.105.',
     };
   }
 
-  // Tenta extrair protocolo + host (descartando caminhos)
-  let parsed: URL;
+  let normalized: ReturnType<typeof normalizeLanInput>;
   try {
-    parsed = new URL(trimmed);
+    normalized = normalizeLanInput(trimmed, fallbackOrigin);
   } catch {
     return {
       valid: false,
       origin: null,
       error: 'invalid_format',
-      message: 'Formato inválido. Use: http://192.168.0.10:3000'
+      message: 'Formato invalido. Use 192.168.1.105, 192.168.1.105:3000 ou http://192.168.1.105:3000.',
     };
   }
 
-  const originOnly = parsed.origin; // "http://192.168.0.10:3000"
-
-  // Se o valor original tinha caminho/query, avisar que será descartado
-  const hasPath = parsed.pathname !== '/' || !!parsed.search || !!parsed.hash;
-
-  // Porta obrigatória
-  if (!parsed.port) {
+  if (!normalized.parsed.port) {
     return {
       valid: false,
       origin: null,
       error: 'missing_port',
-      message: 'Porta obrigatória. Use: http://192.168.0.10:3000'
+      message: 'Porta obrigatoria. Use 192.168.1.105:3000 ou http://192.168.1.105:3000.',
     };
   }
 
-  // Valida contra regex de rede privada
-  if (!PRIVATE_LAN_ORIGIN_REGEX.test(originOnly)) {
+  if (!PRIVATE_LAN_ORIGIN_REGEX.test(normalized.normalized)) {
     return {
       valid: false,
       origin: null,
       error: 'invalid_format',
-      message: 'O IP não é de uma rede privada válida (192.168.x.x, 10.x.x.x ou 172.16-31.x.x). Verifique e tente novamente.'
+      message: 'O IP nao e de uma rede privada valida. Use 192.168.x.x, 10.x.x.x ou 172.16-31.x.x.',
     };
   }
 
+  const adjustments = [
+    normalized.inferredProtocol ? 'protocolo http adicionado' : '',
+    normalized.inferredPort ? `porta ${normalized.parsed.port} adicionada` : '',
+    normalized.hadPath ? 'caminho removido' : '',
+  ].filter(Boolean);
+
   return {
     valid: true,
-    origin: originOnly,
-    // Avisa se houve caminho descartado (para feedback suave, sem bloquear)
-    message: hasPath
-      ? `Caminho removido automaticamente. Origem salva: ${originOnly}`
-      : undefined
+    origin: normalized.normalized,
+    message: adjustments.length > 0
+      ? `Endereco normalizado: ${normalized.normalized} (${adjustments.join(', ')}).`
+      : undefined,
   };
 }
 
 /**
- * Monta a URL completa de acesso à Comanda Mobile.
- * Em produção (não-localhost), sempre usa o domínio HTTPS oficial.
- * Em desenvolvimento, usa localTestOrigin se válido.
+ * Monta a URL completa de acesso a Comanda Mobile.
+ * Em producao (nao-localhost), usa o dominio HTTPS oficial para acesso externo.
+ * Em modo local, usa uma origem LAN privada validada.
  */
 export const getComandaAccessUrl = (
   windowOrigin: string,
   pathname: string,
   waiterAccessMode: 'local' | 'external' = 'local',
   waiterLocalOrigin?: string,
-  localTestOrigin?: string // Fallback antigo
+  localTestOrigin?: string
 ): string => {
   const isLocal = windowOrigin.includes('localhost') || windowOrigin.includes('127.0.0.1');
   const accessParam = `?access=${waiterAccessMode}`;
 
-  let baseOrigin: string = 'https://www.sistemasdegestao.tech';
+  let baseOrigin = 'https://www.sistemasdegestao.tech';
 
   if (waiterAccessMode === 'local') {
     const targetOrigin = waiterLocalOrigin || localTestOrigin;
     if (targetOrigin) {
-      const validation = validateLanOrigin(targetOrigin);
+      const validation = validateLanOrigin(targetOrigin, windowOrigin);
       if (validation.valid && validation.origin) {
         baseOrigin = validation.origin;
       } else if (isLocal) {
@@ -122,16 +151,10 @@ export const getComandaAccessUrl = (
     }
   }
 
-  // Extrai o slug do pathname (/gestao-gastro/<slug>/...)
   const match = pathname.match(/^\/gestao-gastro\/([^/]+)/);
   if (match) {
     return `${baseOrigin}/gestao-gastro/${match[1]}/comanda${accessParam}`;
   }
 
   return `${baseOrigin}/comanda${accessParam}`;
-};
-
-export const getComandaQrImageUrl = (accessUrl: string): string => {
-  const data = encodeURIComponent(accessUrl);
-  return `https://api.qrserver.com/v1/create-qr-code/?size=240x240&margin=12&data=${data}`;
 };

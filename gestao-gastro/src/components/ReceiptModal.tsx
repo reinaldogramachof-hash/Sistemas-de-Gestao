@@ -10,9 +10,10 @@ interface ReceiptModalProps {
   onClose: () => void;
   syncMessage?: string;
   syncStatus?: 'success' | 'error';
+  isConference?: boolean;
 }
 
-export const ReceiptModal: React.FC<ReceiptModalProps> = ({ order, onClose, syncMessage, syncStatus }) => {
+export const ReceiptModal: React.FC<ReceiptModalProps> = ({ order, onClose, syncMessage, syncStatus, isConference }) => {
   const { theme, waiters, settings } = useApp();
   const isDark = theme === 'dark';
 
@@ -72,7 +73,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ order, onClose, sync
 
              <div className="space-y-0.5 mb-4 text-[10px] print:text-[11px] uppercase">
                <div className="flex justify-between"><span>DATA:</span> <span>{dateStr}</span></div>
-               <div className="flex justify-between"><span>EXTRATO:</span> <span className="font-bold">#{order.id.slice(-8).toUpperCase()}</span></div>
+               <div className="flex justify-between"><span>{isConference ? 'CONFERÊNCIA:' : 'EXTRATO:'}</span> <span className="font-bold">#{order.id.slice(-8).toUpperCase()}</span></div>
                <div className="flex justify-between"><span>OPERADOR:</span> <span>{waiter}</span></div>
                <div className="flex justify-between"><span>MODO:</span> <span className="font-bold">{order.mode} {order.tableNumber ? `| MESA ${order.tableNumber}` : ''}</span></div>
              </div>
@@ -112,23 +113,25 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ order, onClose, sync
                 </div>
              </div>
 
-             <div className="mt-4 pt-3 border-t border-dashed border-current space-y-1">
-                <p className="font-bold text-[10px] uppercase mb-2">Pagamento:</p>
-                {order.payments.map((p, i) => (
-                  <div key={i} className="flex justify-between text-[11px]">
-                    <span className="uppercase">{p.method}</span>
-                    <span>{formatCurrency(p.receivedAmount ?? p.amount)}</span>
+              {!isConference && (
+                <div className="mt-4 pt-3 border-t border-dashed border-current space-y-1">
+                  <p className="font-bold text-[10px] uppercase mb-2">Pagamento:</p>
+                  {order.payments.map((p, i) => (
+                    <div key={i} className="flex justify-between text-[11px]">
+                      <span className="uppercase">{p.method}</span>
+                      <span>{formatCurrency(p.receivedAmount ?? p.amount)}</span>
+                    </div>
+                  ))}
+                  <div className="flex justify-between mt-1 pt-1 border-t border-dotted border-current/30 font-bold text-[11px]">
+                     <span>RECEBIDO:</span>
+                     <span>{formatCurrency(amountReceived)}</span>
                   </div>
-                ))}
-                <div className="flex justify-between mt-1 pt-1 border-t border-dotted border-current/30 font-bold text-[11px]">
-                   <span>RECEBIDO:</span>
-                   <span>{formatCurrency(amountReceived)}</span>
+                  <div className="flex justify-between font-bold text-[11px]">
+                     <span>TROCO:</span>
+                     <span>{formatCurrency(troco)}</span>
+                  </div>
                 </div>
-                <div className="flex justify-between font-bold text-[11px]">
-                   <span>TROCO:</span>
-                   <span>{formatCurrency(troco)}</span>
-                </div>
-             </div>
+              )}
 
              <div className="text-center mt-8 space-y-1">
                <div className="w-full border-b border-dashed border-current mb-3"></div>

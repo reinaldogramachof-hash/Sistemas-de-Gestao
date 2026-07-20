@@ -1,0 +1,1889 @@
+{
+    "tenant_id": "cd8f21f4-73a1-4c87-a385-9b6deacaeae7",
+    "created_at": "2026-07-17T15:51:55+00:00",
+    "tables": {
+        "tenants": {
+            "code": 200,
+            "rows": [
+                {
+                    "id": "cd8f21f4-73a1-4c87-a385-9b6deacaeae7",
+                    "customer_id": "c032e085-f322-41d2-9487-63e58e7bfd23",
+                    "system_id": "23762ff8-ce95-4902-8ba9-dfd3c9f8e253",
+                    "name": "Cantinho da Resenha",
+                    "slug": "cantinhodaresenha",
+                    "status": "active",
+                    "metadata": {
+                        "source": "codex_menu_seed",
+                        "basic_modules": [
+                            "pdv",
+                            "mesas",
+                            "caixa",
+                            "dashboard",
+                            "produtos",
+                            "relatorios",
+                            "estoque",
+                            "manual",
+                            "configuracoes",
+                            "suporte"
+                        ],
+                        "initial_plan_label": "basico"
+                    },
+                    "created_at": "2026-07-13T15:55:57.079939+00:00",
+                    "updated_at": "2026-07-14T16:05:26.127812+00:00"
+                }
+            ],
+            "error": ""
+        },
+        "customers": {
+            "code": 200,
+            "rows": [
+                {
+                    "id": "c032e085-f322-41d2-9487-63e58e7bfd23",
+                    "name": "Cantinho da Resenha",
+                    "email": null,
+                    "phone": null,
+                    "document": null,
+                    "status": "active",
+                    "metadata": {
+                        "source": "codex_menu_seed",
+                        "confirmed_client_name": true
+                    },
+                    "created_at": "2026-07-13T15:55:57.079939+00:00",
+                    "updated_at": "2026-07-13T15:55:57.079939+00:00"
+                }
+            ],
+            "error": ""
+        },
+        "licenses": {
+            "code": 200,
+            "rows": [],
+            "error": ""
+        },
+        "tenant_modules": {
+            "code": 200,
+            "rows": [],
+            "error": ""
+        },
+        "tenant_members": {
+            "code": 200,
+            "rows": [
+                {
+                    "tenant_id": "cd8f21f4-73a1-4c87-a385-9b6deacaeae7",
+                    "user_id": "bcf0cd25-a8ad-499e-8715-afcdef410e5e",
+                    "role": "owner",
+                    "active": true,
+                    "created_at": "2026-07-14T16:57:10.238787+00:00",
+                    "display_name": "Jéssica Teste"
+                },
+                {
+                    "tenant_id": "cd8f21f4-73a1-4c87-a385-9b6deacaeae7",
+                    "user_id": "c483cbe5-7db5-49ed-976f-b845083730e9",
+                    "role": "waiter",
+                    "active": true,
+                    "created_at": "2026-07-15T22:26:59.026855+00:00",
+                    "display_name": "Reinaldo"
+                }
+            ],
+            "error": ""
+        },
+        "restaurant_tables": {
+            "code": 200,
+            "rows": [
+                {
+                    "id": "04fdd8b5-003b-4456-a07e-40724e59c0f7",
+                    "tenant_id": "cd8f21f4-73a1-4c87-a385-9b6deacaeae7",
+                    "number": 2,
+                    "status": "livre",
+                    "active_order_id": null,
+                    "reservation_reason": null,
+                    "created_at": "2026-07-14T17:31:23.201065+00:00",
+                    "updated_at": "2026-07-16T17:23:54.872833+00:00",
+                    "sector": "Salão"
+                },
+                {
+                    "id": "30b572cc-85d5-41ce-ba5d-be64a91073f2",
+                    "tenant_id": "cd8f21f4-73a1-4c87-a385-9b6deacaeae7",
+                    "number": 3,
+                    "status": "livre",
+                    "active_order_id": null,
+                    "reservation_reason": null,
+                    "created_at": "2026-07-14T17:31:23.201065+00:00",
+                    "updated_at": "2026-07-16T17:23:54.872833+00:00",
+                    "sector": "Salão"
+                },
+                {
+                    "id": "32560f8c-3cbc-491c-a9f7-7aae1183827f",
+                    "tenant_id": "cd8f21f4-73a1-4c87-a385-9b6deacaeae7",
+                    "number": 4,
+                    "status": "livre",
+                    "active_order_id": null,
+                    "reservation_reason": null,
+                    "created_at": "2026-07-14T17:31:23.201065+00:00",
+                    "updated_at": "2026-07-16T17:23:54.872833+00:00",
+                    "sector": "Salão"
+                },
+                {
+                    "id": "adb2aa1c-47d0-4a14-8196-4155784529b6",
+                    "tenant_id": "cd8f21f4-73a1-4c87-a385-9b6deacaeae7",
+                    "number": 5,
+                    "status": "livre",
+                    "active_order_id": null,
+                    "reservation_reason": null,
+                    "created_at": "2026-07-14T17:31:23.201065+00:00",
+                    "updated_at": "2026-07-16T17:23:54.872833+00:00",
+                    "sector": "Salão"
+                },
+                {
+                    "id": "911a65d8-0605-4f69-8c62-e5a635d0307c",
+                    "tenant_id": "cd8f21f4-73a1-4c87-a385-9b6deacaeae7",
+                    "number": 6,
+                    "status": "livre",
+                    "active_order_id": null,
+                    "reservation_reason": null,
+                    "created_at": "2026-07-14T17:31:23.201065+00:00",
+                    "updated_at": "2026-07-16T17:23:54.872833+00:00",
+                    "sector": "Salão"
+                },
+                {
+                    "id": "34718489-364c-4e97-9314-390737e10497",
+                    "tenant_id": "cd8f21f4-73a1-4c87-a385-9b6deacaeae7",
+                    "number": 7,
+                    "status": "livre",
+                    "active_order_id": null,
+                    "reservation_reason": null,
+                    "created_at": "2026-07-14T17:31:23.201065+00:00",
+                    "updated_at": "2026-07-16T17:23:54.872833+00:00",
+                    "sector": "Salão"
+                },
+                {
+                    "id": "f6b6bfba-8c56-4bfa-9ebb-f81de7be0629",
+                    "tenant_id": "cd8f21f4-73a1-4c87-a385-9b6deacaeae7",
+                    "number": 8,
+                    "status": "livre",
+                    "active_order_id": null,
+                    "reservation_reason": null,
+                    "created_at": "2026-07-14T17:31:23.201065+00:00",
+                    "updated_at": "2026-07-16T17:23:54.872833+00:00",
+                    "sector": "Salão"
+                },
+                {
+                    "id": "23744f8c-1086-4f4b-a01e-18b86729c80b",
+                    "tenant_id": "cd8f21f4-73a1-4c87-a385-9b6deacaeae7",
+                    "number": 9,
+                    "status": "livre",
+                    "active_order_id": null,
+                    "reservation_reason": null,
+                    "created_at": "2026-07-14T17:31:23.201065+00:00",
+                    "updated_at": "2026-07-16T17:23:54.872833+00:00",
+                    "sector": "Salão"
+                },
+                {
+                    "id": "9b5eb038-b6a7-458f-97df-b38c75e3c1c9",
+                    "tenant_id": "cd8f21f4-73a1-4c87-a385-9b6deacaeae7",
+                    "number": 10,
+                    "status": "livre",
+                    "active_order_id": null,
+                    "reservation_reason": null,
+                    "created_at": "2026-07-14T17:31:23.201065+00:00",
+                    "updated_at": "2026-07-16T17:23:54.872833+00:00",
+                    "sector": "Salão"
+                },
+                {
+                    "id": "76b9b7b0-068a-4e9f-b67a-b0f88012e331",
+                    "tenant_id": "cd8f21f4-73a1-4c87-a385-9b6deacaeae7",
+                    "number": 12,
+                    "status": "livre",
+                    "active_order_id": null,
+                    "reservation_reason": null,
+                    "created_at": "2026-07-15T14:26:25.98379+00:00",
+                    "updated_at": "2026-07-16T17:23:54.872833+00:00",
+                    "sector": "Salão"
+                },
+                {
+                    "id": "87c02420-f3bb-47c8-8156-1e145caf2670",
+                    "tenant_id": "cd8f21f4-73a1-4c87-a385-9b6deacaeae7",
+                    "number": 13,
+                    "status": "livre",
+                    "active_order_id": null,
+                    "reservation_reason": null,
+                    "created_at": "2026-07-16T23:47:24.419164+00:00",
+                    "updated_at": "2026-07-16T23:47:24.419164+00:00",
+                    "sector": "Salão"
+                },
+                {
+                    "id": "f7bae226-35d5-4a29-8339-977cb06f94aa",
+                    "tenant_id": "cd8f21f4-73a1-4c87-a385-9b6deacaeae7",
+                    "number": 14,
+                    "status": "livre",
+                    "active_order_id": null,
+                    "reservation_reason": null,
+                    "created_at": "2026-07-16T23:47:24.419164+00:00",
+                    "updated_at": "2026-07-16T23:47:24.419164+00:00",
+                    "sector": "Salão"
+                },
+                {
+                    "id": "bff54995-8f27-4de8-9fef-68686579894d",
+                    "tenant_id": "cd8f21f4-73a1-4c87-a385-9b6deacaeae7",
+                    "number": 15,
+                    "status": "livre",
+                    "active_order_id": null,
+                    "reservation_reason": null,
+                    "created_at": "2026-07-16T23:47:24.419164+00:00",
+                    "updated_at": "2026-07-16T23:47:24.419164+00:00",
+                    "sector": "Salão"
+                },
+                {
+                    "id": "8aa58a5b-9165-459f-8adc-2f279db65dae",
+                    "tenant_id": "cd8f21f4-73a1-4c87-a385-9b6deacaeae7",
+                    "number": 16,
+                    "status": "livre",
+                    "active_order_id": null,
+                    "reservation_reason": null,
+                    "created_at": "2026-07-16T23:47:24.419164+00:00",
+                    "updated_at": "2026-07-16T23:47:24.419164+00:00",
+                    "sector": "Salão"
+                },
+                {
+                    "id": "67777288-5707-4afd-b1d4-80fb6b223777",
+                    "tenant_id": "cd8f21f4-73a1-4c87-a385-9b6deacaeae7",
+                    "number": 17,
+                    "status": "livre",
+                    "active_order_id": null,
+                    "reservation_reason": null,
+                    "created_at": "2026-07-16T23:47:24.419164+00:00",
+                    "updated_at": "2026-07-16T23:47:24.419164+00:00",
+                    "sector": "Salão"
+                },
+                {
+                    "id": "cb71c6e3-a88a-43e2-9f49-fac01c11bfe5",
+                    "tenant_id": "cd8f21f4-73a1-4c87-a385-9b6deacaeae7",
+                    "number": 1,
+                    "status": "livre",
+                    "active_order_id": "845b1e5b-6189-4916-bdeb-60c708b59e5b",
+                    "reservation_reason": null,
+                    "created_at": "2026-07-14T17:31:23.201065+00:00",
+                    "updated_at": "2026-07-16T23:54:48.701151+00:00",
+                    "sector": "Salão"
+                },
+                {
+                    "id": "c94b0f6d-24fb-4242-b9a7-63bc41dcfb4a",
+                    "tenant_id": "cd8f21f4-73a1-4c87-a385-9b6deacaeae7",
+                    "number": 11,
+                    "status": "livre",
+                    "active_order_id": "b6376819-f5a1-41c3-ad11-389ef1bd40c4",
+                    "reservation_reason": null,
+                    "created_at": "2026-07-15T14:26:25.98379+00:00",
+                    "updated_at": "2026-07-16T23:55:07.27912+00:00",
+                    "sector": "Salão"
+                }
+            ],
+            "error": ""
+        },
+        "restaurant_orders": {
+            "code": 200,
+            "rows": [
+                {
+                    "id": "aea836ac-f70d-430a-82d4-0d7b0c367952",
+                    "tenant_id": "cd8f21f4-73a1-4c87-a385-9b6deacaeae7",
+                    "mode": "mesa",
+                    "table_number": 1,
+                    "customer_name": null,
+                    "items": [
+                        {
+                            "id": "5168892e-50f3-495b-8a2a-17caeddee4b5_1784227617870_1089h6wbwdf9",
+                            "price": 48.9,
+                            "product": {
+                                "id": "5168892e-50f3-495b-8a2a-17caeddee4b5",
+                                "name": "Torresmo",
+                                "price": 48.9,
+                                "active": true,
+                                "recipe": [],
+                                "category": "Porções",
+                                "empresaId": "cd8f21f4-73a1-4c87-a385-9b6deacaeae7",
+                                "description": ""
+                            },
+                            "quantity": 1,
+                            "kitchenStatus": "aguardando"
+                        },
+                        {
+                            "id": "9af8add2-dd1f-4c3f-912b-c44af8f7fecd_1784227617870_9re0ur7kscv",
+                            "price": 21.9,
+                            "product": {
+                                "id": "9af8add2-dd1f-4c3f-912b-c44af8f7fecd",
+                                "name": "Batata frita",
+                                "price": 21.9,
+                                "active": true,
+                                "recipe": [],
+                                "category": "Porções",
+                                "empresaId": "cd8f21f4-73a1-4c87-a385-9b6deacaeae7",
+                                "description": ""
+                            },
+                            "quantity": 1,
+                            "kitchenStatus": "aguardando"
+                        },
+                        {
+                            "id": "d934faa9-8f7f-4c8b-ad6c-e8ab29911bed_1784227639797_7tp9r8nyoef",
+                            "price": 28.9,
+                            "product": {
+                                "id": "d934faa9-8f7f-4c8b-ad6c-e8ab29911bed",
+                                "name": "Frango a passarinho",
+                                "price": 28.9,
+                                "active": true,
+                                "recipe": [],
+                                "category": "Porções",
+                                "empresaId": "cd8f21f4-73a1-4c87-a385-9b6deacaeae7",
+                                "description": ""
+                            },
+                            "quantity": 1,
+                            "kitchenStatus": "aguardando"
+                        },
+                        {
+                            "id": "452f9969-28c8-4b61-ab44-cbdcb5814d28_1784227639797_jckhyjen5e",
+                            "price": 35.9,
+                            "product": {
+                                "id": "452f9969-28c8-4b61-ab44-cbdcb5814d28",
+                                "name": "Tirinhas de frango",
+                                "price": 35.9,
+                                "active": true,
+                                "recipe": [],
+                                "category": "Porções",
+                                "empresaId": "cd8f21f4-73a1-4c87-a385-9b6deacaeae7",
+                                "description": ""
+                            },
+                            "quantity": 1,
+                            "kitchenStatus": "aguardando"
+                        }
+                    ],
+                    "subtotal": 135.6,
+                    "service_charge": 13.56,
+                    "total": 149.16,
+                    "payments": [
+                        {
+                            "amount": 149.16,
+                            "method": "debito"
+                        }
+                    ],
+                    "status": "closed",
+                    "waiter_id": "c483cbe5-7db5-49ed-976f-b845083730e9",
+                    "waiter_name": "Reinaldo",
+                    "timestamp": "2026-07-16T18:46:57.87+00:00",
+                    "created_at": "2026-07-16T18:46:59.1011+00:00",
+                    "updated_at": "2026-07-16T19:01:43.757652+00:00",
+                    "customer_count": null,
+                    "adult_count": null,
+                    "children_count": null,
+                    "partial_payments": [],
+                    "loyalty_discount": 0,
+                    "loyalty_points_earned": 0,
+                    "loyalty_points_redeemed": 0
+                },
+                {
+                    "id": "795fab5c-407c-4e9d-95ce-1f08493e98ba",
+                    "tenant_id": "cd8f21f4-73a1-4c87-a385-9b6deacaeae7",
+                    "mode": "mesa",
+                    "table_number": 1,
+                    "customer_name": null,
+                    "items": [
+                        {
+                            "id": "5168892e-50f3-495b-8a2a-17caeddee4b5_1784228757090_gvhenavqkch",
+                            "price": 48.9,
+                            "product": {
+                                "id": "5168892e-50f3-495b-8a2a-17caeddee4b5",
+                                "name": "Torresmo",
+                                "price": 48.9,
+                                "active": true,
+                                "recipe": [],
+                                "category": "Porções",
+                                "empresaId": "cd8f21f4-73a1-4c87-a385-9b6deacaeae7",
+                                "description": ""
+                            },
+                            "quantity": 1,
+                            "kitchenStatus": "aguardando"
+                        },
+                        {
+                            "id": "9af8add2-dd1f-4c3f-912b-c44af8f7fecd_1784228757090_lgvb509283l",
+                            "price": 21.9,
+                            "product": {
+                                "id": "9af8add2-dd1f-4c3f-912b-c44af8f7fecd",
+                                "name": "Batata frita",
+                                "price": 21.9,
+                                "active": true,
+                                "recipe": [],
+                                "category": "Porções",
+                                "empresaId": "cd8f21f4-73a1-4c87-a385-9b6deacaeae7",
+                                "description": ""
+                            },
+                            "quantity": 1,
+                            "kitchenStatus": "aguardando"
+                        },
+                        {
+                            "id": "62f9676c-8653-4187-b6f2-6c35660df0e6_1784228757090_ikcvlaq6or",
+                            "price": 29.9,
+                            "product": {
+                                "id": "62f9676c-8653-4187-b6f2-6c35660df0e6",
+                                "name": "Batata com queijo",
+                                "price": 29.9,
+                                "active": true,
+                                "recipe": [],
+                                "category": "Porções",
+                                "empresaId": "cd8f21f4-73a1-4c87-a385-9b6deacaeae7",
+                                "description": ""
+                            },
+                            "quantity": 1,
+                            "kitchenStatus": "aguardando"
+                        }
+                    ],
+                    "subtotal": 100.69999999999999,
+                    "service_charge": 10.07,
+                    "total": 110.76999999999998,
+                    "payments": [
+                        {
+                            "amount": 110.77,
+                            "method": "debito"
+                        }
+                    ],
+                    "status": "closed",
+                    "waiter_id": "c483cbe5-7db5-49ed-976f-b845083730e9",
+                    "waiter_name": "Reinaldo",
+                    "timestamp": "2026-07-16T19:05:57.147+00:00",
+                    "created_at": "2026-07-16T19:05:58.383661+00:00",
+                    "updated_at": "2026-07-16T23:47:36.94037+00:00",
+                    "customer_count": null,
+                    "adult_count": null,
+                    "children_count": null,
+                    "partial_payments": [],
+                    "loyalty_discount": 0,
+                    "loyalty_points_earned": 0,
+                    "loyalty_points_redeemed": 0
+                },
+                {
+                    "id": "845b1e5b-6189-4916-bdeb-60c708b59e5b",
+                    "tenant_id": "cd8f21f4-73a1-4c87-a385-9b6deacaeae7",
+                    "mode": "mesa",
+                    "table_number": 1,
+                    "customer_name": null,
+                    "items": [
+                        {
+                            "id": "5168892e-50f3-495b-8a2a-17caeddee4b5_1784245993084_vsxlvl9qpe",
+                            "price": 48.9,
+                            "product": {
+                                "id": "5168892e-50f3-495b-8a2a-17caeddee4b5",
+                                "name": "Torresmo",
+                                "price": 48.9,
+                                "active": true,
+                                "recipe": [],
+                                "category": "Porções",
+                                "empresaId": "cd8f21f4-73a1-4c87-a385-9b6deacaeae7",
+                                "description": ""
+                            },
+                            "quantity": 1,
+                            "kitchenStatus": "aguardando"
+                        },
+                        {
+                            "id": "9af8add2-dd1f-4c3f-912b-c44af8f7fecd_1784245993084_hayg7xr40xj",
+                            "price": 21.9,
+                            "product": {
+                                "id": "9af8add2-dd1f-4c3f-912b-c44af8f7fecd",
+                                "name": "Batata frita",
+                                "price": 21.9,
+                                "active": true,
+                                "recipe": [],
+                                "category": "Porções",
+                                "empresaId": "cd8f21f4-73a1-4c87-a385-9b6deacaeae7",
+                                "description": ""
+                            },
+                            "quantity": 1,
+                            "kitchenStatus": "aguardando"
+                        },
+                        {
+                            "id": "f0c7637e-0f19-45d0-a165-3bca24093b49_1784245993084_38w9pal4bxw",
+                            "price": 4,
+                            "product": {
+                                "id": "f0c7637e-0f19-45d0-a165-3bca24093b49",
+                                "name": "Água com gás",
+                                "price": 4,
+                                "active": true,
+                                "recipe": [],
+                                "category": "Bebidas",
+                                "empresaId": "cd8f21f4-73a1-4c87-a385-9b6deacaeae7",
+                                "description": ""
+                            },
+                            "quantity": 1,
+                            "kitchenStatus": "aguardando"
+                        },
+                        {
+                            "id": "7a7b9306-ca5e-4247-9d1b-bba399504131_1784245993084_699s87uo3sl",
+                            "price": 7,
+                            "product": {
+                                "id": "7a7b9306-ca5e-4247-9d1b-bba399504131",
+                                "name": "Coca-Cola (KS)",
+                                "price": 7,
+                                "active": true,
+                                "recipe": [],
+                                "category": "Bebidas",
+                                "empresaId": "cd8f21f4-73a1-4c87-a385-9b6deacaeae7",
+                                "description": ""
+                            },
+                            "quantity": 1,
+                            "kitchenStatus": "aguardando"
+                        }
+                    ],
+                    "subtotal": 81.8,
+                    "service_charge": 0,
+                    "total": 81.8,
+                    "payments": [
+                        {
+                            "amount": 81.8,
+                            "method": "pix"
+                        }
+                    ],
+                    "status": "closed",
+                    "waiter_id": "c483cbe5-7db5-49ed-976f-b845083730e9",
+                    "waiter_name": "Reinaldo",
+                    "timestamp": "2026-07-16T23:53:13.751+00:00",
+                    "created_at": "2026-07-16T23:53:13.989031+00:00",
+                    "updated_at": "2026-07-16T23:54:48.580298+00:00",
+                    "customer_count": 4,
+                    "adult_count": 2,
+                    "children_count": 2,
+                    "partial_payments": [],
+                    "loyalty_discount": 0,
+                    "loyalty_points_earned": 0,
+                    "loyalty_points_redeemed": 0
+                },
+                {
+                    "id": "5c047270-3f1a-4121-8997-c9ba1240031a",
+                    "tenant_id": "cd8f21f4-73a1-4c87-a385-9b6deacaeae7",
+                    "mode": "balcao",
+                    "table_number": null,
+                    "customer_name": null,
+                    "items": [
+                        {
+                            "id": "17842459463700.03404204119477261",
+                            "price": 21.9,
+                            "addedAt": "2026-07-16T23:52:26.370Z",
+                            "product": {
+                                "id": "9af8add2-dd1f-4c3f-912b-c44af8f7fecd",
+                                "name": "Batata frita",
+                                "price": 21.9,
+                                "active": true,
+                                "recipe": [],
+                                "category": "Porções",
+                                "empresaId": "cd8f21f4-73a1-4c87-a385-9b6deacaeae7",
+                                "description": ""
+                            },
+                            "quantity": 1
+                        },
+                        {
+                            "id": "17842459469030.5391515120715422",
+                            "price": 29.9,
+                            "addedAt": "2026-07-16T23:52:26.903Z",
+                            "product": {
+                                "id": "62f9676c-8653-4187-b6f2-6c35660df0e6",
+                                "name": "Batata com queijo",
+                                "price": 29.9,
+                                "active": true,
+                                "recipe": [],
+                                "category": "Porções",
+                                "empresaId": "cd8f21f4-73a1-4c87-a385-9b6deacaeae7",
+                                "description": ""
+                            },
+                            "quantity": 1
+                        }
+                    ],
+                    "subtotal": 51.8,
+                    "service_charge": 0,
+                    "total": 51.8,
+                    "payments": [
+                        {
+                            "amount": 51.8,
+                            "method": "debito"
+                        }
+                    ],
+                    "status": "closed",
+                    "waiter_id": "responsavel-padrao",
+                    "waiter_name": null,
+                    "timestamp": "2026-07-16T23:43:37.393+00:00",
+                    "created_at": "2026-07-16T23:52:34.760901+00:00",
+                    "updated_at": "2026-07-16T23:52:34.941177+00:00",
+                    "customer_count": null,
+                    "adult_count": null,
+                    "children_count": null,
+                    "partial_payments": [],
+                    "loyalty_discount": 0,
+                    "loyalty_points_earned": 0,
+                    "loyalty_points_redeemed": 0
+                },
+                {
+                    "id": "76518d05-5f79-4155-b956-97adba530d8e",
+                    "tenant_id": "cd8f21f4-73a1-4c87-a385-9b6deacaeae7",
+                    "mode": "mesa",
+                    "table_number": 1,
+                    "customer_name": "Teste",
+                    "items": [
+                        {
+                            "id": "17842227017400.8040852069711651",
+                            "price": 28.9,
+                            "product": {
+                                "id": "d934faa9-8f7f-4c8b-ad6c-e8ab29911bed",
+                                "name": "Frango a passarinho",
+                                "price": 28.9,
+                                "active": true,
+                                "recipe": [],
+                                "category": "Porções",
+                                "empresaId": "cd8f21f4-73a1-4c87-a385-9b6deacaeae7",
+                                "description": ""
+                            },
+                            "quantity": 1
+                        },
+                        {
+                            "id": "17842227034700.9244448138538384",
+                            "price": 29.9,
+                            "product": {
+                                "id": "62f9676c-8653-4187-b6f2-6c35660df0e6",
+                                "name": "Batata com queijo",
+                                "price": 29.9,
+                                "active": true,
+                                "recipe": [],
+                                "category": "Porções",
+                                "empresaId": "cd8f21f4-73a1-4c87-a385-9b6deacaeae7",
+                                "description": ""
+                            },
+                            "quantity": 1
+                        }
+                    ],
+                    "subtotal": 58.8,
+                    "service_charge": 5.88,
+                    "total": 64.67999999999999,
+                    "payments": [
+                        {
+                            "amount": 64.68,
+                            "method": "debito"
+                        }
+                    ],
+                    "status": "closed",
+                    "waiter_id": "w1",
+                    "waiter_name": null,
+                    "timestamp": "2026-07-16T16:23:14.016+00:00",
+                    "created_at": "2026-07-16T16:23:16.008318+00:00",
+                    "updated_at": "2026-07-16T18:05:02.990265+00:00",
+                    "customer_count": null,
+                    "adult_count": null,
+                    "children_count": null,
+                    "partial_payments": [],
+                    "loyalty_discount": 0,
+                    "loyalty_points_earned": 0,
+                    "loyalty_points_redeemed": 0
+                },
+                {
+                    "id": "b6376819-f5a1-41c3-ad11-389ef1bd40c4",
+                    "tenant_id": "cd8f21f4-73a1-4c87-a385-9b6deacaeae7",
+                    "mode": "mesa",
+                    "table_number": 11,
+                    "customer_name": "",
+                    "items": [
+                        {
+                            "id": "17842460520730.30661062990758947",
+                            "price": 28.9,
+                            "product": {
+                                "id": "d934faa9-8f7f-4c8b-ad6c-e8ab29911bed",
+                                "name": "Frango a passarinho",
+                                "price": 28.9,
+                                "active": true,
+                                "recipe": [],
+                                "category": "Porções",
+                                "empresaId": "cd8f21f4-73a1-4c87-a385-9b6deacaeae7",
+                                "description": ""
+                            },
+                            "quantity": 1
+                        }
+                    ],
+                    "subtotal": 28.9,
+                    "service_charge": 0,
+                    "total": 28.9,
+                    "payments": [
+                        {
+                            "amount": 28.9,
+                            "method": "dinheiro",
+                            "changeAmount": 71.1,
+                            "receivedAmount": 100
+                        }
+                    ],
+                    "status": "closed",
+                    "waiter_id": "w1",
+                    "waiter_name": null,
+                    "timestamp": "2026-07-16T23:54:08.091+00:00",
+                    "created_at": "2026-07-16T23:54:09.588545+00:00",
+                    "updated_at": "2026-07-16T23:55:07.147309+00:00",
+                    "customer_count": 3,
+                    "adult_count": 2,
+                    "children_count": 1,
+                    "partial_payments": [],
+                    "loyalty_discount": 0,
+                    "loyalty_points_earned": 0,
+                    "loyalty_points_redeemed": 0
+                }
+            ],
+            "error": ""
+        },
+        "menu_categories": {
+            "code": 200,
+            "rows": [
+                {
+                    "id": "0c076da2-0c2e-4bf7-b1ca-e00f9f68edbb",
+                    "tenant_id": "cd8f21f4-73a1-4c87-a385-9b6deacaeae7",
+                    "name": "Porções",
+                    "slug": "porcoes",
+                    "sort_order": 10,
+                    "active": true,
+                    "metadata": {
+                        "source": "cardapio_cantinho_da_resenha"
+                    },
+                    "created_at": "2026-07-13T15:55:57.079939+00:00",
+                    "updated_at": "2026-07-13T15:55:57.079939+00:00"
+                },
+                {
+                    "id": "2c3af60c-75e7-4ffe-867c-d03af73fecd5",
+                    "tenant_id": "cd8f21f4-73a1-4c87-a385-9b6deacaeae7",
+                    "name": "Espetinhos",
+                    "slug": "espetinhos",
+                    "sort_order": 20,
+                    "active": true,
+                    "metadata": {
+                        "source": "cardapio_cantinho_da_resenha"
+                    },
+                    "created_at": "2026-07-13T15:55:57.079939+00:00",
+                    "updated_at": "2026-07-13T15:55:57.079939+00:00"
+                },
+                {
+                    "id": "42b6bb96-10d4-4d8a-9d25-0884696cc3a3",
+                    "tenant_id": "cd8f21f4-73a1-4c87-a385-9b6deacaeae7",
+                    "name": "Acompanhamentos",
+                    "slug": "acompanhamentos",
+                    "sort_order": 30,
+                    "active": true,
+                    "metadata": {
+                        "source": "cardapio_cantinho_da_resenha"
+                    },
+                    "created_at": "2026-07-13T15:55:57.079939+00:00",
+                    "updated_at": "2026-07-13T15:55:57.079939+00:00"
+                },
+                {
+                    "id": "3fb95ee3-dd10-4e10-9e05-9def2b4291ad",
+                    "tenant_id": "cd8f21f4-73a1-4c87-a385-9b6deacaeae7",
+                    "name": "Bebidas",
+                    "slug": "bebidas",
+                    "sort_order": 40,
+                    "active": true,
+                    "metadata": {
+                        "source": "cardapio_cantinho_da_resenha"
+                    },
+                    "created_at": "2026-07-13T15:55:57.079939+00:00",
+                    "updated_at": "2026-07-13T15:55:57.079939+00:00"
+                },
+                {
+                    "id": "ce3bffb5-e808-4a60-bdcd-2644ed41061b",
+                    "tenant_id": "cd8f21f4-73a1-4c87-a385-9b6deacaeae7",
+                    "name": "Cervejas",
+                    "slug": "cervejas",
+                    "sort_order": 50,
+                    "active": true,
+                    "metadata": {
+                        "source": "cardapio_cantinho_da_resenha"
+                    },
+                    "created_at": "2026-07-13T15:55:57.079939+00:00",
+                    "updated_at": "2026-07-13T15:55:57.079939+00:00"
+                },
+                {
+                    "id": "6ff5d79f-bfa7-4e9b-bbb0-bb3d6c413b36",
+                    "tenant_id": "cd8f21f4-73a1-4c87-a385-9b6deacaeae7",
+                    "name": "Drinks",
+                    "slug": "drinks",
+                    "sort_order": 60,
+                    "active": true,
+                    "metadata": {
+                        "source": "cardapio_cantinho_da_resenha"
+                    },
+                    "created_at": "2026-07-13T15:55:57.079939+00:00",
+                    "updated_at": "2026-07-13T15:55:57.079939+00:00"
+                },
+                {
+                    "id": "cdfd0a66-503d-4015-a578-c49c770f48c5",
+                    "tenant_id": "cd8f21f4-73a1-4c87-a385-9b6deacaeae7",
+                    "name": "Doses",
+                    "slug": "doses",
+                    "sort_order": 70,
+                    "active": true,
+                    "metadata": {
+                        "source": "cardapio_cantinho_da_resenha"
+                    },
+                    "created_at": "2026-07-13T15:55:57.079939+00:00",
+                    "updated_at": "2026-07-13T15:55:57.079939+00:00"
+                },
+                {
+                    "id": "18be853e-f1f6-40a8-9417-ebe0c635610c",
+                    "tenant_id": "cd8f21f4-73a1-4c87-a385-9b6deacaeae7",
+                    "name": "Combos de Destilados",
+                    "slug": "combos-destilados",
+                    "sort_order": 80,
+                    "active": true,
+                    "metadata": {
+                        "source": "cardapio_cantinho_da_resenha"
+                    },
+                    "created_at": "2026-07-13T15:55:57.079939+00:00",
+                    "updated_at": "2026-07-13T15:55:57.079939+00:00"
+                }
+            ],
+            "error": ""
+        },
+        "menu_products": {
+            "code": 200,
+            "rows": [
+                {
+                    "id": "5168892e-50f3-495b-8a2a-17caeddee4b5",
+                    "tenant_id": "cd8f21f4-73a1-4c87-a385-9b6deacaeae7",
+                    "category_id": "0c076da2-0c2e-4bf7-b1ca-e00f9f68edbb",
+                    "name": "Torresmo",
+                    "slug": "torresmo",
+                    "description": "",
+                    "price_cents": 4890,
+                    "currency": "BRL",
+                    "active": true,
+                    "requires_price_check": false,
+                    "product_type": "item",
+                    "metadata": {
+                        "source": "cardapio_cantinho_da_resenha"
+                    },
+                    "created_at": "2026-07-13T15:56:48.038326+00:00",
+                    "updated_at": "2026-07-13T15:56:48.038326+00:00",
+                    "image": null,
+                    "recipe": []
+                },
+                {
+                    "id": "9af8add2-dd1f-4c3f-912b-c44af8f7fecd",
+                    "tenant_id": "cd8f21f4-73a1-4c87-a385-9b6deacaeae7",
+                    "category_id": "0c076da2-0c2e-4bf7-b1ca-e00f9f68edbb",
+                    "name": "Batata frita",
+                    "slug": "batata-frita",
+                    "description": "",
+                    "price_cents": 2190,
+                    "currency": "BRL",
+                    "active": true,
+                    "requires_price_check": false,
+                    "product_type": "item",
+                    "metadata": {
+                        "source": "cardapio_cantinho_da_resenha"
+                    },
+                    "created_at": "2026-07-13T15:56:48.038326+00:00",
+                    "updated_at": "2026-07-13T15:56:48.038326+00:00",
+                    "image": null,
+                    "recipe": []
+                },
+                {
+                    "id": "62f9676c-8653-4187-b6f2-6c35660df0e6",
+                    "tenant_id": "cd8f21f4-73a1-4c87-a385-9b6deacaeae7",
+                    "category_id": "0c076da2-0c2e-4bf7-b1ca-e00f9f68edbb",
+                    "name": "Batata com queijo",
+                    "slug": "batata-com-queijo",
+                    "description": "",
+                    "price_cents": 2990,
+                    "currency": "BRL",
+                    "active": true,
+                    "requires_price_check": false,
+                    "product_type": "item",
+                    "metadata": {
+                        "source": "cardapio_cantinho_da_resenha"
+                    },
+                    "created_at": "2026-07-13T15:56:48.038326+00:00",
+                    "updated_at": "2026-07-13T15:56:48.038326+00:00",
+                    "image": null,
+                    "recipe": []
+                },
+                {
+                    "id": "a2f965a8-a89d-4089-83e0-998fede0b927",
+                    "tenant_id": "cd8f21f4-73a1-4c87-a385-9b6deacaeae7",
+                    "category_id": "0c076da2-0c2e-4bf7-b1ca-e00f9f68edbb",
+                    "name": "Batata com queijo e bacon",
+                    "slug": "batata-com-queijo-e-bacon",
+                    "description": "",
+                    "price_cents": 3490,
+                    "currency": "BRL",
+                    "active": true,
+                    "requires_price_check": false,
+                    "product_type": "item",
+                    "metadata": {
+                        "source": "cardapio_cantinho_da_resenha"
+                    },
+                    "created_at": "2026-07-13T15:56:48.038326+00:00",
+                    "updated_at": "2026-07-13T15:56:48.038326+00:00",
+                    "image": null,
+                    "recipe": []
+                },
+                {
+                    "id": "d934faa9-8f7f-4c8b-ad6c-e8ab29911bed",
+                    "tenant_id": "cd8f21f4-73a1-4c87-a385-9b6deacaeae7",
+                    "category_id": "0c076da2-0c2e-4bf7-b1ca-e00f9f68edbb",
+                    "name": "Frango a passarinho",
+                    "slug": "frango-a-passarinho",
+                    "description": "",
+                    "price_cents": 2890,
+                    "currency": "BRL",
+                    "active": true,
+                    "requires_price_check": false,
+                    "product_type": "item",
+                    "metadata": {
+                        "source": "cardapio_cantinho_da_resenha"
+                    },
+                    "created_at": "2026-07-13T15:56:48.038326+00:00",
+                    "updated_at": "2026-07-13T15:56:48.038326+00:00",
+                    "image": null,
+                    "recipe": []
+                },
+                {
+                    "id": "452f9969-28c8-4b61-ab44-cbdcb5814d28",
+                    "tenant_id": "cd8f21f4-73a1-4c87-a385-9b6deacaeae7",
+                    "category_id": "0c076da2-0c2e-4bf7-b1ca-e00f9f68edbb",
+                    "name": "Tirinhas de frango",
+                    "slug": "tirinhas-de-frango",
+                    "description": "",
+                    "price_cents": 3590,
+                    "currency": "BRL",
+                    "active": true,
+                    "requires_price_check": false,
+                    "product_type": "item",
+                    "metadata": {
+                        "source": "cardapio_cantinho_da_resenha"
+                    },
+                    "created_at": "2026-07-13T15:56:48.038326+00:00",
+                    "updated_at": "2026-07-13T15:56:48.038326+00:00",
+                    "image": null,
+                    "recipe": []
+                },
+                {
+                    "id": "9589b8b6-639b-49c9-9a7e-5a324261d7b6",
+                    "tenant_id": "cd8f21f4-73a1-4c87-a385-9b6deacaeae7",
+                    "category_id": "0c076da2-0c2e-4bf7-b1ca-e00f9f68edbb",
+                    "name": "Calabresa acebolada",
+                    "slug": "calabresa-acebolada",
+                    "description": "",
+                    "price_cents": 2990,
+                    "currency": "BRL",
+                    "active": true,
+                    "requires_price_check": false,
+                    "product_type": "item",
+                    "metadata": {
+                        "source": "cardapio_cantinho_da_resenha"
+                    },
+                    "created_at": "2026-07-13T15:56:48.038326+00:00",
+                    "updated_at": "2026-07-13T15:56:48.038326+00:00",
+                    "image": null,
+                    "recipe": []
+                },
+                {
+                    "id": "5474ee02-767e-4aea-b09d-cc8eb336566d",
+                    "tenant_id": "cd8f21f4-73a1-4c87-a385-9b6deacaeae7",
+                    "category_id": "0c076da2-0c2e-4bf7-b1ca-e00f9f68edbb",
+                    "name": "Linguiça em rodelas",
+                    "slug": "linguica-em-rodelas",
+                    "description": "",
+                    "price_cents": 2690,
+                    "currency": "BRL",
+                    "active": true,
+                    "requires_price_check": false,
+                    "product_type": "item",
+                    "metadata": {
+                        "source": "cardapio_cantinho_da_resenha"
+                    },
+                    "created_at": "2026-07-13T15:56:48.038326+00:00",
+                    "updated_at": "2026-07-13T15:56:48.038326+00:00",
+                    "image": null,
+                    "recipe": []
+                },
+                {
+                    "id": "27c1d13c-4826-482d-b7e8-3cdaa5869b5f",
+                    "tenant_id": "cd8f21f4-73a1-4c87-a385-9b6deacaeae7",
+                    "category_id": "0c076da2-0c2e-4bf7-b1ca-e00f9f68edbb",
+                    "name": "Contra filé",
+                    "slug": "contra-file",
+                    "description": "",
+                    "price_cents": 4990,
+                    "currency": "BRL",
+                    "active": true,
+                    "requires_price_check": false,
+                    "product_type": "item",
+                    "metadata": {
+                        "source": "cardapio_cantinho_da_resenha"
+                    },
+                    "created_at": "2026-07-13T15:56:48.038326+00:00",
+                    "updated_at": "2026-07-13T15:56:48.038326+00:00",
+                    "image": null,
+                    "recipe": []
+                },
+                {
+                    "id": "a540af5c-c5b4-423d-ae70-809df39d986d",
+                    "tenant_id": "cd8f21f4-73a1-4c87-a385-9b6deacaeae7",
+                    "category_id": "0c076da2-0c2e-4bf7-b1ca-e00f9f68edbb",
+                    "name": "Contra filé com batata",
+                    "slug": "contra-file-com-batata",
+                    "description": "",
+                    "price_cents": 6490,
+                    "currency": "BRL",
+                    "active": true,
+                    "requires_price_check": false,
+                    "product_type": "item",
+                    "metadata": {
+                        "source": "cardapio_cantinho_da_resenha"
+                    },
+                    "created_at": "2026-07-13T15:56:48.038326+00:00",
+                    "updated_at": "2026-07-13T15:56:48.038326+00:00",
+                    "image": null,
+                    "recipe": []
+                },
+                {
+                    "id": "de40b141-3b1e-4bdb-8961-98a9fa2e437c",
+                    "tenant_id": "cd8f21f4-73a1-4c87-a385-9b6deacaeae7",
+                    "category_id": "0c076da2-0c2e-4bf7-b1ca-e00f9f68edbb",
+                    "name": "Trio BCC (Batata frita + Calabresa acebolada + Contra filé)",
+                    "slug": "trio-bcc",
+                    "description": "Batata frita + Calabresa acebolada + Contra filé",
+                    "price_cents": 8990,
+                    "currency": "BRL",
+                    "active": true,
+                    "requires_price_check": false,
+                    "product_type": "combo",
+                    "metadata": {
+                        "source": "cardapio_cantinho_da_resenha",
+                        "combo_label": "Trio BCC"
+                    },
+                    "created_at": "2026-07-13T15:56:48.038326+00:00",
+                    "updated_at": "2026-07-13T15:56:48.038326+00:00",
+                    "image": null,
+                    "recipe": []
+                },
+                {
+                    "id": "e80c5b66-ecea-478e-88cd-071477bcd62b",
+                    "tenant_id": "cd8f21f4-73a1-4c87-a385-9b6deacaeae7",
+                    "category_id": "2c3af60c-75e7-4ffe-867c-d03af73fecd5",
+                    "name": "Espetinho de carne",
+                    "slug": "espetinho-de-carne",
+                    "description": "",
+                    "price_cents": 900,
+                    "currency": "BRL",
+                    "active": true,
+                    "requires_price_check": false,
+                    "product_type": "item",
+                    "metadata": {
+                        "source": "cardapio_cantinho_da_resenha"
+                    },
+                    "created_at": "2026-07-13T15:56:48.038326+00:00",
+                    "updated_at": "2026-07-13T15:56:48.038326+00:00",
+                    "image": null,
+                    "recipe": []
+                },
+                {
+                    "id": "0669d66c-736e-433f-b1cd-1b686991ac63",
+                    "tenant_id": "cd8f21f4-73a1-4c87-a385-9b6deacaeae7",
+                    "category_id": "2c3af60c-75e7-4ffe-867c-d03af73fecd5",
+                    "name": "Espetinho de frango",
+                    "slug": "espetinho-de-frango",
+                    "description": "",
+                    "price_cents": 800,
+                    "currency": "BRL",
+                    "active": true,
+                    "requires_price_check": false,
+                    "product_type": "item",
+                    "metadata": {
+                        "source": "cardapio_cantinho_da_resenha"
+                    },
+                    "created_at": "2026-07-13T15:56:48.038326+00:00",
+                    "updated_at": "2026-07-13T15:56:48.038326+00:00",
+                    "image": null,
+                    "recipe": []
+                },
+                {
+                    "id": "408a3334-3a6a-47c0-b6c0-fab4e6140308",
+                    "tenant_id": "cd8f21f4-73a1-4c87-a385-9b6deacaeae7",
+                    "category_id": "2c3af60c-75e7-4ffe-867c-d03af73fecd5",
+                    "name": "Espetinho misto",
+                    "slug": "espetinho-misto",
+                    "description": "",
+                    "price_cents": 800,
+                    "currency": "BRL",
+                    "active": true,
+                    "requires_price_check": false,
+                    "product_type": "item",
+                    "metadata": {
+                        "source": "cardapio_cantinho_da_resenha"
+                    },
+                    "created_at": "2026-07-13T15:56:48.038326+00:00",
+                    "updated_at": "2026-07-13T15:56:48.038326+00:00",
+                    "image": null,
+                    "recipe": []
+                },
+                {
+                    "id": "01fde68d-cb6d-40f8-99f3-db760f747732",
+                    "tenant_id": "cd8f21f4-73a1-4c87-a385-9b6deacaeae7",
+                    "category_id": "2c3af60c-75e7-4ffe-867c-d03af73fecd5",
+                    "name": "Espetinho de kafta",
+                    "slug": "espetinho-de-kafta",
+                    "description": "",
+                    "price_cents": 800,
+                    "currency": "BRL",
+                    "active": true,
+                    "requires_price_check": false,
+                    "product_type": "item",
+                    "metadata": {
+                        "source": "cardapio_cantinho_da_resenha"
+                    },
+                    "created_at": "2026-07-13T15:56:48.038326+00:00",
+                    "updated_at": "2026-07-13T15:56:48.038326+00:00",
+                    "image": null,
+                    "recipe": []
+                },
+                {
+                    "id": "69d749bd-e731-423e-aaa3-c389623ab29d",
+                    "tenant_id": "cd8f21f4-73a1-4c87-a385-9b6deacaeae7",
+                    "category_id": "2c3af60c-75e7-4ffe-867c-d03af73fecd5",
+                    "name": "Espetinho de coração",
+                    "slug": "espetinho-de-coracao",
+                    "description": "",
+                    "price_cents": 800,
+                    "currency": "BRL",
+                    "active": true,
+                    "requires_price_check": false,
+                    "product_type": "item",
+                    "metadata": {
+                        "source": "cardapio_cantinho_da_resenha"
+                    },
+                    "created_at": "2026-07-13T15:56:48.038326+00:00",
+                    "updated_at": "2026-07-13T15:56:48.038326+00:00",
+                    "image": null,
+                    "recipe": []
+                },
+                {
+                    "id": "0ada23b7-c164-49ed-82d7-1a38a4e1846f",
+                    "tenant_id": "cd8f21f4-73a1-4c87-a385-9b6deacaeae7",
+                    "category_id": "2c3af60c-75e7-4ffe-867c-d03af73fecd5",
+                    "name": "Espetinho de queijo",
+                    "slug": "espetinho-de-queijo",
+                    "description": "",
+                    "price_cents": 800,
+                    "currency": "BRL",
+                    "active": true,
+                    "requires_price_check": false,
+                    "product_type": "item",
+                    "metadata": {
+                        "source": "cardapio_cantinho_da_resenha"
+                    },
+                    "created_at": "2026-07-13T15:56:48.038326+00:00",
+                    "updated_at": "2026-07-13T15:56:48.038326+00:00",
+                    "image": null,
+                    "recipe": []
+                },
+                {
+                    "id": "4f06e2b6-5a7c-472e-983d-0cc9d5be8d89",
+                    "tenant_id": "cd8f21f4-73a1-4c87-a385-9b6deacaeae7",
+                    "category_id": "2c3af60c-75e7-4ffe-867c-d03af73fecd5",
+                    "name": "Medalhão de frango",
+                    "slug": "medalhao-de-frango",
+                    "description": "",
+                    "price_cents": 1100,
+                    "currency": "BRL",
+                    "active": true,
+                    "requires_price_check": false,
+                    "product_type": "item",
+                    "metadata": {
+                        "source": "cardapio_cantinho_da_resenha"
+                    },
+                    "created_at": "2026-07-13T15:56:48.038326+00:00",
+                    "updated_at": "2026-07-13T15:56:48.038326+00:00",
+                    "image": null,
+                    "recipe": []
+                },
+                {
+                    "id": "aaba1ef3-0bdd-401c-b019-b84d7459e981",
+                    "tenant_id": "cd8f21f4-73a1-4c87-a385-9b6deacaeae7",
+                    "category_id": "2c3af60c-75e7-4ffe-867c-d03af73fecd5",
+                    "name": "Medalhão de carne",
+                    "slug": "medalhao-de-carne",
+                    "description": "",
+                    "price_cents": 1200,
+                    "currency": "BRL",
+                    "active": true,
+                    "requires_price_check": false,
+                    "product_type": "item",
+                    "metadata": {
+                        "source": "cardapio_cantinho_da_resenha"
+                    },
+                    "created_at": "2026-07-13T15:56:48.038326+00:00",
+                    "updated_at": "2026-07-13T15:56:48.038326+00:00",
+                    "image": null,
+                    "recipe": []
+                },
+                {
+                    "id": "e8f2d53c-99aa-453a-ba7c-4a5848f750c9",
+                    "tenant_id": "cd8f21f4-73a1-4c87-a385-9b6deacaeae7",
+                    "category_id": "2c3af60c-75e7-4ffe-867c-d03af73fecd5",
+                    "name": "Pão de alho",
+                    "slug": "pao-de-alho",
+                    "description": "",
+                    "price_cents": 900,
+                    "currency": "BRL",
+                    "active": true,
+                    "requires_price_check": false,
+                    "product_type": "item",
+                    "metadata": {
+                        "source": "cardapio_cantinho_da_resenha"
+                    },
+                    "created_at": "2026-07-13T15:56:48.038326+00:00",
+                    "updated_at": "2026-07-13T15:56:48.038326+00:00",
+                    "image": null,
+                    "recipe": []
+                },
+                {
+                    "id": "02e9a912-3d4c-4723-b41e-0ceedfe34fc7",
+                    "tenant_id": "cd8f21f4-73a1-4c87-a385-9b6deacaeae7",
+                    "category_id": "42b6bb96-10d4-4d8a-9d25-0884696cc3a3",
+                    "name": "Arroz",
+                    "slug": "arroz",
+                    "description": "",
+                    "price_cents": 600,
+                    "currency": "BRL",
+                    "active": true,
+                    "requires_price_check": false,
+                    "product_type": "item",
+                    "metadata": {
+                        "source": "cardapio_cantinho_da_resenha"
+                    },
+                    "created_at": "2026-07-13T15:56:48.038326+00:00",
+                    "updated_at": "2026-07-13T15:56:48.038326+00:00",
+                    "image": null,
+                    "recipe": []
+                },
+                {
+                    "id": "f0c7637e-0f19-45d0-a165-3bca24093b49",
+                    "tenant_id": "cd8f21f4-73a1-4c87-a385-9b6deacaeae7",
+                    "category_id": "3fb95ee3-dd10-4e10-9e05-9def2b4291ad",
+                    "name": "Água com gás",
+                    "slug": "agua-com-gas",
+                    "description": "",
+                    "price_cents": 400,
+                    "currency": "BRL",
+                    "active": true,
+                    "requires_price_check": false,
+                    "product_type": "item",
+                    "metadata": {
+                        "source": "cardapio_cantinho_da_resenha"
+                    },
+                    "created_at": "2026-07-13T15:56:48.038326+00:00",
+                    "updated_at": "2026-07-13T15:56:48.038326+00:00",
+                    "image": null,
+                    "recipe": []
+                },
+                {
+                    "id": "7b4dcfed-d873-4cb5-bf5e-e6a847bfc5d1",
+                    "tenant_id": "cd8f21f4-73a1-4c87-a385-9b6deacaeae7",
+                    "category_id": "3fb95ee3-dd10-4e10-9e05-9def2b4291ad",
+                    "name": "Água sem gás",
+                    "slug": "agua-sem-gas",
+                    "description": "",
+                    "price_cents": 300,
+                    "currency": "BRL",
+                    "active": true,
+                    "requires_price_check": false,
+                    "product_type": "item",
+                    "metadata": {
+                        "source": "cardapio_cantinho_da_resenha"
+                    },
+                    "created_at": "2026-07-13T15:56:48.038326+00:00",
+                    "updated_at": "2026-07-13T15:56:48.038326+00:00",
+                    "image": null,
+                    "recipe": []
+                },
+                {
+                    "id": "7a7b9306-ca5e-4247-9d1b-bba399504131",
+                    "tenant_id": "cd8f21f4-73a1-4c87-a385-9b6deacaeae7",
+                    "category_id": "3fb95ee3-dd10-4e10-9e05-9def2b4291ad",
+                    "name": "Coca-Cola (KS)",
+                    "slug": "coca-cola-ks",
+                    "description": "",
+                    "price_cents": 700,
+                    "currency": "BRL",
+                    "active": true,
+                    "requires_price_check": false,
+                    "product_type": "item",
+                    "metadata": {
+                        "source": "cardapio_cantinho_da_resenha"
+                    },
+                    "created_at": "2026-07-13T15:56:48.038326+00:00",
+                    "updated_at": "2026-07-13T15:56:48.038326+00:00",
+                    "image": null,
+                    "recipe": []
+                },
+                {
+                    "id": "dc3ed2a0-f3c6-4604-9f1e-c5b961f0be16",
+                    "tenant_id": "cd8f21f4-73a1-4c87-a385-9b6deacaeae7",
+                    "category_id": "3fb95ee3-dd10-4e10-9e05-9def2b4291ad",
+                    "name": "Suco (consultar sabores)",
+                    "slug": "suco-consultar-sabores",
+                    "description": "Consultar sabores disponíveis no atendimento.",
+                    "price_cents": 999,
+                    "currency": "BRL",
+                    "active": true,
+                    "requires_price_check": false,
+                    "product_type": "item",
+                    "metadata": {
+                        "source": "cardapio_cantinho_da_resenha",
+                        "requires_flavor_check": true
+                    },
+                    "created_at": "2026-07-13T15:56:48.038326+00:00",
+                    "updated_at": "2026-07-13T15:56:48.038326+00:00",
+                    "image": null,
+                    "recipe": []
+                },
+                {
+                    "id": "90e7480e-f65e-4b55-9d52-3e4d9cc5a257",
+                    "tenant_id": "cd8f21f4-73a1-4c87-a385-9b6deacaeae7",
+                    "category_id": "3fb95ee3-dd10-4e10-9e05-9def2b4291ad",
+                    "name": "Batida (consultar sabores)",
+                    "slug": "batida-consultar-sabores",
+                    "description": "Consultar sabores disponíveis no atendimento.",
+                    "price_cents": 2490,
+                    "currency": "BRL",
+                    "active": true,
+                    "requires_price_check": false,
+                    "product_type": "item",
+                    "metadata": {
+                        "source": "cardapio_cantinho_da_resenha",
+                        "requires_flavor_check": true
+                    },
+                    "created_at": "2026-07-13T15:56:48.038326+00:00",
+                    "updated_at": "2026-07-13T15:56:48.038326+00:00",
+                    "image": null,
+                    "recipe": []
+                },
+                {
+                    "id": "ce3b8029-cba3-4a35-8c5e-08aa30d4b568",
+                    "tenant_id": "cd8f21f4-73a1-4c87-a385-9b6deacaeae7",
+                    "category_id": "3fb95ee3-dd10-4e10-9e05-9def2b4291ad",
+                    "name": "Red Bull",
+                    "slug": "red-bull",
+                    "description": "",
+                    "price_cents": 1500,
+                    "currency": "BRL",
+                    "active": true,
+                    "requires_price_check": false,
+                    "product_type": "item",
+                    "metadata": {
+                        "source": "cardapio_cantinho_da_resenha"
+                    },
+                    "created_at": "2026-07-13T15:56:48.038326+00:00",
+                    "updated_at": "2026-07-13T15:56:48.038326+00:00",
+                    "image": null,
+                    "recipe": []
+                },
+                {
+                    "id": "99978811-0e43-429b-81ef-a28fec943415",
+                    "tenant_id": "cd8f21f4-73a1-4c87-a385-9b6deacaeae7",
+                    "category_id": "ce3bffb5-e808-4a60-bdcd-2644ed41061b",
+                    "name": "Heineken 600 ml",
+                    "slug": "heineken-600-ml",
+                    "description": "",
+                    "price_cents": 1800,
+                    "currency": "BRL",
+                    "active": true,
+                    "requires_price_check": false,
+                    "product_type": "item",
+                    "metadata": {
+                        "source": "cardapio_cantinho_da_resenha"
+                    },
+                    "created_at": "2026-07-13T15:56:48.038326+00:00",
+                    "updated_at": "2026-07-13T15:56:48.038326+00:00",
+                    "image": null,
+                    "recipe": []
+                },
+                {
+                    "id": "cce69862-8381-4886-b98d-0c0bd202254b",
+                    "tenant_id": "cd8f21f4-73a1-4c87-a385-9b6deacaeae7",
+                    "category_id": "ce3bffb5-e808-4a60-bdcd-2644ed41061b",
+                    "name": "Original 600 ml",
+                    "slug": "original-600-ml",
+                    "description": "",
+                    "price_cents": 1500,
+                    "currency": "BRL",
+                    "active": true,
+                    "requires_price_check": false,
+                    "product_type": "item",
+                    "metadata": {
+                        "source": "cardapio_cantinho_da_resenha"
+                    },
+                    "created_at": "2026-07-13T15:56:48.038326+00:00",
+                    "updated_at": "2026-07-13T15:56:48.038326+00:00",
+                    "image": null,
+                    "recipe": []
+                },
+                {
+                    "id": "86d1c13d-7112-493c-9bde-af95d5d47b10",
+                    "tenant_id": "cd8f21f4-73a1-4c87-a385-9b6deacaeae7",
+                    "category_id": "ce3bffb5-e808-4a60-bdcd-2644ed41061b",
+                    "name": "Skol 600 ml",
+                    "slug": "skol-600-ml",
+                    "description": "",
+                    "price_cents": 1100,
+                    "currency": "BRL",
+                    "active": true,
+                    "requires_price_check": false,
+                    "product_type": "item",
+                    "metadata": {
+                        "source": "cardapio_cantinho_da_resenha"
+                    },
+                    "created_at": "2026-07-13T15:56:48.038326+00:00",
+                    "updated_at": "2026-07-13T15:56:48.038326+00:00",
+                    "image": null,
+                    "recipe": []
+                },
+                {
+                    "id": "a5a63df5-9617-4e02-af73-5c22583487e2",
+                    "tenant_id": "cd8f21f4-73a1-4c87-a385-9b6deacaeae7",
+                    "category_id": "ce3bffb5-e808-4a60-bdcd-2644ed41061b",
+                    "name": "Heineken Zero",
+                    "slug": "heineken-zero",
+                    "description": "",
+                    "price_cents": 1200,
+                    "currency": "BRL",
+                    "active": true,
+                    "requires_price_check": false,
+                    "product_type": "item",
+                    "metadata": {
+                        "source": "cardapio_cantinho_da_resenha"
+                    },
+                    "created_at": "2026-07-13T15:56:48.038326+00:00",
+                    "updated_at": "2026-07-13T15:56:48.038326+00:00",
+                    "image": null,
+                    "recipe": []
+                },
+                {
+                    "id": "49dbaad9-70f3-4c79-a32b-3f96a5bb0944",
+                    "tenant_id": "cd8f21f4-73a1-4c87-a385-9b6deacaeae7",
+                    "category_id": "ce3bffb5-e808-4a60-bdcd-2644ed41061b",
+                    "name": "Heineken Long Neck",
+                    "slug": "heineken-long-neck",
+                    "description": "",
+                    "price_cents": 1400,
+                    "currency": "BRL",
+                    "active": true,
+                    "requires_price_check": false,
+                    "product_type": "item",
+                    "metadata": {
+                        "source": "cardapio_cantinho_da_resenha"
+                    },
+                    "created_at": "2026-07-13T15:56:48.038326+00:00",
+                    "updated_at": "2026-07-13T15:56:48.038326+00:00",
+                    "image": null,
+                    "recipe": []
+                },
+                {
+                    "id": "bd5ce322-5dd8-491d-972c-1baf39909c5f",
+                    "tenant_id": "cd8f21f4-73a1-4c87-a385-9b6deacaeae7",
+                    "category_id": "ce3bffb5-e808-4a60-bdcd-2644ed41061b",
+                    "name": "Budweiser 330 ml",
+                    "slug": "budweiser-330-ml",
+                    "description": "",
+                    "price_cents": 1200,
+                    "currency": "BRL",
+                    "active": true,
+                    "requires_price_check": false,
+                    "product_type": "item",
+                    "metadata": {
+                        "source": "cardapio_cantinho_da_resenha"
+                    },
+                    "created_at": "2026-07-13T15:56:48.038326+00:00",
+                    "updated_at": "2026-07-13T15:56:48.038326+00:00",
+                    "image": null,
+                    "recipe": []
+                },
+                {
+                    "id": "78fa4e8f-38e7-46c1-94c1-ebc9bcd84ad8",
+                    "tenant_id": "cd8f21f4-73a1-4c87-a385-9b6deacaeae7",
+                    "category_id": "ce3bffb5-e808-4a60-bdcd-2644ed41061b",
+                    "name": "Skol Beats",
+                    "slug": "skol-beats",
+                    "description": "",
+                    "price_cents": 1300,
+                    "currency": "BRL",
+                    "active": true,
+                    "requires_price_check": false,
+                    "product_type": "item",
+                    "metadata": {
+                        "source": "cardapio_cantinho_da_resenha"
+                    },
+                    "created_at": "2026-07-13T15:56:48.038326+00:00",
+                    "updated_at": "2026-07-13T15:56:48.038326+00:00",
+                    "image": null,
+                    "recipe": []
+                },
+                {
+                    "id": "05cf8a4a-59a0-4121-91f8-966a778e2379",
+                    "tenant_id": "cd8f21f4-73a1-4c87-a385-9b6deacaeae7",
+                    "category_id": "ce3bffb5-e808-4a60-bdcd-2644ed41061b",
+                    "name": "Smirnoff Ice",
+                    "slug": "smirnoff-ice",
+                    "description": "",
+                    "price_cents": 1200,
+                    "currency": "BRL",
+                    "active": true,
+                    "requires_price_check": false,
+                    "product_type": "item",
+                    "metadata": {
+                        "source": "cardapio_cantinho_da_resenha"
+                    },
+                    "created_at": "2026-07-13T15:56:48.038326+00:00",
+                    "updated_at": "2026-07-13T15:56:48.038326+00:00",
+                    "image": null,
+                    "recipe": []
+                },
+                {
+                    "id": "b1dccb23-5c9e-4e5b-994a-d381334b9ec3",
+                    "tenant_id": "cd8f21f4-73a1-4c87-a385-9b6deacaeae7",
+                    "category_id": "6ff5d79f-bfa7-4e9b-bbb0-bb3d6c413b36",
+                    "name": "Caipirinha",
+                    "slug": "caipirinha",
+                    "description": "",
+                    "price_cents": 2000,
+                    "currency": "BRL",
+                    "active": true,
+                    "requires_price_check": false,
+                    "product_type": "item",
+                    "metadata": {
+                        "source": "cardapio_cantinho_da_resenha"
+                    },
+                    "created_at": "2026-07-13T15:56:48.038326+00:00",
+                    "updated_at": "2026-07-13T15:56:48.038326+00:00",
+                    "image": null,
+                    "recipe": []
+                },
+                {
+                    "id": "0f4edf35-a0d0-4557-b5f0-eddc71d2cc8d",
+                    "tenant_id": "cd8f21f4-73a1-4c87-a385-9b6deacaeae7",
+                    "category_id": "6ff5d79f-bfa7-4e9b-bbb0-bb3d6c413b36",
+                    "name": "Gin Dobro (promoção)",
+                    "slug": "gin-dobro-promocao",
+                    "description": "Promoção Gin Dobro.",
+                    "price_cents": 2000,
+                    "currency": "BRL",
+                    "active": true,
+                    "requires_price_check": false,
+                    "product_type": "item",
+                    "metadata": {
+                        "source": "cardapio_cantinho_da_resenha",
+                        "promotion": true,
+                        "promotion_name": "Gin Dobro"
+                    },
+                    "created_at": "2026-07-13T15:56:48.038326+00:00",
+                    "updated_at": "2026-07-13T15:56:48.038326+00:00",
+                    "image": null,
+                    "recipe": []
+                },
+                {
+                    "id": "3f1827e6-5078-4424-a968-fd650ec9d7a1",
+                    "tenant_id": "cd8f21f4-73a1-4c87-a385-9b6deacaeae7",
+                    "category_id": "cdfd0a66-503d-4015-a578-c49c770f48c5",
+                    "name": "Dose de cachaça",
+                    "slug": "dose-de-cachaca",
+                    "description": "",
+                    "price_cents": 400,
+                    "currency": "BRL",
+                    "active": true,
+                    "requires_price_check": false,
+                    "product_type": "item",
+                    "metadata": {
+                        "source": "cardapio_cantinho_da_resenha"
+                    },
+                    "created_at": "2026-07-13T15:56:48.038326+00:00",
+                    "updated_at": "2026-07-13T15:56:48.038326+00:00",
+                    "image": null,
+                    "recipe": []
+                },
+                {
+                    "id": "cdb07ed5-9023-4f55-bf28-db73988fc387",
+                    "tenant_id": "cd8f21f4-73a1-4c87-a385-9b6deacaeae7",
+                    "category_id": "cdfd0a66-503d-4015-a578-c49c770f48c5",
+                    "name": "Dose de cachaça com limão",
+                    "slug": "dose-de-cachaca-com-limao",
+                    "description": "",
+                    "price_cents": 500,
+                    "currency": "BRL",
+                    "active": true,
+                    "requires_price_check": false,
+                    "product_type": "item",
+                    "metadata": {
+                        "source": "cardapio_cantinho_da_resenha"
+                    },
+                    "created_at": "2026-07-13T15:56:48.038326+00:00",
+                    "updated_at": "2026-07-13T15:56:48.038326+00:00",
+                    "image": null,
+                    "recipe": []
+                },
+                {
+                    "id": "651d8b7d-0cc1-4004-be78-d7ad371ac089",
+                    "tenant_id": "cd8f21f4-73a1-4c87-a385-9b6deacaeae7",
+                    "category_id": "cdfd0a66-503d-4015-a578-c49c770f48c5",
+                    "name": "Whisky Jack Daniel’s",
+                    "slug": "whisky-jack-daniels",
+                    "description": "",
+                    "price_cents": 3000,
+                    "currency": "BRL",
+                    "active": true,
+                    "requires_price_check": false,
+                    "product_type": "item",
+                    "metadata": {
+                        "source": "cardapio_cantinho_da_resenha"
+                    },
+                    "created_at": "2026-07-13T15:56:48.038326+00:00",
+                    "updated_at": "2026-07-13T15:56:48.038326+00:00",
+                    "image": null,
+                    "recipe": []
+                },
+                {
+                    "id": "3db778bc-85a8-4b99-b3d0-b479c4c07b61",
+                    "tenant_id": "cd8f21f4-73a1-4c87-a385-9b6deacaeae7",
+                    "category_id": "cdfd0a66-503d-4015-a578-c49c770f48c5",
+                    "name": "Gin Tanqueray",
+                    "slug": "gin-tanqueray",
+                    "description": "",
+                    "price_cents": 3000,
+                    "currency": "BRL",
+                    "active": true,
+                    "requires_price_check": false,
+                    "product_type": "item",
+                    "metadata": {
+                        "source": "cardapio_cantinho_da_resenha"
+                    },
+                    "created_at": "2026-07-13T15:56:48.038326+00:00",
+                    "updated_at": "2026-07-13T15:56:48.038326+00:00",
+                    "image": null,
+                    "recipe": []
+                },
+                {
+                    "id": "ff40d9a2-7bc5-4b08-ac1f-f19fc8a08c72",
+                    "tenant_id": "cd8f21f4-73a1-4c87-a385-9b6deacaeae7",
+                    "category_id": "cdfd0a66-503d-4015-a578-c49c770f48c5",
+                    "name": "Gin Rocks",
+                    "slug": "gin-rocks",
+                    "description": "",
+                    "price_cents": 2000,
+                    "currency": "BRL",
+                    "active": true,
+                    "requires_price_check": false,
+                    "product_type": "item",
+                    "metadata": {
+                        "source": "cardapio_cantinho_da_resenha"
+                    },
+                    "created_at": "2026-07-13T15:56:48.038326+00:00",
+                    "updated_at": "2026-07-13T15:56:48.038326+00:00",
+                    "image": null,
+                    "recipe": []
+                },
+                {
+                    "id": "b2f68e33-f0c4-422f-900e-282aad0ccdcf",
+                    "tenant_id": "cd8f21f4-73a1-4c87-a385-9b6deacaeae7",
+                    "category_id": "cdfd0a66-503d-4015-a578-c49c770f48c5",
+                    "name": "Gin Gordons",
+                    "slug": "gin-gordons",
+                    "description": "",
+                    "price_cents": 2500,
+                    "currency": "BRL",
+                    "active": true,
+                    "requires_price_check": false,
+                    "product_type": "item",
+                    "metadata": {
+                        "source": "cardapio_cantinho_da_resenha"
+                    },
+                    "created_at": "2026-07-13T15:56:48.038326+00:00",
+                    "updated_at": "2026-07-13T15:56:48.038326+00:00",
+                    "image": null,
+                    "recipe": []
+                },
+                {
+                    "id": "77468356-28f7-46e5-b8d0-34d558eea449",
+                    "tenant_id": "cd8f21f4-73a1-4c87-a385-9b6deacaeae7",
+                    "category_id": "cdfd0a66-503d-4015-a578-c49c770f48c5",
+                    "name": "Vodka Absolut",
+                    "slug": "vodka-absolut",
+                    "description": "",
+                    "price_cents": 3000,
+                    "currency": "BRL",
+                    "active": true,
+                    "requires_price_check": false,
+                    "product_type": "item",
+                    "metadata": {
+                        "source": "cardapio_cantinho_da_resenha"
+                    },
+                    "created_at": "2026-07-13T15:56:48.038326+00:00",
+                    "updated_at": "2026-07-13T15:56:48.038326+00:00",
+                    "image": null,
+                    "recipe": []
+                },
+                {
+                    "id": "6b24127e-73df-4c7c-acaa-a1b9f4f41186",
+                    "tenant_id": "cd8f21f4-73a1-4c87-a385-9b6deacaeae7",
+                    "category_id": "cdfd0a66-503d-4015-a578-c49c770f48c5",
+                    "name": "Licor na taça",
+                    "slug": "licor-na-taca",
+                    "description": "",
+                    "price_cents": 2000,
+                    "currency": "BRL",
+                    "active": true,
+                    "requires_price_check": false,
+                    "product_type": "item",
+                    "metadata": {
+                        "source": "cardapio_cantinho_da_resenha"
+                    },
+                    "created_at": "2026-07-13T15:56:48.038326+00:00",
+                    "updated_at": "2026-07-13T15:56:48.038326+00:00",
+                    "image": null,
+                    "recipe": []
+                },
+                {
+                    "id": "f13e089a-ed7e-4372-822e-8df61dc1dfbb",
+                    "tenant_id": "cd8f21f4-73a1-4c87-a385-9b6deacaeae7",
+                    "category_id": "18be853e-f1f6-40a8-9417-ebe0c635610c",
+                    "name": "Combo Gordons",
+                    "slug": "combo-gordons",
+                    "description": "",
+                    "price_cents": 20000,
+                    "currency": "BRL",
+                    "active": true,
+                    "requires_price_check": false,
+                    "product_type": "combo",
+                    "metadata": {
+                        "source": "cardapio_cantinho_da_resenha"
+                    },
+                    "created_at": "2026-07-13T15:56:48.038326+00:00",
+                    "updated_at": "2026-07-13T15:56:48.038326+00:00",
+                    "image": null,
+                    "recipe": []
+                },
+                {
+                    "id": "8fcb3de4-6dad-4ec3-bacb-1b730412dda5",
+                    "tenant_id": "cd8f21f4-73a1-4c87-a385-9b6deacaeae7",
+                    "category_id": "18be853e-f1f6-40a8-9417-ebe0c635610c",
+                    "name": "Combo Tanqueray",
+                    "slug": "combo-tanqueray",
+                    "description": "",
+                    "price_cents": 30000,
+                    "currency": "BRL",
+                    "active": true,
+                    "requires_price_check": false,
+                    "product_type": "combo",
+                    "metadata": {
+                        "source": "cardapio_cantinho_da_resenha"
+                    },
+                    "created_at": "2026-07-13T15:56:48.038326+00:00",
+                    "updated_at": "2026-07-13T15:56:48.038326+00:00",
+                    "image": null,
+                    "recipe": []
+                },
+                {
+                    "id": "36172761-7d98-48fd-a93d-bc18797f42b9",
+                    "tenant_id": "cd8f21f4-73a1-4c87-a385-9b6deacaeae7",
+                    "category_id": "18be853e-f1f6-40a8-9417-ebe0c635610c",
+                    "name": "Combo Absolut",
+                    "slug": "combo-absolut",
+                    "description": "",
+                    "price_cents": 25000,
+                    "currency": "BRL",
+                    "active": true,
+                    "requires_price_check": false,
+                    "product_type": "combo",
+                    "metadata": {
+                        "source": "cardapio_cantinho_da_resenha"
+                    },
+                    "created_at": "2026-07-13T15:56:48.038326+00:00",
+                    "updated_at": "2026-07-13T15:56:48.038326+00:00",
+                    "image": null,
+                    "recipe": []
+                },
+                {
+                    "id": "24b7a52e-d9aa-4fa8-9199-273db573734f",
+                    "tenant_id": "cd8f21f4-73a1-4c87-a385-9b6deacaeae7",
+                    "category_id": "18be853e-f1f6-40a8-9417-ebe0c635610c",
+                    "name": "Combo Jack Daniel’s",
+                    "slug": "combo-jack-daniels",
+                    "description": "",
+                    "price_cents": 35000,
+                    "currency": "BRL",
+                    "active": true,
+                    "requires_price_check": false,
+                    "product_type": "combo",
+                    "metadata": {
+                        "source": "cardapio_cantinho_da_resenha"
+                    },
+                    "created_at": "2026-07-13T15:56:48.038326+00:00",
+                    "updated_at": "2026-07-13T15:56:48.038326+00:00",
+                    "image": null,
+                    "recipe": []
+                },
+                {
+                    "id": "0ff2d4d6-99dd-4c65-a01f-04d498f1b648",
+                    "tenant_id": "cd8f21f4-73a1-4c87-a385-9b6deacaeae7",
+                    "category_id": "18be853e-f1f6-40a8-9417-ebe0c635610c",
+                    "name": "Combo Chivas",
+                    "slug": "combo-chivas",
+                    "description": "Consultar valor no atendimento.",
+                    "price_cents": null,
+                    "currency": "BRL",
+                    "active": true,
+                    "requires_price_check": true,
+                    "product_type": "combo",
+                    "metadata": {
+                        "source": "cardapio_cantinho_da_resenha",
+                        "requires_price_check": true
+                    },
+                    "created_at": "2026-07-13T15:56:48.038326+00:00",
+                    "updated_at": "2026-07-13T15:56:48.038326+00:00",
+                    "image": null,
+                    "recipe": []
+                }
+            ],
+            "error": ""
+        },
+        "saas_audit_logs": {
+            "code": 200,
+            "rows": [],
+            "error": ""
+        }
+    },
+    "auth_users": [
+        {
+            "id": "c483cbe5-7db5-49ed-976f-b845083730e9",
+            "email": "garcom@teste.com",
+            "created_at": "2026-07-15T22:26:56.90793Z",
+            "app_metadata": {
+                "provider": "email",
+                "providers": [
+                    "email"
+                ]
+            },
+            "user_metadata": {
+                "display_name": "Reinaldo",
+                "email_verified": true
+            }
+        },
+        {
+            "id": "bcf0cd25-a8ad-499e-8715-afcdef410e5e",
+            "email": "cantinhodaresenha03@gmail.com",
+            "created_at": "2026-07-14T16:57:09.478385Z",
+            "app_metadata": {
+                "provider": "email",
+                "providers": [
+                    "email"
+                ]
+            },
+            "user_metadata": {
+                "display_name": "Jéssica Teste",
+                "email_verified": true
+            }
+        }
+    ]
+}

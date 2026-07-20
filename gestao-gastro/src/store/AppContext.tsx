@@ -36,7 +36,18 @@ const CANTINHO_OPERATIONAL_KEYS_TO_CLEAR = [
   'loyaltyEntries',
   'productSyncErrors',
   'productSyncIds',
+  'pdvOfflineQueue',
 ] as const;
+
+export type PDVMutationType = 'createComanda' | 'updateOrder' | 'closeOrder';
+export interface PDVMutation {
+  id: string;
+  type: PDVMutationType;
+  orderId: string;
+  payload: any;
+  timestamp: string;
+  retryCount: number;
+}
 
 interface AppState {
   products: Product[];
@@ -64,10 +75,13 @@ interface AppState {
   loyaltyConfig: LoyaltyConfig;
   loyaltyEntries: LoyaltyEntry[];
   productSyncErrors: Record<string, string>;
+  pdvOfflineQueue: PDVMutation[];
+  isSyncingPdvQueue: boolean;
 }
 
 interface AppContextType extends AppState {
   setTheme: (theme: 'dark' | 'light') => void;
+  syncPdvOfflineQueue: () => Promise<void>;
   updateProduct: (product: Product) => void;
   addProduct: (product: Product) => void;
   deleteProduct: (id: string) => void;
@@ -90,7 +104,7 @@ interface AppContextType extends AppState {
   deleteExpense: (id: string) => void;
   openCashier: (initialBalance?: number, operator?: { id: string; name: string }) => void;
   closeCashier: (tipsTotal: number, countedCash?: number, expectedCashBalance?: number) => void;
-  transferTable: (from: number, to: number) => void;
+  transferComanda: (orderId: string, toNumber: number) => void;
   mergeTables: (source: number, target: number) => void;
   reserveTable: (numbers: number[], reason: string) => void;
   clearTable: (number: number) => void;
@@ -201,6 +215,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [loyaltyEntries, setLoyaltyEntries] = useState<LoyaltyEntry[]>(() => parseJSON('loyaltyEntries', []));
   const [productSyncErrors, setProductSyncErrors] = useState<Record<string, string>>(() => parseJSON('productSyncErrors', {}));
   const [productSyncIds, setProductSyncIds] = useState<Record<string, string>>(() => parseJSON('productSyncIds', {}));
+  const [pdvOfflineQueue, setPdvOfflineQueue] = useState<PDVMutation[]>(() => parseJSON('pdvOfflineQueue', []));
+  const [isSyncingPdvQueue, setIsSyncingPdvQueue] = useState(false);
   const [supabaseOnline, setSupabaseOnline] = useState(false);
   const [localHomologationMode, setLocalHomologationMode] = useState(() => isLocalHomologationMode(effectiveTenantId));
   const remoteWritesEnabled = isSupabaseConfigured && !localHomologationMode;
@@ -234,13 +250,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Alimenta o hook Supabase com dados locais quando offline
   useEffect(() => {
-    if (!isSupabaseConfigured) {
-      tablesHook.setTablesLocal(localTables);
+    if (!remoteWritesEnabled) {
       ordersHook.setOrdersLocal(localOrders);
     }
-  // Só roda na montagem quando offline
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isSupabaseConfigured]);
+  }, [localOrders, remoteWritesEnabled, ordersHook]);
+
+  useEffect(() => {
+    const handleOnline = () => {
+      void syncPdvOfflineQueue();
+    };
+    window.addEventListener('online', handleOnline);
+    return () => window.removeEventListener('online', handleOnline);
+  }, [pdvOfflineQueue.length, isSyncingPdvQueue]);
 
   // Tabelas e pedidos visíveis: Supabase quando online, local quando offline
   const tables = localTables;
@@ -510,7 +531,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     localStorage.setItem(getTenantKey('loyaltyEntries'), JSON.stringify(loyaltyEntries));
     localStorage.setItem(getTenantKey('productSyncErrors'), JSON.stringify(productSyncErrors));
     localStorage.setItem(getTenantKey('productSyncIds'), JSON.stringify(productSyncIds));
-  }, [products, stockItems, suppliers, localTables, waiters, localOrders, expenses, cashierSession, cashierHistory, customers, collaborators, stockMovements, settings, readGuides, theme, draftOrder, promotions, combos, campaigns, loyaltyConfig, loyaltyEntries, productSyncErrors, productSyncIds]);
+    localStorage.setItem(getTenantKey('pdvOfflineQueue'), JSON.stringify(pdvOfflineQueue));
+  }, [products, stockItems, suppliers, localTables, waiters, localOrders, expenses, cashierSession, cashierHistory, customers, collaborators, stockMovements, settings, readGuides, theme, draftOrder, promotions, combos, campaigns, loyaltyConfig, loyaltyEntries, productSyncErrors, productSyncIds, pdvOfflineQueue]);
 
   const setDraftOrder = (order: Order | null) => setDraftOrderState(order);
   const clearDraftOrder = () => setDraftOrderState(null);
@@ -590,9 +612,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         localStorage.setItem(localHomologationStorageKey(currentTenantId), 'true');
         setLocalHomologationMode(true);
       }
-      alert('Dados importados com sucesso!');
     } catch (e) {
-      alert('Erro ao importar JSON. Verifique o formato.');
+      throw new Error('Erro ao importar JSON. Verifique o formato.');
     }
   };
 
@@ -672,6 +693,74 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
   };
 
+  const pushToPdvQueue = (type: PDVMutationType, orderId: string, payload: any) => {
+    setPdvOfflineQueue(prev => {
+      if (type === 'updateOrder') {
+        const existing = prev.findIndex(m => m.type === 'updateOrder' && m.orderId === orderId);
+        if (existing >= 0) {
+          const newQueue = [...prev];
+          newQueue[existing] = { ...newQueue[existing], payload, timestamp: new Date().toISOString() };
+          return newQueue;
+        }
+      }
+      return [...prev, {
+        id: globalThis.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2),
+        type,
+        orderId,
+        payload,
+        timestamp: new Date().toISOString(),
+        retryCount: 0
+      }];
+    });
+  };
+
+  const syncPdvOfflineQueue = async () => {
+    if (isSyncingPdvQueue || pdvOfflineQueue.length === 0 || !effectiveTenantId || !remoteWritesEnabled) return;
+    setIsSyncingPdvQueue(true);
+    
+    try {
+      const { updateOrderItems, updateOrderMeta, createOrder: createOrderSup, closeOrder: closeOrderSup } = await import('../services/ordersSupabaseService');
+      let newQueue = [...pdvOfflineQueue];
+      
+      for (const mutation of pdvOfflineQueue) {
+        try {
+          if (mutation.type === 'createComanda') {
+             await createComandaSupabase(effectiveTenantId, mutation.payload);
+          } else if (mutation.type === 'updateOrder') {
+             await updateOrderItems(effectiveTenantId, mutation.orderId, mutation.payload.items);
+             await updateOrderMeta(effectiveTenantId, mutation.orderId, {
+               customerCount: mutation.payload.customerCount,
+               adultCount: mutation.payload.adultCount,
+               childrenCount: mutation.payload.childrenCount,
+               partialPayments: mutation.payload.partialPayments,
+               loyaltyDiscount: mutation.payload.loyaltyDiscount,
+               loyaltyPointsEarned: mutation.payload.loyaltyPointsEarned,
+               loyaltyPointsRedeemed: mutation.payload.loyaltyPointsRedeemed,
+             });
+          } else if (mutation.type === 'closeOrder') {
+             if (mutation.payload.mode === 'balcao') {
+                const created = await createOrderSup(effectiveTenantId, mutation.payload.createPayload);
+                await closeOrderSup(effectiveTenantId, created.id, mutation.payload.closePayload);
+             } else {
+                await closeComandaSupabase(effectiveTenantId, mutation.orderId, mutation.payload.closePayload);
+             }
+          }
+          
+          // Sucesso: remove da fila
+          newQueue = newQueue.filter(m => m.id !== mutation.id);
+        } catch (err) {
+          console.error('Erro sincronizando mutacao PDV', mutation.type, err);
+          const idx = newQueue.findIndex(m => m.id === mutation.id);
+          if (idx >= 0) newQueue[idx] = { ...newQueue[idx], retryCount: newQueue[idx].retryCount + 1 };
+          break; // Stop syncing on first error to maintain sequence
+        }
+      }
+      setPdvOfflineQueue(newQueue);
+    } finally {
+      setIsSyncingPdvQueue(false);
+    }
+  };
+
   const updateStockItem = (updatedItem: StockItem) => {
     setStockItems(prev => prev.map(i => i.id === updatedItem.id ? updatedItem : i));
   };
@@ -725,7 +814,34 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
     if (remoteWritesEnabled && normalizedOrder.mode === 'mesa' && normalizedOrder.tableNumber) {
       try {
-        const created = await createComandaSupabase(effectiveTenantId, {
+        const payload = {
+          tableNumber: normalizedOrder.tableNumber,
+          comandaLabel: normalizedOrder.comandaLabel!,
+          offlineIdKey: normalizedOrder.offlineIdKey,
+          customerName: normalizedOrder.customerName,
+          customerCount: normalizedOrder.customerCount,
+          adultCount: normalizedOrder.adultCount,
+          childrenCount: normalizedOrder.childrenCount,
+          generalObservation: normalizedOrder.generalObservation,
+          partialPayments: normalizedOrder.partialPayments,
+          loyaltyDiscount: normalizedOrder.loyaltyDiscount,
+          loyaltyPointsEarned: normalizedOrder.loyaltyPointsEarned,
+          loyaltyPointsRedeemed: normalizedOrder.loyaltyPointsRedeemed,
+          items: normalizedOrder.items,
+          subtotal: normalizedOrder.subtotal,
+          serviceCharge: normalizedOrder.serviceCharge,
+          total: normalizedOrder.total,
+          waiterId: normalizedOrder.waiterId,
+          timestamp: normalizedOrder.timestamp,
+        };
+        const created = await createComandaSupabase(effectiveTenantId, payload);
+        if (created) {
+          setLocalOrders(prev => prev.map(o => o.id === normalizedOrder.id ? created : o));
+          return created;
+        }
+      } catch (err) {
+        console.error(err);
+        pushToPdvQueue('createComanda', normalizedOrder.id, {
           tableNumber: normalizedOrder.tableNumber,
           comandaLabel: normalizedOrder.comandaLabel!,
           offlineIdKey: normalizedOrder.offlineIdKey,
@@ -745,12 +861,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           waiterId: normalizedOrder.waiterId,
           timestamp: normalizedOrder.timestamp,
         });
-        if (created) {
-          setLocalOrders(prev => prev.map(o => o.id === normalizedOrder.id ? created : o));
-          return created;
-        }
-      } catch (err) {
-        console.error(err);
       }
     } else if (normalizedOrder.mode === 'mesa' && normalizedOrder.tableNumber) {
       const nextOpenOrders = [...localOrders.filter(item => item.status === 'open'), normalizedOrder];
@@ -765,36 +875,34 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
    * O `activeOrderId` da mesa permanece apontando para a primeira comanda (compatibilidade).
    */
   const addComandaToTable = async (tableNumber: number, comandaLabel: string, offlineIdKey = createComandaIdempotencyKey()): Promise<Order> => {
+    // Fallback local: cria pedido convencional com label
+    const localOrder: Order = {
+      id: `local_${offlineIdKey}`,
+      mode: 'mesa',
+      tableNumber,
+      comandaLabel: comandaLabel.trim(),
+      offlineIdKey,
+      items: [],
+      subtotal: 0,
+      serviceCharge: 0,
+      total: 0,
+      payments: [],
+      status: 'open',
+      waiterId: currentUser.id,
+      timestamp: new Date().toISOString(),
+    };
+    
+    setLocalOrders(prev => [...prev, localOrder]);
+    setLocalTables(prev => reconcileTablesWithOpenComandas(
+      prev,
+      [...localOrders.filter(order => order.status === 'open'), localOrder],
+    ));
+
     if (!remoteWritesEnabled) {
-      // Fallback local: cria pedido convencional com label
-      const localOrder: Order = {
-        id: `local_${offlineIdKey}`,
-        mode: 'mesa',
-        tableNumber,
-        comandaLabel: comandaLabel.trim(),
-        offlineIdKey,
-        items: [],
-        subtotal: 0,
-        serviceCharge: 0,
-        total: 0,
-        payments: [],
-        status: 'open',
-        waiterId: currentUser.id,
-        timestamp: new Date().toISOString(),
-      };
-      setLocalOrders(prev => [...prev, localOrder]);
-      setLocalTables(prev => reconcileTablesWithOpenComandas(
-        prev,
-        [...localOrders.filter(order => order.status === 'open'), localOrder],
-      ));
       return localOrder;
     }
 
-    if (!effectiveTenantId) {
-      throw new Error('Tenant ID não configurado para criar comanda.');
-    }
-
-    const created = await createComandaSupabase(effectiveTenantId, {
+    const payload = {
       tableNumber,
       comandaLabel: comandaLabel.trim(),
       offlineIdKey,
@@ -805,23 +913,28 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       waiterId: currentUser.id,
       waiterName: currentUser.name,
       timestamp: new Date().toISOString(),
-    });
+    };
 
-    // Adiciona ao estado local para feedback imediato (o hook realtime sincronizará)
-    setLocalOrders(prev => {
-      if (prev.some(o => o.id === created.id)) return prev;
-      return [...prev, created];
-    });
+    if (remoteWritesEnabled && effectiveTenantId) {
+      createComandaSupabase(effectiveTenantId, payload)
+        .then(created => {
+          setLocalOrders(prev => prev.map(o => o.id === localOrder.id ? created : o));
+        })
+        .catch(err => {
+          console.error(err);
+          pushToPdvQueue('createComanda', localOrder.id, payload);
+        });
+    }
 
-    return created;
+    return localOrder;
   };
 
   const updateOrder = (updatedOrder: Order) => {
     setLocalOrders(prev => prev.map(o => o.id === updatedOrder.id ? updatedOrder : o));
     if (remoteWritesEnabled && updatedOrder.mode === 'mesa') {
       void import('../services/ordersSupabaseService').then(({ updateOrderItems, updateOrderMeta }) => {
-        updateOrderItems(effectiveTenantId, updatedOrder.id, updatedOrder.items).catch(console.error);
-        updateOrderMeta(effectiveTenantId, updatedOrder.id, {
+        const p1 = updateOrderItems(effectiveTenantId, updatedOrder.id, updatedOrder.items);
+        const p2 = updateOrderMeta(effectiveTenantId, updatedOrder.id, {
           customerCount: updatedOrder.customerCount,
           adultCount: updatedOrder.adultCount,
           childrenCount: updatedOrder.childrenCount,
@@ -829,7 +942,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           loyaltyDiscount: updatedOrder.loyaltyDiscount,
           loyaltyPointsEarned: updatedOrder.loyaltyPointsEarned,
           loyaltyPointsRedeemed: updatedOrder.loyaltyPointsRedeemed,
-        }).catch(console.error);
+        });
+        Promise.all([p1, p2]).catch(err => {
+          console.error(err);
+          pushToPdvQueue('updateOrder', updatedOrder.id, updatedOrder);
+        });
       });
     }
   };
@@ -886,9 +1003,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           ordersHook.closeOrderLocal(order.id);
         }
         remoteSynced = true;
-      } catch (err: any) {
-        console.error(err);
-        remoteError = err.message || 'Erro na sincronização';
+      } catch (err) {
+        console.error('Falha ao fechar pedido no Supabase', err);
+        remoteError = err instanceof Error ? err.message : 'Erro ao fechar';
+        pushToPdvQueue('closeOrder', order.id, {
+           mode: order.mode,
+           createPayload: order.mode === 'balcao' ? {
+              mode: 'balcao',
+              items: order.items,
+              subtotal: order.subtotal,
+              serviceCharge,
+              total: order.total,
+              waiterId: order.waiterId,
+              timestamp: order.timestamp,
+           } : undefined,
+           closePayload: { payments, serviceCharge, total: order.total }
+        });
       }
     } else if (order.tableNumber) {
       const remainingOpenOrders = localOrders.filter(item => item.status === 'open' && item.id !== order.id);
@@ -1015,13 +1145,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setExpenses([]);
   };
 
-  const transferTable = (fromNumber: number, toNumber: number) => {
-    const fromTable = tables.find(t => t.number === fromNumber);
+  const transferComanda = (orderId: string, toNumber: number) => {
     const toTable = tables.find(t => t.number === toNumber);
+    if (toTable?.status !== 'livre') return;
 
-    if (!fromTable?.activeOrderId || toTable?.status !== 'livre') return;
-
-    const orderId = fromTable.activeOrderId;
     const transferredOpenOrders = orders
       .filter(order => order.status === 'open')
       .map(order => order.id === orderId ? { ...order, tableNumber: toNumber } : order);
@@ -1194,11 +1321,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     <AppContext.Provider value={{
       products, stockItems, suppliers, tables, waiters, orders, expenses, cashierSession, cashierHistory, customers, collaborators, stockMovements, settings, readGuides, theme, draftOrder,
       promotions, combos, campaigns, currentEmpresa, currentUser, loyaltyConfig, loyaltyEntries, supabaseOnline,
+      pdvOfflineQueue, isSyncingPdvQueue, syncPdvOfflineQueue,
       setTheme, updateProduct, addProduct, deleteProduct,
       updateStockItem, addStockItem, deleteStockItem,
       updateSupplier, addSupplier, deleteSupplier,
       updateTable, addOrder, addComandaToTable, updateOrder, closeOrder, addExpense, updateExpense, deleteExpense, openCashier, closeCashier,
-      transferTable, mergeTables, reserveTable, clearTable,
+      transferComanda, mergeTables, reserveTable, clearTable,
       addCustomer, updateCustomer, deleteCustomer,
       addCollaborator, updateCollaborator, deleteCollaborator,
       addStockMovement, updateSettings, toggleGuideRead, importData, exportData, resetToMocks,

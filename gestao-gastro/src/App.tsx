@@ -23,6 +23,8 @@ import { ActivationGate } from './components/ActivationGate';
 import { EvolutionCenter } from './components/EvolutionCenter';
 import { getClientRouteFromPath } from './config/clientRoutes';
 import { AdminAuthGate } from './components/AdminAuthGate';
+import { OfflineStatusBanner } from './components/OfflineStatusBanner';
+
 const AppContent = () => {
   const { currentView, setCurrentView } = useNavigation();
   const { checkAccess } = useModules();
@@ -84,6 +86,7 @@ const AppContent = () => {
     <ActivationGate>
       <AdminAuthGate>
         <Layout currentView={currentView} setCurrentView={setCurrentView}>
+           <OfflineStatusBanner />
            {renderContent()}
         </Layout>
       </AdminAuthGate>

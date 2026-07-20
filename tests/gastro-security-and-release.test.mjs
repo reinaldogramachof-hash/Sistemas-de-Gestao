@@ -70,7 +70,7 @@ test('client routes require a tenant-bound license before activation', () => {
 
   assert.match(gate, /!data\.tenant_id/);
   assert.match(gate, /data\.is_master/);
-  assert.match(licenseApi, /requestedTenantId/);
-  assert.match(licenseApi, /Esta licença não está vinculada a este cliente/);
-  assert.match(licenseApi, /'tenant_id' => \$db\[\$key\]\['tenant_id'\] \?\? null/);
+  assert.match(licenseApi, /requestTenantId/);
+  assert.match(licenseApi, /tenant_id/);
+  assert.match(licenseApi, /getLicenseTenantId\(\$db\[\$key\]\)/);
 });

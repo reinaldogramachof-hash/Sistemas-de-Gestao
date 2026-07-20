@@ -1080,6 +1080,66 @@ if ($action === 'update_member') {
     exit;
 }
 
+// ACTION: EXCLUI MEMBRO DA EQUIPE DEFINITIVAMENTE
+if ($action === 'delete_member') {
+    $tenantId = trim($jsonData['tenant_id'] ?? '');
+    $targetUserId = trim($jsonData['user_id'] ?? '');
+
+    if (empty($tenantId) || empty($targetUserId)) {
+        http_response_code(400);
+        echo json_encode(['status' => 'error', 'message' => 'Tenant ID e User ID sao obrigatorios.']);
+        exit;
+    }
+
+    if ($adminUserId === $targetUserId) {
+        http_response_code(400);
+        echo json_encode(['status' => 'error', 'message' => 'Nao e permitido excluir a propria conta por esta via.']);
+        exit;
+    }
+
+    $requester = get_member_role($adminUserId, $tenantId);
+    if (!$requester || $requester['active'] !== true || !in_array($requester['role'], ['owner', 'admin'], true)) {
+        log_denied_attempt("Acesso negado: usuario $adminUserId tentou excluir membro sem permissao ativa no tenant $tenantId.");
+        http_response_code(403);
+        echo json_encode(['status' => 'error', 'message' => 'Permissao negada para gerenciar equipe.']);
+        exit;
+    }
+
+    $target = get_member_role($targetUserId, $tenantId);
+    if (!$target) {
+        log_denied_attempt("Acesso negado: usuario $adminUserId tentou excluir usuario $targetUserId fora do tenant $tenantId.");
+        http_response_code(403);
+        echo json_encode(['status' => 'error', 'message' => 'Colaborador nao encontrado neste restaurante.']);
+        exit;
+    }
+
+    if ($target['role'] === 'owner') {
+        log_denied_attempt("Acesso negado: usuario $adminUserId tentou excluir owner $targetUserId no tenant $tenantId.");
+        http_response_code(403);
+        echo json_encode(['status' => 'error', 'message' => 'Nao e permitido excluir o proprietario do restaurante.']);
+        exit;
+    }
+
+    if ($requester['role'] === 'admin' && $target['role'] === 'admin') {
+        log_denied_attempt("Acesso negado: admin $adminUserId tentou excluir admin $targetUserId no tenant $tenantId.");
+        http_response_code(403);
+        echo json_encode(['status' => 'error', 'message' => 'Administradores nao podem excluir outros administradores.']);
+        exit;
+    }
+
+    // Exclui do Auth. O CASCADE vai limpar de tenant_members.
+    $authDelRes = supabase_admin_request('DELETE', '/auth/v1/admin/users/' . urlencode($targetUserId));
+    if ($authDelRes['code'] >= 400) {
+        http_response_code(500);
+        echo json_encode(['status' => 'error', 'message' => 'Erro ao excluir colaborador do sistema.']);
+        exit;
+    }
+
+    write_saas_audit($adminUserId, $tenantId, 'member_deleted', ['metadata' => ['deleted_user_id' => $targetUserId, 'role' => $target['role']]]);
+    echo json_encode(['status' => 'success', 'message' => 'Colaborador excluido com sucesso.']);
+    exit;
+}
+
 // SE CHEGOU AQUI E A ACTION NÃO COMBINOU
 http_response_code(404);
 echo json_encode(['status' => 'error', 'message' => 'Ação não encontrada.']);

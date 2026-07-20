@@ -1,0 +1,55 @@
+# Protecao de arquivos sensiveis
+# Bloqueia acesso HTTP a .env e arquivos de configuracao.
+
+<FilesMatch "^\.env">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order deny,allow
+        Deny from all
+    </IfModule>
+</FilesMatch>
+
+# env_loader.php e usado apenas por inclusao interna das APIs.
+<FilesMatch "^env_loader\.php$">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order deny,allow
+        Deny from all
+    </IfModule>
+</FilesMatch>
+
+# APIs de notificacao.
+# Libera as APIs de notificacao do mod_security e define headers de cache/CORS.
+<FilesMatch "^api_notificacoes">
+    <IfModule mod_security.c>
+        SecFilterEngine Off
+        SecFilterScanPOST Off
+    </IfModule>
+
+    <IfModule mod_headers.c>
+        Header always set Access-Control-Allow-Origin "*"
+        Header always set Access-Control-Allow-Methods "GET, POST, OPTIONS"
+        Header always set Access-Control-Allow-Headers "Content-Type, Authorization"
+        Header always set Cache-Control "no-store, no-cache, must-revalidate, max-age=0"
+        Header always set Pragma "no-cache"
+        Header always set Expires "0"
+    </IfModule>
+</FilesMatch>
+
+Options -Indexes
+
+# Gestao Gastro SPA.
+# Publicar o conteudo gerado em gestao-gastro/dist dentro da pasta publica /gestao-gastro/.
+# As rotas do cliente, como /gestao-gastro/cantinhodaresenha/comanda, devem retornar
+# /gestao-gastro/index.html para que o React escolha o app administrativo ou a comanda.
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteCond %{REQUEST_URI} ^/gestao-gastro(/.*)?$
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^gestao-gastro/?.*$ /gestao-gastro/index.html [L]
+</IfModule>

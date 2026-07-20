@@ -328,8 +328,8 @@ test('Inspect Settings.tsx for private LAN IP validation regex', () => {
   assert.ok(
     source.includes('tables') && source.includes('initializeTables') &&
     source.includes('withTimeout') &&
-    source.includes('Ambiente online detectado') &&
-    source.includes("waiterAccessMode: 'external'"),
+    source.includes('Deteccao automatica indisponivel neste endereco online') &&
+    source.includes('Detectar endereco atual'),
     'Settings.tsx deve renderizar a aba de gerenciamento de mesas'
   );
 });

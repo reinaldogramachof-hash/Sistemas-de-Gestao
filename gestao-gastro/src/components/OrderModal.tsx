@@ -391,7 +391,10 @@ export const OrderModal: React.FC<OrderModalProps> = ({ tableNumber, mode, onClo
                     <div className="flex flex-col sm:flex-row gap-4">
                       <div className={`flex items-center px-5 py-3 rounded-lg border flex-1 transition-all focus-within:ring-4 focus-within:ring-[#475569]/10 ${isDark ? 'bg-[#121214] border-[#2C2C2E] focus-within:border-[#475569]/40' : 'bg-gray-50 border-gray-200 focus-within:border-slate-300'}`}>
                         <Search className="w-5 h-5 mr-4 opacity-40" />
-                        <input ref={searchInputRef} value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="Pesquisar por nome ou categoria..." className="bg-transparent border-none outline-none w-full text-sm font-semibold placeholder:opacity-20" />
+                        <input ref={searchInputRef} value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="Pesquisar por nome ou categoria..." className="bg-transparent border-none outline-none w-full text-sm font-semibold placeholder:opacity-20 pr-2" />
+                        <kbd className={`px-1.5 py-0.5 rounded border font-mono text-[9px] shadow-[0_1px_0_rgba(0,0,0,0.15)] dark:shadow-[0_1px_0_rgba(255,255,255,0.15)] ${
+                          isDark ? 'bg-[#1C1C1E] border-white/10 text-white/50' : 'bg-white border-gray-200 text-[#475569]/50'
+                        }`}>Ctrl+K</kbd>
                       </div>
                       <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
                         {categories.map(cat => (
@@ -475,36 +478,20 @@ export const OrderModal: React.FC<OrderModalProps> = ({ tableNumber, mode, onClo
                         <div className="flex items-baseline gap-1.5"><span className="text-xl font-bold text-[#475569] opacity-50">R$</span><span className="text-4xl font-bold text-[#475569] tracking-tighter">{activeOrder.total.toFixed(2)}</span></div>
                       </div>
                       <div className="grid grid-cols-3 gap-3 w-full">
-                        <button onClick={onClose} className={`min-h-[64px] px-2 py-4 rounded-lg font-bold uppercase tracking-wide text-[11px] border transition-all flex flex-col items-center justify-center gap-1 ${isDark ? 'bg-transparent border-white/10 text-white hover:bg-white/5' : 'bg-transparent border-[#475569]/20 text-[#475569] hover:bg-[#475569]/5'}`}>Concluir</button>
-                        <button disabled={activeOrder.items.length === 0} onClick={() => setReceiptOpen(true)} className={`min-h-[64px] px-2 py-4 rounded-lg font-bold uppercase tracking-wide text-[11px] border transition-all flex flex-col items-center justify-center gap-1 ${isDark ? 'bg-transparent border-white/10 text-amber-500 hover:bg-white/5' : 'bg-transparent border-amber-500/20 text-amber-600 hover:bg-amber-50'} disabled:opacity-30 disabled:border-transparent`}><Printer className="w-5 h-5 mb-0.5" /> Conferir</button>
-                        <button disabled={activeOrder.items.length === 0} onClick={() => setCheckoutOpen(true)} className="min-h-[64px] px-2 py-4 bg-[#475569] text-white rounded-lg font-bold uppercase tracking-wide text-[11px] shadow-sm disabled:opacity-30 disabled:scale-100 disabled:shadow-none transition-all flex flex-col items-center justify-center gap-1">Pagar</button>
-                      </div>
-                      
-                      <div className="flex flex-wrap justify-center gap-x-4 gap-y-1.5 text-[10px] text-muted border-t pt-3 border-current/10">
-                        <span className="flex items-center gap-1.5">
-                          <kbd className={`px-1.5 py-0.5 rounded border font-mono text-[9px] shadow-[0_1px_0_rgba(0,0,0,0.15)] dark:shadow-[0_1px_0_rgba(255,255,255,0.15)] ${
-                            isDark ? 'bg-surface border-border text-muted' : 'bg-surface-light border-border-light text-muted-light'
-                          }`}>Ctrl+K</kbd>
-                          <span>Buscar</span>
-                        </span>
-                        <span className="flex items-center gap-1.5">
-                          <kbd className={`px-1.5 py-0.5 rounded border font-mono text-[9px] shadow-[0_1px_0_rgba(0,0,0,0.15)] dark:shadow-[0_1px_0_rgba(255,255,255,0.15)] ${
-                            isDark ? 'bg-surface border-border text-muted' : 'bg-surface-light border-border-light text-muted-light'
-                          }`}>F2</kbd>
+                        <button onClick={onClose} className={`min-h-[64px] px-2 py-3 rounded-lg font-bold uppercase tracking-wide text-[10px] border transition-all flex flex-col items-center justify-center gap-1.5 ${isDark ? 'bg-transparent border-white/10 text-white hover:bg-white/5' : 'bg-transparent border-[#475569]/20 text-[#475569] hover:bg-[#475569]/5'}`}>
                           <span>Concluir</span>
-                        </span>
-                        <span className="flex items-center gap-1.5">
-                          <kbd className={`px-1.5 py-0.5 rounded border font-mono text-[9px] shadow-[0_1px_0_rgba(0,0,0,0.15)] dark:shadow-[0_1px_0_rgba(255,255,255,0.15)] ${
-                            isDark ? 'bg-surface border-border text-muted' : 'bg-surface-light border-border-light text-muted-light'
-                          }`}>F7</kbd>
+                          <kbd className={`px-1 py-0.5 rounded border text-[8px] font-mono shadow-[0_1px_0_rgba(0,0,0,0.15)] dark:shadow-[0_1px_0_rgba(255,255,255,0.15)] ${
+                            isDark ? 'bg-surface border-border text-muted/80' : 'bg-surface-light border-border-light text-muted-light/80'
+                          }`}>F2</kbd>
+                        </button>
+                        <button disabled={activeOrder.items.length === 0} onClick={() => setReceiptOpen(true)} className={`min-h-[64px] px-2 py-3 rounded-lg font-bold uppercase tracking-wide text-[10px] border transition-all flex flex-col items-center justify-center gap-1.5 ${isDark ? 'bg-transparent border-white/10 text-amber-500 hover:bg-white/5' : 'bg-transparent border-amber-500/20 text-amber-600 hover:bg-amber-50'} disabled:opacity-30 disabled:border-transparent`}>
+                          <Printer className="w-4 h-4" />
+                          <span>Conferir</span>
+                        </button>
+                        <button disabled={activeOrder.items.length === 0} onClick={() => setCheckoutOpen(true)} className="min-h-[64px] px-2 py-3 bg-[#475569] text-white rounded-lg font-bold uppercase tracking-wide text-[10px] shadow-sm disabled:opacity-30 disabled:scale-100 disabled:shadow-none transition-all flex flex-col items-center justify-center gap-1.5">
                           <span>Pagar</span>
-                        </span>
-                        <span className="flex items-center gap-1.5">
-                          <kbd className={`px-1.5 py-0.5 rounded border font-mono text-[9px] shadow-[0_1px_0_rgba(0,0,0,0.15)] dark:shadow-[0_1px_0_rgba(255,255,255,0.15)] ${
-                            isDark ? 'bg-surface border-border text-muted' : 'bg-surface-light border-border-light text-muted-light'
-                          }`}>ESC</kbd>
-                          <span>Voltar</span>
-                        </span>
+                          <kbd className="px-1 py-0.5 rounded border border-white/20 bg-white/10 text-white font-mono text-[8px]">F7</kbd>
+                        </button>
                       </div>
                       {!activeOrderHasConsumption && mode === 'mesa' && (
                         <button

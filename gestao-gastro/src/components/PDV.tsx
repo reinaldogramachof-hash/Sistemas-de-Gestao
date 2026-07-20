@@ -320,7 +320,10 @@ export const PDV: React.FC = () => {
               className={`shrink-0 flex items-center gap-2 px-4 h-10 rounded-control border border-dashed font-medium text-sm text-accent transition-all hover:bg-accent/10 ${fieldClass}`}
             >
               <Plus className="w-4 h-4" />
-              Avulso
+              <span>Avulso</span>
+              <kbd className={`px-1 py-0.5 rounded border text-[8px] font-mono shadow-[0_1px_0_rgba(0,0,0,0.15)] dark:shadow-[0_1px_0_rgba(255,255,255,0.15)] ${
+                isDark ? 'bg-surface border-border text-muted' : 'bg-surface-light border-border-light text-muted-light'
+              }`}>F2</kbd>
             </button>
             <div className={`flex items-center px-3 h-10 rounded-control border w-full md:w-80 transition-all focus-within:ring-2 focus-within:ring-accent/20 ${fieldClass}`}>
               <Search className="w-4 h-4 mr-3 text-muted" />
@@ -331,8 +334,11 @@ export const PDV: React.FC = () => {
                 placeholder="Pesquisar produto..."
                 aria-label="Pesquisar produto"
                 aria-keyshortcuts="Control+K Meta+K"
-                className="bg-transparent border-none outline-none w-full text-sm font-medium placeholder:text-muted"
+                className="bg-transparent border-none outline-none w-full text-sm font-medium placeholder:text-muted pr-2"
               />
+              <kbd className={`px-1.5 py-0.5 rounded border font-mono text-[9px] shadow-[0_1px_0_rgba(0,0,0,0.15)] dark:shadow-[0_1px_0_rgba(255,255,255,0.15)] ${
+                isDark ? 'bg-surface border-border text-muted/60' : 'bg-surface-light border-border-light text-muted-light/60'
+              }`}>Ctrl+K</kbd>
             </div>
           </div>
         </div>
@@ -379,76 +385,96 @@ export const PDV: React.FC = () => {
             </div>
           </div>
           <button
-              id="btn-cancel-order"
-              onClick={handleCancelOrder}
-            className="p-2 rounded-control transition-all hover:bg-danger/10 hover:text-danger text-muted"
+            id="btn-cancel-order"
+            onClick={handleCancelOrder}
+            className="flex items-center gap-1.5 px-2 py-1.5 rounded-control transition-all border border-transparent hover:border-danger/20 hover:bg-danger/10 hover:text-danger text-muted"
             aria-label="Limpar carrinho"
           >
             <Trash2 className="w-4 h-4" />
+            <kbd className={`px-1 py-0.5 rounded border text-[8px] font-mono shadow-[0_1px_0_rgba(0,0,0,0.15)] dark:shadow-[0_1px_0_rgba(255,255,255,0.15)] ${
+              isDark ? 'bg-surface border-border text-muted' : 'bg-surface-light border-border-light text-muted-light'
+            }`}>F9</kbd>
           </button>
         </div>
 
         <div className={`px-5 py-3 border-b ${isDark ? 'bg-elevated border-border' : 'bg-elevated-light border-border-light'}`}>
-          <div className="grid grid-cols-1 gap-2">
-            <div className="relative">
-              <button
-                onClick={() => setWaiterMenuOpen(open => !open)}
-                className={`w-full h-10 px-3 rounded-control border flex items-center justify-between text-sm font-medium transition-all ${fieldClass}`}
-              >
-                <span className="flex items-center gap-2 min-w-0">
-                  <User className="w-4 h-4 text-muted shrink-0" />
-                  <span className="truncate">{selectedOperatorName}</span>
-                </span>
-                <ChevronDown className={`w-4 h-4 text-muted transition-transform ${waiterMenuOpen ? 'rotate-180' : ''}`} />
-              </button>
-              <AnimatePresence>
-                {waiterMenuOpen && (
-                  <>
-                    <div className="fixed inset-0 z-10" onClick={() => setWaiterMenuOpen(false)} />
-                    <motion.div
-                      initial={{ opacity: 0, y: 8 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: 8 }}
-                      className={`absolute left-0 right-0 top-full mt-2 rounded-panel border shadow-2xl overflow-hidden z-20 ${panelClass}`}
-                    >
-                      {activeOperators.length === 0 ? (
-                        <div className="p-4 text-xs text-muted text-center font-bold uppercase leading-normal border-b border-dashed border-current/10">
-                          Nenhum atendente/garçom ativo. <br/>
-                          Usando: <strong>Responsável Padrão</strong>.<br/>
-                          Cadastre a equipe em <br/>
-                          <span className="text-accent underline">Configurações &gt; Acessos</span>.
-                        </div>
-                      ) : null}
-                      {(hasOperators ? activeOperators : [systemOperator]).map(operator => (
-                        <button
-                          key={operator.id}
-                          onClick={() => handleSelectOperator(operator.id)}
-                          className={`w-full flex items-center justify-between px-3 py-3 text-sm font-medium transition-colors ${
-                            selectedOperatorId === operator.id
-                              ? 'bg-accent text-white'
-                              : isDark ? 'hover:bg-elevated' : 'hover:bg-elevated-light'
-                          }`}
-                        >
-                          {operator.name}
-                          {selectedOperatorId === operator.id && <Check className="w-4 h-4" />}
-                        </button>
-                      ))}
-                    </motion.div>
-                  </>
-                )}
-              </AnimatePresence>
+          <div className="grid grid-cols-1 gap-3">
+            <div className="space-y-1">
+              <div className="flex justify-between items-center px-1">
+                <span className="text-[10px] font-bold uppercase tracking-wide opacity-40">Atendente</span>
+                <kbd className={`px-1 rounded border text-[8px] font-mono shadow-[0_1px_0_rgba(0,0,0,0.15)] dark:shadow-[0_1px_0_rgba(255,255,255,0.15)] ${
+                  isDark ? 'bg-surface border-border text-muted' : 'bg-surface-light border-border-light text-muted-light'
+                }`}>F4</kbd>
+              </div>
+              <div className="relative">
+                <button
+                  onClick={() => setWaiterMenuOpen(open => !open)}
+                  className={`w-full h-10 px-3 rounded-control border flex items-center justify-between text-sm font-medium transition-all ${fieldClass}`}
+                >
+                  <span className="flex items-center gap-2 min-w-0">
+                    <User className="w-4 h-4 text-muted shrink-0" />
+                    <span className="truncate">{selectedOperatorName}</span>
+                  </span>
+                  <ChevronDown className={`w-4 h-4 text-muted transition-transform ${waiterMenuOpen ? 'rotate-180' : ''}`} />
+                </button>
+                <AnimatePresence>
+                  {waiterMenuOpen && (
+                    <>
+                      <div className="fixed inset-0 z-10" onClick={() => setWaiterMenuOpen(false)} />
+                      <motion.div
+                        initial={{ opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: 8 }}
+                        className={`absolute left-0 right-0 top-full mt-2 rounded-panel border shadow-2xl overflow-hidden z-20 ${panelClass}`}
+                      >
+                        {activeOperators.length === 0 ? (
+                          <div className="p-4 text-xs text-muted text-center font-bold uppercase leading-normal border-b border-dashed border-current/10">
+                            Nenhum atendente/garçom ativo. <br/>
+                            Usando: <strong>Responsável Padrão</strong>.<br/>
+                            Cadastre a equipe em <br/>
+                            <span className="text-accent underline">Configurações &gt; Acessos</span>.
+                          </div>
+                        ) : null}
+                        {(hasOperators ? activeOperators : [systemOperator]).map(operator => (
+                          <button
+                            key={operator.id}
+                            onClick={() => handleSelectOperator(operator.id)}
+                            className={`w-full flex items-center justify-between px-3 py-3 text-sm font-medium transition-colors ${
+                              selectedOperatorId === operator.id
+                                ? 'bg-accent text-white'
+                                : isDark ? 'hover:bg-elevated' : 'hover:bg-elevated-light'
+                            }`}
+                          >
+                            {operator.name}
+                            {selectedOperatorId === operator.id && <Check className="w-4 h-4" />}
+                          </button>
+                        ))}
+                      </motion.div>
+                    </>
+                  )}
+                </AnimatePresence>
+              </div>
             </div>
-            <select
-              id="pdv-customer-select"
-              value={selectedCustomerId}
-              onChange={event => handleSelectCustomer(event.target.value)}
-              className={`w-full h-10 px-3 rounded-control border text-sm font-medium outline-none ${fieldClass}`}
-            >
-              <option value="">Cliente nao identificado</option>
-              {customers.map(customer => (
-                <option key={customer.id} value={customer.id}>{customer.name}</option>
-              ))}
-            </select>
+
+            <div className="space-y-1">
+              <div className="flex justify-between items-center px-1">
+                <span className="text-[10px] font-bold uppercase tracking-wide opacity-40">Cliente</span>
+                <kbd className={`px-1 rounded border text-[8px] font-mono shadow-[0_1px_0_rgba(0,0,0,0.15)] dark:shadow-[0_1px_0_rgba(255,255,255,0.15)] ${
+                  isDark ? 'bg-surface border-border text-muted' : 'bg-surface-light border-border-light text-muted-light'
+                }`}>F3</kbd>
+              </div>
+              <select
+                id="pdv-customer-select"
+                value={selectedCustomerId}
+                onChange={event => handleSelectCustomer(event.target.value)}
+                className={`w-full h-10 px-3 rounded-control border text-sm font-medium outline-none ${fieldClass}`}
+              >
+                <option value="">Cliente nao identificado</option>
+                {customers.map(customer => (
+                  <option key={customer.id} value={customer.id}>{customer.name}</option>
+                ))}
+              </select>
+            </div>
           </div>
         </div>
 
@@ -548,54 +574,10 @@ export const PDV: React.FC = () => {
               }}
               className="flex items-center gap-2 px-5 h-11 bg-accent text-white rounded-control font-medium text-sm hover:bg-accent-hover active:scale-95 transition-all disabled:opacity-40 disabled:scale-100"
             >
-              Finalizar venda
+              <span>Finalizar venda</span>
+              <kbd className="px-1.5 py-0.5 rounded border border-white/20 bg-white/10 text-white font-mono text-[9px] shadow-[0_1px_0_rgba(255,255,255,0.2)]">F7</kbd>
               <ArrowRight className="w-4 h-4" />
             </button>
-          </div>
-          
-          <div className="grid grid-cols-3 gap-x-2 gap-y-2.5 text-xs text-muted border-t pt-3 border-current/10">
-            <span className="flex items-center gap-2">
-              <kbd className={`px-2 py-0.5 rounded-md border font-semibold font-mono text-[10px] shadow-[0_1.5px_0_rgba(0,0,0,0.15)] dark:shadow-[0_1.5px_0_rgba(255,255,255,0.15)] ${
-                isDark ? 'bg-surface border-border text-muted' : 'bg-surface-light border-border-light text-muted-light'
-              }`}>Ctrl+K</kbd>
-              <span>Buscar</span>
-            </span>
-            <span className="flex items-center gap-2">
-              <kbd className={`px-2 py-0.5 rounded-md border font-semibold font-mono text-[10px] shadow-[0_1.5px_0_rgba(0,0,0,0.15)] dark:shadow-[0_1.5px_0_rgba(255,255,255,0.15)] ${
-                isDark ? 'bg-surface border-border text-muted' : 'bg-surface-light border-border-light text-muted-light'
-              }`}>F2</kbd>
-              <span>Avulso</span>
-            </span>
-            <span className="flex items-center gap-2">
-              <kbd className={`px-2 py-0.5 rounded-md border font-semibold font-mono text-[10px] shadow-[0_1.5px_0_rgba(0,0,0,0.15)] dark:shadow-[0_1.5px_0_rgba(255,255,255,0.15)] ${
-                isDark ? 'bg-surface border-border text-muted' : 'bg-surface-light border-border-light text-muted-light'
-              }`}>F3</kbd>
-              <span>Cliente</span>
-            </span>
-            <span className="flex items-center gap-2">
-              <kbd className={`px-2 py-0.5 rounded-md border font-semibold font-mono text-[10px] shadow-[0_1.5px_0_rgba(0,0,0,0.15)] dark:shadow-[0_1.5px_0_rgba(255,255,255,0.15)] ${
-                isDark ? 'bg-surface border-border text-muted' : 'bg-surface-light border-border-light text-muted-light'
-              }`}>F4</kbd>
-              <span>Atendente</span>
-            </span>
-            <span className="flex items-center gap-2">
-              <kbd className={`px-2 py-0.5 rounded-md border font-semibold font-mono text-[10px] shadow-[0_1.5px_0_rgba(0,0,0,0.15)] dark:shadow-[0_1.5px_0_rgba(255,255,255,0.15)] ${
-                isDark ? 'bg-surface border-border text-muted' : 'bg-surface-light border-border-light text-muted-light'
-              }`}>F7</kbd>
-              <span>Pagar</span>
-            </span>
-            <span className="flex items-center gap-2">
-              <kbd className={`px-2 py-0.5 rounded-md border font-semibold font-mono text-[10px] shadow-[0_1.5px_0_rgba(0,0,0,0.15)] dark:shadow-[0_1.5px_0_rgba(255,255,255,0.15)] ${
-                isDark ? 'bg-surface border-border text-muted' : 'bg-surface-light border-border-light text-muted-light'
-              }`}>F9</kbd>
-              <span>Limpar</span>
-            </span>
-            <span className="flex items-center gap-2">
-              <kbd className={`px-2 py-0.5 rounded-md border font-semibold font-mono text-[10px] shadow-[0_1.5px_0_rgba(0,0,0,0.15)] dark:shadow-[0_1.5px_0_rgba(255,255,255,0.15)] ${
-                isDark ? 'bg-surface border-border text-muted' : 'bg-surface-light border-border-light text-muted-light'
-              }`}>ESC</kbd>
-              <span>Sair</span>
-            </span>
           </div>
         </div>
       </aside>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useApp } from '../store/AppContext';
 import { Product, Order } from '../types';
 import { MenuList } from './MenuList';
@@ -20,6 +20,7 @@ interface OrderModalProps {
 export const OrderModal: React.FC<OrderModalProps> = ({ tableNumber, mode, onClose }) => {
   const { tables, orders, waiters, theme, addOrder, updateOrder, transferComanda, mergeTables, clearTable, stockItems } = useApp();
   const isDark = theme === 'dark';
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   const table = useMemo(() => tableNumber ? tables.find(t => t.number === tableNumber) : null, [tableNumber, tables]);
   const isLivre = table ? table.status === 'livre' : false;
@@ -80,11 +81,65 @@ export const OrderModal: React.FC<OrderModalProps> = ({ tableNumber, mode, onClo
   }, [initialOrder]);
 
   useEffect(() => {
-    if (operationFeedback?.title !== 'Mesa atualizada por outro dispositivo') return;
+    if (operationFeedback?.title !== 'Mesa updated por outro dispositivo') return;
 
     const closeTimer = window.setTimeout(onClose, 2500);
     return () => window.clearTimeout(closeTimer);
   }, [operationFeedback?.title, onClose]);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement;
+      const isInput = ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName);
+      
+      // ESC closes checkout first, then receipt, then order modal
+      if (event.key === 'Escape') {
+        if (checkoutOpen) {
+          setCheckoutOpen(false);
+        } else if (receiptOpen) {
+          setReceiptOpen(false);
+        } else {
+          onClose();
+        }
+        return;
+      }
+
+      // Ignora atalhos de F-keys se digitar em inputs soltos (mas permite F-keys)
+      if (isInput && !event.key.startsWith('F')) return;
+
+      // Se checkout ou recibo estiver aberto, ignora os atalhos locais
+      if (checkoutOpen || receiptOpen) return;
+
+      switch (event.key) {
+        case 'F2':
+          event.preventDefault();
+          onClose();
+          break;
+        case 'F7':
+          event.preventDefault();
+          if (activeOrder && activeOrder.items.length > 0) {
+            setCheckoutOpen(true);
+          }
+          break;
+      }
+    };
+
+    const handleCtrlK = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
+        if (checkoutOpen || receiptOpen) return;
+        event.preventDefault();
+        searchInputRef.current?.focus();
+        searchInputRef.current?.select();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keydown', handleCtrlK);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keydown', handleCtrlK);
+    };
+  }, [checkoutOpen, receiptOpen, activeOrder, onClose]);
 
   const handleOpenTable = async () => {
     setIsCreating(true);
@@ -336,7 +391,7 @@ export const OrderModal: React.FC<OrderModalProps> = ({ tableNumber, mode, onClo
                     <div className="flex flex-col sm:flex-row gap-4">
                       <div className={`flex items-center px-5 py-3 rounded-lg border flex-1 transition-all focus-within:ring-4 focus-within:ring-[#475569]/10 ${isDark ? 'bg-[#121214] border-[#2C2C2E] focus-within:border-[#475569]/40' : 'bg-gray-50 border-gray-200 focus-within:border-slate-300'}`}>
                         <Search className="w-5 h-5 mr-4 opacity-40" />
-                        <input value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="Pesquisar por nome ou categoria..." className="bg-transparent border-none outline-none w-full text-sm font-semibold placeholder:opacity-20" />
+                        <input ref={searchInputRef} value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="Pesquisar por nome ou categoria..." className="bg-transparent border-none outline-none w-full text-sm font-semibold placeholder:opacity-20" />
                       </div>
                       <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
                         {categories.map(cat => (
@@ -423,6 +478,33 @@ export const OrderModal: React.FC<OrderModalProps> = ({ tableNumber, mode, onClo
                         <button onClick={onClose} className={`min-h-[64px] px-2 py-4 rounded-lg font-bold uppercase tracking-wide text-[11px] border transition-all flex flex-col items-center justify-center gap-1 ${isDark ? 'bg-transparent border-white/10 text-white hover:bg-white/5' : 'bg-transparent border-[#475569]/20 text-[#475569] hover:bg-[#475569]/5'}`}>Concluir</button>
                         <button disabled={activeOrder.items.length === 0} onClick={() => setReceiptOpen(true)} className={`min-h-[64px] px-2 py-4 rounded-lg font-bold uppercase tracking-wide text-[11px] border transition-all flex flex-col items-center justify-center gap-1 ${isDark ? 'bg-transparent border-white/10 text-amber-500 hover:bg-white/5' : 'bg-transparent border-amber-500/20 text-amber-600 hover:bg-amber-50'} disabled:opacity-30 disabled:border-transparent`}><Printer className="w-5 h-5 mb-0.5" /> Conferir</button>
                         <button disabled={activeOrder.items.length === 0} onClick={() => setCheckoutOpen(true)} className="min-h-[64px] px-2 py-4 bg-[#475569] text-white rounded-lg font-bold uppercase tracking-wide text-[11px] shadow-sm disabled:opacity-30 disabled:scale-100 disabled:shadow-none transition-all flex flex-col items-center justify-center gap-1">Pagar</button>
+                      </div>
+                      
+                      <div className="flex flex-wrap justify-center gap-x-4 gap-y-1.5 text-[10px] text-muted border-t pt-3 border-current/10">
+                        <span className="flex items-center gap-1.5">
+                          <kbd className={`px-1.5 py-0.5 rounded border font-mono text-[9px] shadow-[0_1px_0_rgba(0,0,0,0.15)] dark:shadow-[0_1px_0_rgba(255,255,255,0.15)] ${
+                            isDark ? 'bg-surface border-border text-muted' : 'bg-surface-light border-border-light text-muted-light'
+                          }`}>Ctrl+K</kbd>
+                          <span>Buscar</span>
+                        </span>
+                        <span className="flex items-center gap-1.5">
+                          <kbd className={`px-1.5 py-0.5 rounded border font-mono text-[9px] shadow-[0_1px_0_rgba(0,0,0,0.15)] dark:shadow-[0_1px_0_rgba(255,255,255,0.15)] ${
+                            isDark ? 'bg-surface border-border text-muted' : 'bg-surface-light border-border-light text-muted-light'
+                          }`}>F2</kbd>
+                          <span>Concluir</span>
+                        </span>
+                        <span className="flex items-center gap-1.5">
+                          <kbd className={`px-1.5 py-0.5 rounded border font-mono text-[9px] shadow-[0_1px_0_rgba(0,0,0,0.15)] dark:shadow-[0_1px_0_rgba(255,255,255,0.15)] ${
+                            isDark ? 'bg-surface border-border text-muted' : 'bg-surface-light border-border-light text-muted-light'
+                          }`}>F7</kbd>
+                          <span>Pagar</span>
+                        </span>
+                        <span className="flex items-center gap-1.5">
+                          <kbd className={`px-1.5 py-0.5 rounded border font-mono text-[9px] shadow-[0_1px_0_rgba(0,0,0,0.15)] dark:shadow-[0_1px_0_rgba(255,255,255,0.15)] ${
+                            isDark ? 'bg-surface border-border text-muted' : 'bg-surface-light border-border-light text-muted-light'
+                          }`}>ESC</kbd>
+                          <span>Voltar</span>
+                        </span>
                       </div>
                       {!activeOrderHasConsumption && mode === 'mesa' && (
                         <button

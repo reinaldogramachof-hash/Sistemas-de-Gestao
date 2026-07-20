@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from '../store/AppContext';
 import { useAudit } from '../hooks/useAudit';
 import { HelpTooltip } from './HelpTooltip';
@@ -39,6 +39,9 @@ export const Cashier: React.FC = () => {
   const { cashierSession, cashierHistory, expenses, orders, tables, theme, currentUser, openCashier, closeCashier, addExpense, updateExpense, deleteExpense, settings, supabaseOnline } = useApp();
   const { log } = useAudit();
   const isDark = theme === 'dark';
+
+  const descriptionInputRef = useRef<HTMLInputElement>(null);
+  const countedCashInputRef = useRef<HTMLInputElement>(null);
 
   const [expenseDesc, setExpenseDesc] = useState('');
   const [expenseVal, setExpenseVal] = useState('');
@@ -182,6 +185,58 @@ export const Cashier: React.FC = () => {
     setCountedCash('');
     setClosingError('');
   };
+
+  useEffect(() => {
+    if (!cashierSession) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement;
+      const isInput = ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName);
+
+      if (isInput && !event.key.startsWith('F') && !event.altKey) return;
+
+      switch (event.key) {
+        case 'F2':
+          event.preventDefault();
+          descriptionInputRef.current?.focus();
+          descriptionInputRef.current?.select();
+          break;
+        case '1':
+          if (event.altKey) {
+            event.preventDefault();
+            setMovementKind('suprimento');
+          }
+          break;
+        case '2':
+          if (event.altKey) {
+            event.preventDefault();
+            setMovementKind('sangria');
+          }
+          break;
+        case '3':
+          if (event.altKey) {
+            event.preventDefault();
+            setMovementKind('despesa');
+          }
+          break;
+        case 'F8':
+          event.preventDefault();
+          document.getElementById('btn-save-movement')?.click();
+          break;
+        case 'F10':
+          event.preventDefault();
+          if (canCloseCashier) {
+            countedCashInputRef.current?.focus();
+            countedCashInputRef.current?.select();
+            countedCashInputRef.current?.scrollIntoView({ behavior: 'smooth' });
+          }
+          break;
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [cashierSession, canCloseCashier]);
 
   const handleShareReport = async () => {
     if(!cashierSession) return;
@@ -469,7 +524,7 @@ ${Object.entries(paymentTotals).map(([method, amount]) => `${method}: ${formatCu
             <h3 className="text-sm font-bold uppercase tracking-wide mb-6 opacity-40">{editingExpense ? 'Editar Movimentação' : 'Registrar Movimentação'}</h3>
             <div className="space-y-4">
               <div className="grid grid-cols-3 gap-1 rounded-lg bg-black/5 p-1 dark:bg-white/5" aria-label="Tipo da movimentação">
-                {(['suprimento', 'sangria', 'despesa'] as CashMovementKind[]).map(kind => (
+                {(['suprimento', 'sangria', 'despesa'] as CashMovementKind[]).map((kind, idx) => (
                   <button
                     key={kind}
                     type="button"
@@ -478,20 +533,30 @@ ${Object.entries(paymentTotals).map(([method, amount]) => `${method}: ${formatCu
                       setMovementKind(kind);
                       setMovementError('');
                     }}
-                    className={`min-h-11 rounded-md px-2 py-2 text-[9px] font-bold uppercase tracking-wide transition-all ${movementKind === kind ? kind === 'suprimento' ? 'bg-emerald-500 text-white shadow-sm' : 'bg-red-500 text-white shadow-sm' : 'text-gray-500 hover:text-gray-900 dark:hover:text-white'}`}
+                    className={`min-h-11 rounded-md px-2 py-1 text-[9px] font-bold uppercase tracking-wide transition-all flex flex-col items-center justify-center gap-0.5 ${movementKind === kind ? kind === 'suprimento' ? 'bg-emerald-500 text-white shadow-sm' : 'bg-red-500 text-white shadow-sm' : 'text-gray-500 hover:text-gray-900 dark:hover:text-white'}`}
                   >
-                    {movementLabels[kind]}
+                    <span>{movementLabels[kind]}</span>
+                    <kbd className={`px-1 rounded border text-[8px] font-mono ${
+                      movementKind === kind ? 'bg-white/20 border-white/20 text-white' : isDark ? 'bg-surface border-border text-muted' : 'bg-surface-light border-border-light text-muted-light'
+                    }`}>Alt+{idx+1}</kbd>
                   </button>
                 ))}
               </div>
               <p className="text-xs leading-5 opacity-60">
                 {movementKind === 'suprimento' ? 'Adiciona dinheiro para troco e aumenta o saldo esperado.' : movementKind === 'sangria' ? 'Retira dinheiro da gaveta e reduz o saldo esperado.' : 'Registra um gasto operacional pago pelo caixa e reduz o saldo esperado.'}
               </p>
-              <div className="space-y-2"><label htmlFor="cash-movement-description" className="text-[10px] font-bold uppercase tracking-wide opacity-40 ml-2">Descrição</label><input id="cash-movement-description" type="text" placeholder={movementKind === 'suprimento' ? 'Ex: Troco extra' : movementKind === 'sangria' ? 'Ex: Retirada para cofre' : 'Ex: Pagamento de gelo'} value={expenseDesc} onChange={event => { setExpenseDesc(event.target.value); if (movementError) setMovementError(''); }} aria-invalid={Boolean(movementError)} className={`min-h-12 w-full rounded-lg border p-4 outline-none font-bold text-sm ${movementError ? 'border-red-400' : isDark ? 'bg-[#121214] border-[#2C2C2E]' : 'bg-gray-50 border-gray-200'}`} /></div>
+              <div className="space-y-2">
+                <div className="flex justify-between items-center px-2">
+                  <label htmlFor="cash-movement-description" className="text-[10px] font-bold uppercase tracking-wide opacity-40">Descrição</label>
+                  <kbd className={`px-1 py-0.5 rounded border text-[8px] font-mono ${isDark ? 'bg-surface border-border text-muted' : 'bg-surface-light border-border-light text-muted-light'}`}>F2</kbd>
+                </div>
+                <input ref={descriptionInputRef} id="cash-movement-description" type="text" placeholder={movementKind === 'suprimento' ? 'Ex: Troco extra' : movementKind === 'sangria' ? 'Ex: Retirada para cofre' : 'Ex: Pagamento de gelo'} value={expenseDesc} onChange={event => { setExpenseDesc(event.target.value); if (movementError) setMovementError(''); }} aria-invalid={Boolean(movementError)} className={`min-h-12 w-full rounded-lg border p-4 outline-none font-bold text-sm ${movementError ? 'border-red-400' : isDark ? 'bg-[#121214] border-[#2C2C2E]' : 'bg-gray-50 border-gray-200'}`} />
+              </div>
               <div className="space-y-2"><label htmlFor="cash-movement-value" className="text-[10px] font-bold uppercase tracking-wide opacity-40 ml-2">Valor</label><div className="relative"><span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-sm opacity-20">R$</span><input id="cash-movement-value" type="text" inputMode="decimal" placeholder="0,00" value={expenseVal} onChange={event => { setExpenseVal(event.target.value); if (movementError) setMovementError(''); }} aria-invalid={Boolean(movementError)} aria-describedby="cash-movement-error" className={`min-h-12 w-full rounded-lg border py-4 pl-10 pr-4 outline-none font-bold text-sm ${movementError ? 'border-red-400' : isDark ? 'bg-[#121214] border-[#2C2C2E]' : 'bg-gray-50 border-gray-200'}`} /></div></div>
               {movementError && <p id="cash-movement-error" role="alert" className="text-xs font-semibold text-red-500">{movementError}</p>}
-              <button onClick={handleAddExpense} className={`min-h-12 w-full py-4 text-white rounded-lg font-bold uppercase tracking-wide text-[10px] shadow-sm transition-all ${movementKind === 'suprimento' ? 'bg-emerald-500 hover:bg-emerald-600' : 'bg-red-500 hover:bg-red-600'}`}>
-                {editingExpense ? 'Salvar movimentação' : 'Registrar movimentação'}
+              <button id="btn-save-movement" onClick={handleAddExpense} className={`min-h-12 w-full py-4 text-white rounded-lg font-bold uppercase tracking-wide text-[10px] shadow-sm transition-all flex items-center justify-center gap-2 ${movementKind === 'suprimento' ? 'bg-emerald-500 hover:bg-emerald-600' : 'bg-red-500 hover:bg-red-600'}`}>
+                <span>{editingExpense ? 'Salvar movimentação' : 'Registrar movimentação'}</span>
+                <kbd className="px-1 py-0.5 rounded border border-white/25 bg-white/10 font-mono text-[8px]">F8</kbd>
               </button>
               {editingExpense && (
                 <button onClick={() => { setEditingExpense(null); setExpenseDesc(''); setExpenseVal(''); setMovementKind('sangria'); setMovementError(''); }} className={`w-full py-3 font-bold text-xs uppercase tracking-wide rounded-lg transition-colors ${isDark ? 'bg-[#2C2C2E] hover:bg-[#3C3C3E]' : 'bg-gray-100 hover:bg-gray-200'}`}>Cancelar Edição</button>
@@ -548,7 +613,7 @@ ${Object.entries(paymentTotals).map(([method, amount]) => `${method}: ${formatCu
                 </div>
                 <div className="space-y-2">
                   <label htmlFor="cashier-counted-cash" className="text-[10px] font-bold uppercase tracking-wide opacity-40 ml-2">Dinheiro contado na gaveta (opcional)</label>
-                  <input id="cashier-counted-cash" type="text" inputMode="decimal" placeholder="R$ 0,00" value={countedCash} onChange={event => { setCountedCash(event.target.value); if (closingError) setClosingError(''); }} aria-invalid={Boolean(closingError)} aria-describedby="cashier-closing-help cashier-closing-error" className={`min-h-12 w-full p-4 rounded-lg border border-red-500/20 outline-none font-bold text-sm ${isDark ? 'bg-black/20' : 'bg-white'}`} />
+                  <input ref={countedCashInputRef} id="cashier-counted-cash" type="text" inputMode="decimal" placeholder="R$ 0,00" value={countedCash} onChange={event => { setCountedCash(event.target.value); if (closingError) setClosingError(''); }} aria-invalid={Boolean(closingError)} aria-describedby="cashier-closing-help cashier-closing-error" className={`min-h-12 w-full p-4 rounded-lg border border-red-500/20 outline-none font-bold text-sm ${isDark ? 'bg-black/20' : 'bg-white'}`} />
                   <div className="flex justify-between items-center ml-2 mt-1">
                     <p id="cashier-closing-help" className="text-[9px] font-bold opacity-40 uppercase tracking-wide">Compara somente com o dinheiro esperado</p>
                     {cashDifference !== undefined && (
@@ -562,7 +627,10 @@ ${Object.entries(paymentTotals).map(([method, amount]) => `${method}: ${formatCu
                 <button onClick={handleShareReport} className={`w-full py-3 rounded-lg font-bold uppercase tracking-wide text-[10px] flex items-center justify-center gap-2 border transition-all mt-6 ${isDark ? 'border-[#2C2C2E] hover:bg-white/5 text-gray-300' : 'border-gray-200 hover:bg-gray-50 text-gray-600'}`}>
                   {copied ? <><Check className="w-4 h-4 text-emerald-500" /> Resumo Copiado</> : <><Share2 className="w-4 h-4" /> Compartilhar Fechamento</>}
                 </button>
-                <button onClick={handleCloseCashier} className="w-full py-5 bg-red-500 text-white rounded-lg font-bold uppercase tracking-wide text-[11px] shadow-sm transition-all mt-2">Fechar caixa</button>
+                <button id="btn-close-cashier" onClick={handleCloseCashier} className="w-full py-5 bg-red-500 text-white rounded-lg font-bold uppercase tracking-wide text-[11px] shadow-sm transition-all mt-2 flex items-center justify-center gap-2">
+                  <span>Fechar caixa</span>
+                  <kbd className="px-1 py-0.5 rounded border border-white/25 bg-white/10 font-mono text-[9px]">F10</kbd>
+                </button>
               </div>
             )}
           </div>

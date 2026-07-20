@@ -37,10 +37,36 @@ export const PDV: React.FC = () => {
   const [feedback, setFeedback] = useState<OperationFeedbackMessage | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
+  const createOrder = (waiterId = selectedOperatorId): Order => ({
+    id: Date.now().toString(),
+    empresaId: currentEmpresa.id,
+    mode: 'balcao',
+    items: [],
+    subtotal: 0,
+    serviceCharge: 0,
+    total: 0,
+    payments: [],
+    status: 'open',
+    waiterId: waiterId || initialOperatorId,
+    timestamp: new Date().toISOString(),
+  });
+
+  const [searchTerm, setSearchTerm] = useState('');
+  const [category, setCategory] = useState('Todos');
+  const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const { log } = useAudit();
+
+  useEffect(() => {
+    if (!draftOrder) {
+      setDraftOrder(createOrder(selectedOperatorId));
+    }
+  }, [draftOrder, selectedOperatorId, setDraftOrder]);
+
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      // Ctrl+K -> Search
+      // Ctrl+K -> Search (só se nenhum modal estiver aberto)
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
+        if (checkoutOpen || manualModalOpen || comboMenuOpen || waiterMenuOpen) return;
         event.preventDefault();
         searchInputRef.current?.focus();
         searchInputRef.current?.select();
@@ -57,6 +83,11 @@ export const PDV: React.FC = () => {
         setWaiterMenuOpen(false);
         setCheckoutOpen(false);
         setFeedback(null);
+        return;
+      }
+
+      // Se qualquer modal estiver aberto, ignorar os atalhos do PDV
+      if (checkoutOpen || manualModalOpen || comboMenuOpen || waiterMenuOpen) {
         return;
       }
 
@@ -89,32 +120,7 @@ export const PDV: React.FC = () => {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
-
-  const createOrder = (waiterId = selectedOperatorId): Order => ({
-    id: Date.now().toString(),
-    empresaId: currentEmpresa.id,
-    mode: 'balcao',
-    items: [],
-    subtotal: 0,
-    serviceCharge: 0,
-    total: 0,
-    payments: [],
-    status: 'open',
-    waiterId: waiterId || initialOperatorId,
-    timestamp: new Date().toISOString(),
-  });
-
-  const [searchTerm, setSearchTerm] = useState('');
-  const [category, setCategory] = useState('Todos');
-  const [checkoutOpen, setCheckoutOpen] = useState(false);
-  const { log } = useAudit();
-
-  useEffect(() => {
-    if (!draftOrder) {
-      setDraftOrder(createOrder(selectedOperatorId));
-    }
-  }, [draftOrder, selectedOperatorId, setDraftOrder]);
+  }, [checkoutOpen, manualModalOpen, comboMenuOpen, waiterMenuOpen, draftOrder, selectedOperatorId]);
 
   const categories = ['Todos', ...Array.from(new Set(products.filter(p => p.active !== false).map(p => p.category)))];
   const activeOrder = draftOrder ?? createOrder(selectedOperatorId);

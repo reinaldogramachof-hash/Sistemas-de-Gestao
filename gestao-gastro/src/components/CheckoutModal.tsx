@@ -24,6 +24,16 @@ const PAYMENT_METHODS: { id: PaymentMethod; label: string }[] = [
   { id: 'va', label: 'VA' },
 ];
 
+const SHORTCUT_LABELS: Record<PaymentMethod, string> = {
+  dinheiro: 'F1',
+  credito: 'F2',
+  debito: 'F3',
+  pix: 'F4',
+  vr: 'F5',
+  va: 'F6',
+  voucher: 'F11',
+};
+
 export const CheckoutModal: React.FC<CheckoutModalProps> = ({ order, onClose, onSuccess }) => {
   const { theme, closeOrder, updateOrder, waiters, customers, loyaltyConfig, loyaltyEntries, addLoyaltyEntry, settings } = useApp();
   const isDark = theme === 'dark';
@@ -204,6 +214,70 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ order, onClose, on
       partialPayments
     );
   };
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement;
+      const isInput = ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName);
+      if (isInput && !event.key.startsWith('F') && event.key !== 'Escape') {
+        return;
+      }
+
+      switch (event.key) {
+        case 'F1':
+          event.preventDefault();
+          setCurrentMethod('dinheiro');
+          break;
+        case 'F2':
+          event.preventDefault();
+          setCurrentMethod('credito');
+          break;
+        case 'F3':
+          event.preventDefault();
+          setCurrentMethod('debito');
+          break;
+        case 'F4':
+          event.preventDefault();
+          setCurrentMethod('pix');
+          break;
+        case 'F5':
+          event.preventDefault();
+          setCurrentMethod('vr');
+          break;
+        case 'F6':
+          event.preventDefault();
+          setCurrentMethod('va');
+          break;
+        case 'F11':
+          event.preventDefault();
+          setCurrentMethod('voucher');
+          break;
+        case 'F8':
+          event.preventDefault();
+          if (checkoutMode === 'parcial') {
+            handleRegisterPartialPayment();
+          } else {
+            handleAddPayment();
+          }
+          break;
+        case 'F10':
+          event.preventDefault();
+          if (checkoutMode === 'parcial') {
+            if (amountRemaining > 0.01) {
+              handleRegisterPartialPayment();
+            }
+          } else {
+            if (amountPaid >= totalAmount - 0.01 && !isFinishing) {
+              handleFinish();
+            }
+          }
+          break;
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [currentMethod, amountInput, amountRemaining, checkoutMode, payments, partialPayments, totalAmount, isFinishing]);
 
   if (receiptOrder) {
     return (
@@ -406,9 +480,12 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ order, onClose, on
                   <button
                     key={paymentMethod.id}
                     onClick={() => setCurrentMethod(paymentMethod.id)}
-                    className={`h-10 px-3 text-xs font-medium rounded-control border transition-colors ${currentMethod === paymentMethod.id ? 'bg-[var(--color-accent)]/15 text-[var(--color-accent)] border-[var(--color-accent)]' : isDark ? 'bg-[var(--color-app-base)] border-[var(--color-border)] hover:border-[var(--color-border)]' : 'bg-surface-light border-border-light hover:border-border-light'}`}
+                    className={`h-10 px-3 text-xs font-medium rounded-control border transition-colors flex items-center justify-between gap-1 ${currentMethod === paymentMethod.id ? 'bg-[var(--color-accent)]/15 text-[var(--color-accent)] border-[var(--color-accent)]' : isDark ? 'bg-[var(--color-app-base)] border-[var(--color-border)] hover:border-[var(--color-border)]' : 'bg-surface-light border-border-light hover:border-border-light'}`}
                   >
-                    {paymentMethod.label}
+                    <span>{paymentMethod.label}</span>
+                    <kbd className={`px-1.5 py-0.5 rounded border text-[9px] font-mono shadow-[0_1px_0_rgba(0,0,0,0.15)] dark:shadow-[0_1px_0_rgba(255,255,255,0.15)] ${
+                      isDark ? 'bg-surface border-border text-muted' : 'bg-surface-light border-border-light text-muted-light'
+                    }`}>{SHORTCUT_LABELS[paymentMethod.id]}</kbd>
                   </button>
                 ))}
               </div>
@@ -485,13 +562,34 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ order, onClose, on
           </div>
         </div>
 
-        <div className={`p-5 border-t flex justify-end gap-3 ${isDark ? 'bg-[var(--color-elevated)] border-[var(--color-border)]' : 'bg-elevated-light border-border-light'}`}>
-          <button
-            onClick={onClose}
-            className={`h-10 px-4 rounded-control text-xs font-medium border transition-colors ${isDark ? 'border-[var(--color-border)] hover:bg-surface-light/5' : 'border-border-light hover:bg-elevated-light'}`}
-          >
-            Cancelar
-          </button>
+        <div className={`p-5 border-t flex items-center justify-between gap-3 ${isDark ? 'bg-[var(--color-elevated)] border-[var(--color-border)]' : 'bg-elevated-light border-border-light'}`}>
+          <div className="flex items-center gap-3 text-[10px] text-muted">
+            <span className="flex items-center gap-1.5">
+              <kbd className={`px-1.5 py-0.5 rounded border font-mono text-[9px] shadow-[0_1px_0_rgba(0,0,0,0.15)] dark:shadow-[0_1px_0_rgba(255,255,255,0.15)] ${
+                isDark ? 'bg-surface border-border text-muted' : 'bg-surface-light border-border-light text-muted-light'
+              }`}>F8</kbd>
+              <span>Adicionar</span>
+            </span>
+            <span className="flex items-center gap-1.5">
+              <kbd className={`px-1.5 py-0.5 rounded border font-mono text-[9px] shadow-[0_1px_0_rgba(0,0,0,0.15)] dark:shadow-[0_1px_0_rgba(255,255,255,0.15)] ${
+                isDark ? 'bg-surface border-border text-muted' : 'bg-surface-light border-border-light text-muted-light'
+              }`}>F10</kbd>
+              <span>Confirmar</span>
+            </span>
+            <span className="flex items-center gap-1.5">
+              <kbd className={`px-1.5 py-0.5 rounded border font-mono text-[9px] shadow-[0_1px_0_rgba(0,0,0,0.15)] dark:shadow-[0_1px_0_rgba(255,255,255,0.15)] ${
+                isDark ? 'bg-surface border-border text-muted' : 'bg-surface-light border-border-light text-muted-light'
+              }`}>ESC</kbd>
+              <span>Sair</span>
+            </span>
+          </div>
+          <div className="flex gap-3 shrink-0">
+            <button
+              onClick={onClose}
+              className={`h-10 px-4 rounded-control text-xs font-medium border transition-colors ${isDark ? 'border-[var(--color-border)] hover:bg-surface-light/5' : 'border-border-light hover:bg-elevated-light'}`}
+            >
+              Cancelar
+            </button>
           {checkoutMode === 'parcial' ? (
             <button
               onClick={handleRegisterPartialPayment}
@@ -509,6 +607,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ order, onClose, on
               {isFinishing ? 'Processando...' : 'Confirmar Pagamento'}
             </button>
           )}
+          </div>
         </div>
       </div>
     </div>

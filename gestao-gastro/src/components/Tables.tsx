@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from '../store/AppContext';
 import { OrderModal } from './OrderModal';
 import {
@@ -48,6 +48,38 @@ export const Tables: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filter, setFilter] = useState<'todos' | 'livre' | 'ocupada' | 'aguardando' | 'reservada'>('todos');
   const [sectorFilter, setSectorFilter] = useState<string>('todos');
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement;
+      const isInput = ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName);
+      
+      // Ctrl+K to search
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
+        if (selectedTable !== null) return;
+        event.preventDefault();
+        searchInputRef.current?.focus();
+        searchInputRef.current?.select();
+        return;
+      }
+
+      if (isInput && !event.key.startsWith('F')) return;
+
+      if (selectedTable !== null) return;
+
+      switch (event.key) {
+        case 'F2':
+          event.preventDefault();
+          setIsSelecting(prev => !prev);
+          setSelectedForReservation([]);
+          break;
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedTable]);
 
   const sectors = Array.from(new Set(tables.map(t => t.sector).filter(Boolean))) as string[];
 
@@ -150,11 +182,17 @@ export const Tables: React.FC = () => {
           <div className="flex gap-3 w-full lg:w-auto">
             <div className={`flex items-center px-4 py-2.5 flex-1 lg:w-64 ${ui.input(isDark)}`}>
               <Search className="w-4 h-4 mr-3 opacity-40" />
-              <input value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="Pesquisar mesa..." className="bg-transparent border-none outline-none w-full text-sm font-semibold placeholder:opacity-30" />
+              <input ref={searchInputRef} value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="Pesquisar mesa..." className="bg-transparent border-none outline-none w-full text-sm font-semibold placeholder:opacity-30" />
+              <kbd className={`px-1.5 py-0.5 rounded border font-mono text-[9px] shadow-[0_1px_0_rgba(0,0,0,0.15)] dark:shadow-[0_1px_0_rgba(255,255,255,0.15)] ${
+                isDark ? 'bg-surface border-border text-muted/60' : 'bg-surface-light border-border-light text-muted-light/60'
+              }`}>Ctrl+K</kbd>
             </div>
             <button onClick={() => { setIsSelecting(!isSelecting); setSelectedForReservation([]); }} className={`px-5 py-2.5 rounded-lg font-bold text-[10px] uppercase tracking-wide flex items-center gap-2 border transition-all ${isSelecting ? 'bg-red-600 text-white border-red-600' : isDark ? 'bg-[#252527] text-slate-100 border-[#3A3A3C]' : 'bg-white text-slate-700 border-slate-300 shadow-sm'}`}>
               {isSelecting ? <X className="w-4 h-4 stroke-[3px]" /> : <CalendarCheck className="w-4 h-4 stroke-[3px]" />}
-              {isSelecting ? 'Cancelar' : 'Reservar'}
+              <span>{isSelecting ? 'Cancelar' : 'Reservar'}</span>
+              <kbd className={`px-1 py-0.5 rounded border font-mono text-[8px] ${
+                isSelecting ? 'bg-white/20 border-white/20 text-white' : isDark ? 'bg-surface border-border text-muted' : 'bg-surface-light border-border-light text-muted-light'
+              }`}>F2</kbd>
             </button>
           </div>
         </div>

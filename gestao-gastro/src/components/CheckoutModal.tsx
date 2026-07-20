@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useApp } from '../store/AppContext';
 import { Order, PartialPaymentItem, PaymentItem, PaymentMethod } from '../types';
 import { X } from 'lucide-react';
@@ -53,6 +53,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ order, onClose, on
   const [isFinishing, setIsFinishing] = useState(false);
   const [syncResult, setSyncResult] = useState<{message: string, status: 'success'|'error'} | null>(null);
   const [feedback, setFeedback] = useState<OperationFeedbackMessage | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const PAYMENT_METHOD_IDS: PaymentMethod[] = ['dinheiro', 'credito', 'debito', 'pix', 'vr', 'va'];
 
   const serviceChargeRate = settings.serviceChargeRate ?? 0.10;
   const serviceCharge = includeService && isMesa ? order.subtotal * serviceChargeRate : 0;
@@ -219,7 +221,20 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ order, onClose, on
     const handleKeyDown = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement;
       const isInput = ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName);
-      if (isInput && !event.key.startsWith('F') && event.key !== 'Escape') {
+      if (isInput && !event.key.startsWith('F') && event.key !== 'Escape' && !event.key.startsWith('Arrow')) {
+        return;
+      }
+
+      // Setas esquerda/direita navegam entre formas de pagamento
+      if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+        event.preventDefault();
+        setCurrentMethod(prev => {
+          const idx = PAYMENT_METHOD_IDS.indexOf(prev);
+          const next = event.key === 'ArrowRight'
+            ? (idx + 1) % PAYMENT_METHOD_IDS.length
+            : (idx - 1 + PAYMENT_METHOD_IDS.length) % PAYMENT_METHOD_IDS.length;
+          return PAYMENT_METHOD_IDS[next];
+        });
         return;
       }
 
@@ -279,6 +294,38 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ order, onClose, on
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [currentMethod, amountInput, amountRemaining, checkoutMode, payments, partialPayments, totalAmount, isFinishing]);
 
+  // Focus-trap: Tab cicla apenas entre elementos do modal
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    // Auto-foco no input de valor ao abrir
+    const t = setTimeout(() => {
+      const input = container.querySelector<HTMLInputElement>('input[type="text"]');
+      input?.focus();
+      input?.select();
+    }, 120);
+
+    const handleTab = (e: KeyboardEvent) => {
+      if (e.key !== 'Tab') return;
+      const allEls = Array.from(
+        container.querySelectorAll('button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])')
+      ) as HTMLElement[];
+      const focusable = allEls.filter(el => el.offsetParent !== null);
+      if (focusable.length === 0) return;
+      const first: HTMLElement = focusable[0];
+      const last: HTMLElement = focusable[focusable.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault(); last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault(); first.focus();
+      }
+    };
+
+    container.addEventListener('keydown', handleTab);
+    return () => { clearTimeout(t); container.removeEventListener('keydown', handleTab); };
+  }, []);
+
   if (receiptOrder) {
     return (
       <ReceiptModal
@@ -298,7 +345,10 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ order, onClose, on
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
       <OperationFeedback feedback={feedback} onDismiss={() => setFeedback(null)} />
-      <div className={`w-full max-w-2xl rounded-panel border shadow-2xl flex flex-col max-h-[92vh] overflow-hidden ${isDark ? 'bg-[var(--color-surface)] border-[var(--color-border)]' : 'bg-surface-light border-border-light'}`}>
+      <div
+        ref={containerRef}
+        className={`w-full max-w-2xl rounded-panel border shadow-2xl flex flex-col max-h-[92vh] overflow-hidden ${isDark ? 'bg-[var(--color-surface)] border-[var(--color-border)]' : 'bg-surface-light border-border-light'}`}
+      >
         <div className={`px-5 py-4 flex justify-between items-center border-b ${isDark ? 'border-[var(--color-border)]' : 'border-border-light'}`}>
           <div>
             <h2 className="text-lg font-bold">Fechamento de Conta</h2>
@@ -570,7 +620,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ order, onClose, on
               className={`h-10 px-4 rounded-control text-xs font-medium border transition-colors flex items-center gap-1.5 ${isDark ? 'border-[var(--color-border)] hover:bg-surface-light/5 text-gray-300' : 'border-border-light hover:bg-elevated-light text-gray-700'}`}
             >
               <span>Cancelar</span>
-              <kbd className={`px-1 py-0.5 rounded border text-[8px] font-mono shadow-[0_1px_0_rgba(0,0,0,0.15)] dark:shadow-[0_1px_0_rgba(255,255,255,0.15)] ${
+              <kbd className={`px-1.5 py-0.5 rounded border text-[9px] font-mono shadow-[0_1px_0_rgba(0,0,0,0.15)] dark:shadow-[0_1px_0_rgba(255,255,255,0.15)] ${
                 isDark ? 'bg-surface border-border text-muted' : 'bg-surface-light border-border-light text-muted-light'
               }`}>ESC</kbd>
             </button>

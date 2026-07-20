@@ -193,7 +193,21 @@ export const Cashier: React.FC = () => {
       const target = event.target as HTMLElement;
       const isInput = ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName);
 
-      if (isInput && !event.key.startsWith('F') && !event.altKey) return;
+      if (isInput && !event.key.startsWith('F') && !event.altKey && !event.key.startsWith('Arrow')) return;
+
+      // Setas esquerda/direita trocam tipo de movimentação
+      if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+        const kinds: CashMovementKind[] = ['suprimento', 'sangria', 'despesa'];
+        setMovementKind(prev => {
+          const idx = kinds.indexOf(prev);
+          const next = event.key === 'ArrowRight'
+            ? (idx + 1) % kinds.length
+            : (idx - 1 + kinds.length) % kinds.length;
+          return kinds[next];
+        });
+        setMovementError('');
+        return;
+      }
 
       switch (event.key) {
         case 'F2':
@@ -536,7 +550,7 @@ ${Object.entries(paymentTotals).map(([method, amount]) => `${method}: ${formatCu
                     className={`min-h-11 rounded-md px-2 py-1 text-[9px] font-bold uppercase tracking-wide transition-all flex flex-col items-center justify-center gap-0.5 ${movementKind === kind ? kind === 'suprimento' ? 'bg-emerald-500 text-white shadow-sm' : 'bg-red-500 text-white shadow-sm' : 'text-gray-500 hover:text-gray-900 dark:hover:text-white'}`}
                   >
                     <span>{movementLabels[kind]}</span>
-                    <kbd className={`px-1 rounded border text-[8px] font-mono ${
+                    <kbd className={`px-1.5 py-0.5 rounded border text-[9px] font-mono ${
                       movementKind === kind ? 'bg-white/20 border-white/20 text-white' : isDark ? 'bg-surface border-border text-muted' : 'bg-surface-light border-border-light text-muted-light'
                     }`}>Alt+{idx+1}</kbd>
                   </button>
@@ -548,15 +562,15 @@ ${Object.entries(paymentTotals).map(([method, amount]) => `${method}: ${formatCu
               <div className="space-y-2">
                 <div className="flex justify-between items-center px-2">
                   <label htmlFor="cash-movement-description" className="text-[10px] font-bold uppercase tracking-wide opacity-40">Descrição</label>
-                  <kbd className={`px-1 py-0.5 rounded border text-[8px] font-mono ${isDark ? 'bg-surface border-border text-muted' : 'bg-surface-light border-border-light text-muted-light'}`}>F2</kbd>
+                  <kbd className={`px-1.5 py-0.5 rounded border text-[9px] font-mono ${isDark ? 'bg-surface border-border text-muted' : 'bg-surface-light border-border-light text-muted-light'}`}>F2</kbd>
                 </div>
                 <input ref={descriptionInputRef} id="cash-movement-description" type="text" placeholder={movementKind === 'suprimento' ? 'Ex: Troco extra' : movementKind === 'sangria' ? 'Ex: Retirada para cofre' : 'Ex: Pagamento de gelo'} value={expenseDesc} onChange={event => { setExpenseDesc(event.target.value); if (movementError) setMovementError(''); }} aria-invalid={Boolean(movementError)} className={`min-h-12 w-full rounded-lg border p-4 outline-none font-bold text-sm ${movementError ? 'border-red-400' : isDark ? 'bg-[#121214] border-[#2C2C2E]' : 'bg-gray-50 border-gray-200'}`} />
               </div>
-              <div className="space-y-2"><label htmlFor="cash-movement-value" className="text-[10px] font-bold uppercase tracking-wide opacity-40 ml-2">Valor</label><div className="relative"><span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-sm opacity-20">R$</span><input id="cash-movement-value" type="text" inputMode="decimal" placeholder="0,00" value={expenseVal} onChange={event => { setExpenseVal(event.target.value); if (movementError) setMovementError(''); }} aria-invalid={Boolean(movementError)} aria-describedby="cash-movement-error" className={`min-h-12 w-full rounded-lg border py-4 pl-10 pr-4 outline-none font-bold text-sm ${movementError ? 'border-red-400' : isDark ? 'bg-[#121214] border-[#2C2C2E]' : 'bg-gray-50 border-gray-200'}`} /></div></div>
+              <div className="space-y-2"><label htmlFor="cash-movement-value" className="text-[10px] font-bold uppercase tracking-wide opacity-40 ml-2">Valor</label><div className="relative"><span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-sm opacity-20">R$</span><input id="cash-movement-value" type="text" inputMode="decimal" placeholder="0,00" value={expenseVal} onChange={event => { setExpenseVal(event.target.value); if (movementError) setMovementError(''); }} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); document.getElementById('btn-save-movement')?.click(); } }} aria-invalid={Boolean(movementError)} aria-describedby="cash-movement-error" className={`min-h-12 w-full rounded-lg border py-4 pl-10 pr-4 outline-none font-bold text-sm ${movementError ? 'border-red-400' : isDark ? 'bg-[#121214] border-[#2C2C2E]' : 'bg-gray-50 border-gray-200'}`} /></div></div>
               {movementError && <p id="cash-movement-error" role="alert" className="text-xs font-semibold text-red-500">{movementError}</p>}
               <button id="btn-save-movement" onClick={handleAddExpense} className={`min-h-12 w-full py-4 text-white rounded-lg font-bold uppercase tracking-wide text-[10px] shadow-sm transition-all flex items-center justify-center gap-2 ${movementKind === 'suprimento' ? 'bg-emerald-500 hover:bg-emerald-600' : 'bg-red-500 hover:bg-red-600'}`}>
                 <span>{editingExpense ? 'Salvar movimentação' : 'Registrar movimentação'}</span>
-                <kbd className="px-1 py-0.5 rounded border border-white/25 bg-white/10 font-mono text-[8px]">F8</kbd>
+                <kbd className="px-1.5 py-0.5 rounded border border-white/25 bg-white/10 font-mono text-[9px]">F8</kbd>
               </button>
               {editingExpense && (
                 <button onClick={() => { setEditingExpense(null); setExpenseDesc(''); setExpenseVal(''); setMovementKind('sangria'); setMovementError(''); }} className={`w-full py-3 font-bold text-xs uppercase tracking-wide rounded-lg transition-colors ${isDark ? 'bg-[#2C2C2E] hover:bg-[#3C3C3E]' : 'bg-gray-100 hover:bg-gray-200'}`}>Cancelar Edição</button>
@@ -629,7 +643,7 @@ ${Object.entries(paymentTotals).map(([method, amount]) => `${method}: ${formatCu
                 </button>
                 <button id="btn-close-cashier" onClick={handleCloseCashier} className="w-full py-5 bg-red-500 text-white rounded-lg font-bold uppercase tracking-wide text-[11px] shadow-sm transition-all mt-2 flex items-center justify-center gap-2">
                   <span>Fechar caixa</span>
-                  <kbd className="px-1 py-0.5 rounded border border-white/25 bg-white/10 font-mono text-[9px]">F10</kbd>
+                  <kbd className="px-1.5 py-0.5 rounded border border-white/25 bg-white/10 font-mono text-[9px]">F10</kbd>
                 </button>
               </div>
             )}

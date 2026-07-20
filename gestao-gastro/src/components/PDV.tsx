@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useApp } from '../store/AppContext';
 import { Product, Order } from '../types';
 import { formatCurrency } from '../utils/format';
@@ -36,6 +36,8 @@ export const PDV: React.FC = () => {
   const [manualPrice, setManualPrice] = useState('');
   const [feedback, setFeedback] = useState<OperationFeedbackMessage | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  // Ref para acesso estavel a addItemToOrder dentro do useEffect de teclado (evita declaracao antes do uso)
+  const addItemToOrderRef = useRef<(p: Product) => void>(() => {});
 
   const createOrder = (waiterId = selectedOperatorId): Order => ({
     id: Date.now().toString(),
@@ -75,7 +77,8 @@ export const PDV: React.FC = () => {
 
       const target = event.target as HTMLElement;
       const isInput = ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName);
-      
+      const isSearchFocused = document.activeElement === searchInputRef.current;
+
       // Permitir ESC em qualquer lugar para fechar modais
       if (event.key === 'Escape') {
         setManualModalOpen(false);
@@ -88,6 +91,34 @@ export const PDV: React.FC = () => {
 
       // Se qualquer modal estiver aberto, ignorar os atalhos do PDV
       if (checkoutOpen || manualModalOpen || comboMenuOpen || waiterMenuOpen) {
+        return;
+      }
+
+      // Setas navegam categorias quando foco está na busca
+      if (isSearchFocused && (event.key === 'ArrowLeft' || event.key === 'ArrowRight')) {
+        event.preventDefault();
+        setCategory(prev => {
+          const cats = ['Todos', ...Array.from(new Set(products.filter(p => p.active !== false).map(p => p.category)))];
+          const idx = cats.indexOf(prev);
+          const next = event.key === 'ArrowRight'
+            ? (idx + 1) % cats.length
+            : (idx - 1 + cats.length) % cats.length;
+          return cats[next];
+        });
+        return;
+      }
+
+      // Enter na busca: adiciona o primeiro produto visível ao carrinho
+      if (isSearchFocused && event.key === 'Enter') {
+        event.preventDefault();
+        const cats = ['Todos', ...Array.from(new Set(products.filter(p => p.active !== false).map(p => p.category)))];
+        const currentCat = cats.find(c => c === category) ?? 'Todos';
+        const firstProduct = products.filter(p => {
+          const matchesCategory = currentCat === 'Todos' || p.category === currentCat;
+          const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase());
+          return p.active !== false && matchesCategory && matchesSearch;
+        })[0];
+        if (firstProduct) addItemToOrderRef.current(firstProduct);
         return;
       }
 
@@ -120,7 +151,7 @@ export const PDV: React.FC = () => {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [checkoutOpen, manualModalOpen, comboMenuOpen, waiterMenuOpen, draftOrder, selectedOperatorId]);
+  }, [checkoutOpen, manualModalOpen, comboMenuOpen, waiterMenuOpen, draftOrder, selectedOperatorId, searchTerm, category, products]);
 
   const categories = ['Todos', ...Array.from(new Set(products.filter(p => p.active !== false).map(p => p.category)))];
   const activeOrder = draftOrder ?? createOrder(selectedOperatorId);
@@ -185,6 +216,8 @@ export const PDV: React.FC = () => {
     const subtotal = updatedItems.reduce((acc, item) => acc + item.price * item.quantity, 0);
     updateActiveOrder(order => ({ ...order, items: updatedItems, subtotal, total: subtotal }));
   };
+  // Mantém o ref sempre atualizado para acesso no handler de teclado
+  addItemToOrderRef.current = addItemToOrder;
 
   const changeItemQty = (itemId: string, delta: number) => {
     const updatedItems = activeOrder.items
@@ -321,7 +354,7 @@ export const PDV: React.FC = () => {
             >
               <Plus className="w-4 h-4" />
               <span>Avulso</span>
-              <kbd className={`px-1 py-0.5 rounded border text-[8px] font-mono shadow-[0_1px_0_rgba(0,0,0,0.15)] dark:shadow-[0_1px_0_rgba(255,255,255,0.15)] ${
+              <kbd className={`px-1.5 py-0.5 rounded border text-[9px] font-mono shadow-[0_1px_0_rgba(0,0,0,0.15)] dark:shadow-[0_1px_0_rgba(255,255,255,0.15)] ${
                 isDark ? 'bg-surface border-border text-muted' : 'bg-surface-light border-border-light text-muted-light'
               }`}>F2</kbd>
             </button>
@@ -391,7 +424,7 @@ export const PDV: React.FC = () => {
             aria-label="Limpar carrinho"
           >
             <Trash2 className="w-4 h-4" />
-            <kbd className={`px-1 py-0.5 rounded border text-[8px] font-mono shadow-[0_1px_0_rgba(0,0,0,0.15)] dark:shadow-[0_1px_0_rgba(255,255,255,0.15)] ${
+            <kbd className={`px-1.5 py-0.5 rounded border text-[9px] font-mono shadow-[0_1px_0_rgba(0,0,0,0.15)] dark:shadow-[0_1px_0_rgba(255,255,255,0.15)] ${
               isDark ? 'bg-surface border-border text-muted' : 'bg-surface-light border-border-light text-muted-light'
             }`}>F9</kbd>
           </button>
@@ -402,7 +435,7 @@ export const PDV: React.FC = () => {
             <div className="space-y-1">
               <div className="flex justify-between items-center px-1">
                 <span className="text-[10px] font-bold uppercase tracking-wide opacity-40">Atendente</span>
-                <kbd className={`px-1 rounded border text-[8px] font-mono shadow-[0_1px_0_rgba(0,0,0,0.15)] dark:shadow-[0_1px_0_rgba(255,255,255,0.15)] ${
+                <kbd className={`px-1.5 py-0.5 rounded border text-[9px] font-mono shadow-[0_1px_0_rgba(0,0,0,0.15)] dark:shadow-[0_1px_0_rgba(255,255,255,0.15)] ${
                   isDark ? 'bg-surface border-border text-muted' : 'bg-surface-light border-border-light text-muted-light'
                 }`}>F4</kbd>
               </div>
@@ -459,7 +492,7 @@ export const PDV: React.FC = () => {
             <div className="space-y-1">
               <div className="flex justify-between items-center px-1">
                 <span className="text-[10px] font-bold uppercase tracking-wide opacity-40">Cliente</span>
-                <kbd className={`px-1 rounded border text-[8px] font-mono shadow-[0_1px_0_rgba(0,0,0,0.15)] dark:shadow-[0_1px_0_rgba(255,255,255,0.15)] ${
+                <kbd className={`px-1.5 py-0.5 rounded border text-[9px] font-mono shadow-[0_1px_0_rgba(0,0,0,0.15)] dark:shadow-[0_1px_0_rgba(255,255,255,0.15)] ${
                   isDark ? 'bg-surface border-border text-muted' : 'bg-surface-light border-border-light text-muted-light'
                 }`}>F3</kbd>
               </div>
@@ -495,7 +528,14 @@ export const PDV: React.FC = () => {
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -12 }}
                 key={item.id}
-                className={`flex items-center gap-3 p-3 rounded-panel transition-colors ${isDark ? 'bg-elevated hover:bg-white/10' : 'bg-elevated-light hover:bg-gray-100'}`}
+                tabIndex={0}
+                role="listitem"
+                aria-label={`${item.product.name}, quantidade ${item.quantity}. Pressione + para aumentar ou - para diminuir.`}
+                onKeyDown={e => {
+                  if (e.key === '+' || e.key === '=') { e.preventDefault(); addItemToOrder(item.product); }
+                  if (e.key === '-') { e.preventDefault(); changeItemQty(item.id, -1); }
+                }}
+                className={`flex items-center gap-3 p-3 rounded-panel transition-colors focus:outline-none focus:ring-2 focus:ring-accent/40 ${isDark ? 'bg-elevated hover:bg-white/10' : 'bg-elevated-light hover:bg-gray-100'}`}
               >
                 <div className={`w-9 h-9 rounded-panel flex items-center justify-center ${isDark ? 'bg-surface' : 'bg-surface-light'}`}>
                   {(() => {

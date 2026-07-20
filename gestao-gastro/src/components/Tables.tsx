@@ -49,11 +49,14 @@ export const Tables: React.FC = () => {
   const [filter, setFilter] = useState<'todos' | 'livre' | 'ocupada' | 'aguardando' | 'reservada'>('todos');
   const [sectorFilter, setSectorFilter] = useState<string>('todos');
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const gridRef = useRef<HTMLDivElement>(null);
+  const [focusedTableIdx, setFocusedTableIdx] = useState<number>(-1);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement;
       const isInput = ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName);
+      const isGridCard = target.closest('[data-table-grid]') !== null;
       
       // Ctrl+K to search
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
@@ -64,9 +67,35 @@ export const Tables: React.FC = () => {
         return;
       }
 
-      if (isInput && !event.key.startsWith('F')) return;
+      if (isInput && !event.key.startsWith('F') && !event.key.startsWith('Arrow')) return;
 
       if (selectedTable !== null) return;
+
+      // Navegação por setas no grid de mesas
+      if (['ArrowRight', 'ArrowLeft', 'ArrowDown', 'ArrowUp'].includes(event.key) && (isGridCard || focusedTableIdx >= 0)) {
+        event.preventDefault();
+        const grid = gridRef.current;
+        const cols = grid
+          ? Math.round(grid.offsetWidth / ((grid.firstElementChild as HTMLElement | null)?.offsetWidth || 1))
+          : 6;
+        // Usa o DOM como fonte de verdade para evitar dependencia de filteredTables (declarada depois)
+        const totalCards = document.querySelectorAll('[data-table-card]').length;
+        setFocusedTableIdx(prev => {
+          const cur = prev < 0 ? 0 : prev;
+          let next = cur;
+          if (event.key === 'ArrowRight') next = Math.min(cur + 1, totalCards - 1);
+          if (event.key === 'ArrowLeft') next = Math.max(cur - 1, 0);
+          if (event.key === 'ArrowDown') next = Math.min(cur + cols, totalCards - 1);
+          if (event.key === 'ArrowUp') next = Math.max(cur - cols, 0);
+          // Foca o card correspondente
+          setTimeout(() => {
+            const cards = document.querySelectorAll<HTMLButtonElement>('[data-table-card]');
+            cards[next]?.focus();
+          }, 0);
+          return next;
+        });
+        return;
+      }
 
       switch (event.key) {
         case 'F2':
@@ -79,7 +108,7 @@ export const Tables: React.FC = () => {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedTable]);
+  }, [selectedTable, focusedTableIdx]);
 
   const sectors = Array.from(new Set(tables.map(t => t.sector).filter(Boolean))) as string[];
 
@@ -190,7 +219,7 @@ export const Tables: React.FC = () => {
             <button onClick={() => { setIsSelecting(!isSelecting); setSelectedForReservation([]); }} className={`px-5 py-2.5 rounded-lg font-bold text-[10px] uppercase tracking-wide flex items-center gap-2 border transition-all ${isSelecting ? 'bg-red-600 text-white border-red-600' : isDark ? 'bg-[#252527] text-slate-100 border-[#3A3A3C]' : 'bg-white text-slate-700 border-slate-300 shadow-sm'}`}>
               {isSelecting ? <X className="w-4 h-4 stroke-[3px]" /> : <CalendarCheck className="w-4 h-4 stroke-[3px]" />}
               <span>{isSelecting ? 'Cancelar' : 'Reservar'}</span>
-              <kbd className={`px-1 py-0.5 rounded border font-mono text-[8px] ${
+              <kbd className={`px-1.5 py-0.5 rounded border font-mono text-[9px] ${
                 isSelecting ? 'bg-white/20 border-white/20 text-white' : isDark ? 'bg-surface border-border text-muted' : 'bg-surface-light border-border-light text-muted-light'
               }`}>F2</kbd>
             </button>
@@ -207,7 +236,7 @@ export const Tables: React.FC = () => {
             : 'Ajuste a busca, o setor ou o filtro de situação para continuar.'}
         />
       ) : (
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6">
+      <div ref={gridRef} data-table-grid className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6">
         <AnimatePresence mode="popLayout">
           {filteredTables.map(table => {
             const isLivre = table.visualStatus === 'livre';
@@ -227,10 +256,13 @@ export const Tables: React.FC = () => {
                 className="relative"
               >
                 <button
+                  data-table-card
+                  tabIndex={0}
                   onClick={() => handleTableClick(table.number)}
+                  onFocus={() => setFocusedTableIdx(filteredTables.findIndex(t => t.number === table.number))}
                   disabled={isSelecting && !isLivre && !isSelected}
                   aria-label={`Mesa ${table.number}, ${tableOrders.length} contas abertas`}
-                  className={`relative w-full aspect-[1/0.86] flex flex-col items-center justify-center rounded-lg transition-colors duration-200 overflow-hidden
+                  className={`relative w-full aspect-[1/0.86] flex flex-col items-center justify-center rounded-lg transition-colors duration-200 overflow-hidden focus:outline-none focus:ring-2 focus:ring-accent/60
                     ${isDark ? 'bg-[#1C1C1E]' : 'bg-white shadow-sm border border-gray-100'}
                     ${isLivre ? `border-dashed hover:border-slate-400` : ''}
                     ${isOcupada ? 'border-2 border-slate-700 dark:border-slate-300 z-10 shadow-sm' : ''}

@@ -60,6 +60,7 @@ export const OrderModal: React.FC<OrderModalProps> = ({ tableNumber, mode, onClo
   const [receiptOpen, setReceiptOpen] = useState(false);
   const [showFeedback, setShowFeedback] = useState(false);
   const [operationFeedback, setOperationFeedback] = useState<OperationFeedbackMessage | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const activeOrderHasConsumption = Boolean(
     activeOrder &&
     (activeOrder.items.length > 0 || activeOrder.subtotal > 0 || activeOrder.total > 0),
@@ -91,6 +92,7 @@ export const OrderModal: React.FC<OrderModalProps> = ({ tableNumber, mode, onClo
     const handleKeyDown = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement;
       const isInput = ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName);
+      const isSearchFocused = document.activeElement === searchInputRef.current;
       
       // ESC closes checkout first, then receipt, then order modal
       if (event.key === 'Escape') {
@@ -104,11 +106,36 @@ export const OrderModal: React.FC<OrderModalProps> = ({ tableNumber, mode, onClo
         return;
       }
 
-      // Ignora atalhos de F-keys se digitar em inputs soltos (mas permite F-keys)
-      if (isInput && !event.key.startsWith('F')) return;
+      // Ignora atalhos de F-keys se digitar em inputs soltos (mas permite F-keys e setas)
+      if (isInput && !event.key.startsWith('F') && !event.key.startsWith('Arrow')) return;
 
       // Se checkout ou recibo estiver aberto, ignora os atalhos locais
       if (checkoutOpen || receiptOpen) return;
+
+      // Setas navegam categorias quando a busca está focada
+      if (isSearchFocused && (event.key === 'ArrowLeft' || event.key === 'ArrowRight')) {
+        event.preventDefault();
+        const { products: allProducts } = (window as any).__gastroApp__ ?? {};
+        const cats = ['Todos', ...Array.from(new Set(
+          (allProducts ?? []).filter((p: any) => p.active !== false).map((p: any) => p.category)
+        ))] as string[];
+        setCategory(prev => {
+          const idx = cats.indexOf(prev);
+          const next = event.key === 'ArrowRight'
+            ? (idx + 1) % cats.length
+            : (idx - 1 + cats.length) % cats.length;
+          return cats[next] ?? prev;
+        });
+        return;
+      }
+
+      // Enter na busca: adiciona o primeiro produto visível à comanda
+      if (isSearchFocused && event.key === 'Enter' && !checkoutOpen && !receiptOpen) {
+        event.preventDefault();
+        const btn = document.querySelector<HTMLButtonElement>('[data-menu-first-product]');
+        btn?.click();
+        return;
+      }
 
       switch (event.key) {
         case 'F2':
@@ -139,7 +166,7 @@ export const OrderModal: React.FC<OrderModalProps> = ({ tableNumber, mode, onClo
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keydown', handleCtrlK);
     };
-  }, [checkoutOpen, receiptOpen, activeOrder, onClose]);
+  }, [checkoutOpen, receiptOpen, activeOrder, onClose, searchTerm, category]);
 
   const handleOpenTable = async () => {
     setIsCreating(true);
@@ -480,7 +507,7 @@ export const OrderModal: React.FC<OrderModalProps> = ({ tableNumber, mode, onClo
                       <div className="grid grid-cols-3 gap-3 w-full">
                         <button onClick={onClose} className={`min-h-[64px] px-2 py-3 rounded-lg font-bold uppercase tracking-wide text-[10px] border transition-all flex flex-col items-center justify-center gap-1.5 ${isDark ? 'bg-transparent border-white/10 text-white hover:bg-white/5' : 'bg-transparent border-[#475569]/20 text-[#475569] hover:bg-[#475569]/5'}`}>
                           <span>Concluir</span>
-                          <kbd className={`px-1 py-0.5 rounded border text-[8px] font-mono shadow-[0_1px_0_rgba(0,0,0,0.15)] dark:shadow-[0_1px_0_rgba(255,255,255,0.15)] ${
+                          <kbd className={`px-1.5 py-0.5 rounded border text-[9px] font-mono shadow-[0_1px_0_rgba(0,0,0,0.15)] dark:shadow-[0_1px_0_rgba(255,255,255,0.15)] ${
                             isDark ? 'bg-surface border-border text-muted/80' : 'bg-surface-light border-border-light text-muted-light/80'
                           }`}>F2</kbd>
                         </button>
@@ -490,7 +517,7 @@ export const OrderModal: React.FC<OrderModalProps> = ({ tableNumber, mode, onClo
                         </button>
                         <button disabled={activeOrder.items.length === 0} onClick={() => setCheckoutOpen(true)} className="min-h-[64px] px-2 py-3 bg-[#475569] text-white rounded-lg font-bold uppercase tracking-wide text-[10px] shadow-sm disabled:opacity-30 disabled:scale-100 disabled:shadow-none transition-all flex flex-col items-center justify-center gap-1.5">
                           <span>Pagar</span>
-                          <kbd className="px-1 py-0.5 rounded border border-white/20 bg-white/10 text-white font-mono text-[8px]">F7</kbd>
+                          <kbd className="px-1.5 py-0.5 rounded border border-white/20 bg-white/10 text-white font-mono text-[9px]">F7</kbd>
                         </button>
                       </div>
                       {!activeOrderHasConsumption && mode === 'mesa' && (

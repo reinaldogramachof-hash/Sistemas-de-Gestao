@@ -60,6 +60,7 @@ export const MenuList: React.FC<MenuListProps> = ({ category, searchTerm, onSele
               type="button"
               onClick={() => !isOutOfStock && onSelect(product)}
               disabled={isOutOfStock}
+              {...(filteredProducts.indexOf(product) === 0 ? { 'data-menu-first-product': 'true' } : {})}
               className={`group relative min-h-[190px] flex flex-col items-start p-4 rounded-panel border text-left transition-all duration-300
                 ${isOutOfStock
                   ? `cursor-not-allowed opacity-50 ${ui.panelMuted(isDark)}`

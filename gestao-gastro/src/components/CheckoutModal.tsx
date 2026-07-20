@@ -483,7 +483,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ order, onClose, on
                     className={`h-10 px-3 text-xs font-medium rounded-control border transition-colors flex items-center justify-between gap-1 ${currentMethod === paymentMethod.id ? 'bg-[var(--color-accent)]/15 text-[var(--color-accent)] border-[var(--color-accent)]' : isDark ? 'bg-[var(--color-app-base)] border-[var(--color-border)] hover:border-[var(--color-border)]' : 'bg-surface-light border-border-light hover:border-border-light'}`}
                   >
                     <span>{paymentMethod.label}</span>
-                    <kbd className={`px-1.5 py-0.5 rounded border text-[9px] font-mono shadow-[0_1px_0_rgba(0,0,0,0.15)] dark:shadow-[0_1px_0_rgba(255,255,255,0.15)] ${
+                    <kbd className={`px-1.5 py-0.5 rounded border text-[10px] font-mono shadow-[0_1.5px_0_rgba(0,0,0,0.15)] dark:shadow-[0_1.5px_0_rgba(255,255,255,0.15)] ${
                       isDark ? 'bg-surface border-border text-muted' : 'bg-surface-light border-border-light text-muted-light'
                     }`}>{SHORTCUT_LABELS[paymentMethod.id]}</kbd>
                   </button>
@@ -509,9 +509,10 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ order, onClose, on
                 </div>
                 <button
                   onClick={checkoutMode === 'parcial' ? handleRegisterPartialPayment : handleAddPayment}
-                  className="h-10 px-4 bg-[var(--color-accent)] text-white rounded-control text-xs font-medium hover:brightness-110"
+                  className="h-10 px-4 bg-[var(--color-accent)] text-white rounded-control text-xs font-medium hover:brightness-110 flex items-center gap-1.5"
                 >
-                  {checkoutMode === 'parcial' ? 'Registrar' : 'Adicionar'}
+                  <span>{checkoutMode === 'parcial' ? 'Registrar' : 'Adicionar'}</span>
+                  <kbd className="px-1.5 py-0.5 rounded border border-white/20 bg-white/10 text-white font-mono text-[9px] shadow-[0_1px_0_rgba(255,255,255,0.2)]">F8</kbd>
                 </button>
               </div>
               {checkoutMode === 'fechar' && currentMethod === 'dinheiro' && (
@@ -562,49 +563,34 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ order, onClose, on
           </div>
         </div>
 
-        <div className={`p-5 border-t flex items-center justify-between gap-3 ${isDark ? 'bg-[var(--color-elevated)] border-[var(--color-border)]' : 'bg-elevated-light border-border-light'}`}>
-          <div className="flex items-center gap-3 text-[10px] text-muted">
-            <span className="flex items-center gap-1.5">
-              <kbd className={`px-1.5 py-0.5 rounded border font-mono text-[9px] shadow-[0_1px_0_rgba(0,0,0,0.15)] dark:shadow-[0_1px_0_rgba(255,255,255,0.15)] ${
-                isDark ? 'bg-surface border-border text-muted' : 'bg-surface-light border-border-light text-muted-light'
-              }`}>F8</kbd>
-              <span>Adicionar</span>
-            </span>
-            <span className="flex items-center gap-1.5">
-              <kbd className={`px-1.5 py-0.5 rounded border font-mono text-[9px] shadow-[0_1px_0_rgba(0,0,0,0.15)] dark:shadow-[0_1px_0_rgba(255,255,255,0.15)] ${
-                isDark ? 'bg-surface border-border text-muted' : 'bg-surface-light border-border-light text-muted-light'
-              }`}>F10</kbd>
-              <span>Confirmar</span>
-            </span>
-            <span className="flex items-center gap-1.5">
-              <kbd className={`px-1.5 py-0.5 rounded border font-mono text-[9px] shadow-[0_1px_0_rgba(0,0,0,0.15)] dark:shadow-[0_1px_0_rgba(255,255,255,0.15)] ${
-                isDark ? 'bg-surface border-border text-muted' : 'bg-surface-light border-border-light text-muted-light'
-              }`}>ESC</kbd>
-              <span>Sair</span>
-            </span>
-          </div>
+        <div className={`p-5 border-t flex items-center justify-end gap-3 ${isDark ? 'bg-[var(--color-elevated)] border-[var(--color-border)]' : 'bg-elevated-light border-border-light'}`}>
           <div className="flex gap-3 shrink-0">
             <button
               onClick={onClose}
-              className={`h-10 px-4 rounded-control text-xs font-medium border transition-colors ${isDark ? 'border-[var(--color-border)] hover:bg-surface-light/5' : 'border-border-light hover:bg-elevated-light'}`}
+              className={`h-10 px-4 rounded-control text-xs font-medium border transition-colors flex items-center gap-1.5 ${isDark ? 'border-[var(--color-border)] hover:bg-surface-light/5 text-gray-300' : 'border-border-light hover:bg-elevated-light text-gray-700'}`}
             >
-              Cancelar
+              <span>Cancelar</span>
+              <kbd className={`px-1 py-0.5 rounded border text-[8px] font-mono shadow-[0_1px_0_rgba(0,0,0,0.15)] dark:shadow-[0_1px_0_rgba(255,255,255,0.15)] ${
+                isDark ? 'bg-surface border-border text-muted' : 'bg-surface-light border-border-light text-muted-light'
+              }`}>ESC</kbd>
             </button>
           {checkoutMode === 'parcial' ? (
             <button
               onClick={handleRegisterPartialPayment}
               disabled={amountRemaining <= 0.01}
-              className="h-10 px-4 rounded-control bg-success text-white text-xs font-medium shadow-lg shadow-[var(--color-success)]/20 hover:brightness-110 disabled:opacity-40 disabled:cursor-not-allowed"
+              className="h-10 px-4 rounded-control bg-success text-white text-xs font-medium shadow-lg shadow-[var(--color-success)]/20 hover:brightness-110 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5"
             >
-              Confirmar Parcial
+              <span>Confirmar Parcial</span>
+              <kbd className="px-1.5 py-0.5 rounded border border-white/20 bg-white/10 text-white font-mono text-[9px] shadow-[0_1px_0_rgba(255,255,255,0.2)]">F10</kbd>
             </button>
           ) : (
             <button
               onClick={handleFinish}
               disabled={amountPaid < totalAmount - 0.01 || isFinishing}
-              className="h-10 px-4 rounded-control bg-success text-white text-xs font-medium shadow-lg shadow-[var(--color-success)]/20 hover:brightness-110 disabled:opacity-40 disabled:cursor-not-allowed"
+              className="h-10 px-4 rounded-control bg-success text-white text-xs font-medium shadow-lg shadow-[var(--color-success)]/20 hover:brightness-110 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5"
             >
-              {isFinishing ? 'Processando...' : 'Confirmar Pagamento'}
+              <span>{isFinishing ? 'Processando...' : 'Confirmar Pagamento'}</span>
+              <kbd className="px-1.5 py-0.5 rounded border border-white/20 bg-white/10 text-white font-mono text-[9px] shadow-[0_1px_0_rgba(255,255,255,0.2)]">F10</kbd>
             </button>
           )}
           </div>

@@ -11,6 +11,8 @@ import { isSupabaseConfigured } from '../lib/supabase';
 import { OperationFeedback, OperationFeedbackMessage } from './OperationFeedback';
 import { listOpenComandasForTable, getComandaDisplayLabel } from '../utils/multipleComandas';
 
+import { useAudit } from '../hooks/useAudit';
+
 interface OrderModalProps {
   tableNumber: number | null;
   mode: 'mesa' | 'balcao';
@@ -18,7 +20,8 @@ interface OrderModalProps {
 }
 
 export const OrderModal: React.FC<OrderModalProps> = ({ tableNumber, mode, onClose }) => {
-  const { tables, orders, waiters, theme, addOrder, updateOrder, transferComanda, mergeTables, clearTable, stockItems } = useApp();
+  const { tables, orders, waiters, theme, addOrder, updateOrder, transferComanda, mergeTables, clearTable, stockItems, requestConfirm } = useApp();
+  const { log } = useAudit();
   const isDark = theme === 'dark';
   const searchInputRef = useRef<HTMLInputElement>(null);
 
@@ -385,10 +388,62 @@ export const OrderModal: React.FC<OrderModalProps> = ({ tableNumber, mode, onClo
                       </div>
                       <div className="p-10 space-y-10 overflow-y-auto max-h-[75vh] custom-scrollbar">
                         <div><h4 className="text-xs font-bold uppercase tracking-wider mb-6 opacity-40 flex items-center gap-3"><Users className="w-5 h-5" /> Pessoas na Mesa</h4><div className="grid grid-cols-2 gap-6"><CountInput label="Adultos" value={adultCount} onChange={(v:number) => { setAdultCount(v); handleUpdateCounts(v, childrenCount); }} isDark={isDark} min={1} /><CountInput label="Crianças" value={childrenCount} onChange={(v:number) => { setChildrenCount(v); handleUpdateCounts(adultCount, v); }} isDark={isDark} min={0} /></div></div>
+                        
+                        {/* Transferir para Mesa Livre */}
                         <div>
-                          <h4 className="text-xs font-bold uppercase tracking-wider mb-6 flex items-center gap-3 text-[#475569]"><MoveRight className="w-5 h-5" /> Transferir Comanda</h4>
+                          <h4 className="text-xs font-bold uppercase tracking-wider mb-3 flex items-center gap-3 text-[#475569]"><MoveRight className="w-5 h-5" /> Transferir Comanda (Mesa Livre)</h4>
+                          <p className="text-[10px] font-semibold opacity-40 mb-4">Escolha a mesa de destino para mover o consumo atual:</p>
                           <div className="grid grid-cols-6 gap-3">
-                            {tables.filter(t => t.status === 'livre' && t.number !== tableNumber).map(t => (<button key={t.number} onClick={() => { if(activeOrder) transferComanda(activeOrder.id, t.number); onClose(); }} className={`aspect-square rounded-lg border flex items-center justify-center text-sm font-bold transition-all hover:bg-[#475569] hover:text-white hover:border-[#475569] ${isDark ? 'bg-[#121214] border-[#2C2C2E]' : 'bg-gray-50 border-gray-100'}`}>{t.number}</button>))}
+                            {tables.filter(t => t.status === 'livre' && t.number !== tableNumber).map(t => (
+                              <button
+                                key={t.number}
+                                onClick={() => {
+                                  if (!activeOrder) return;
+                                  requestConfirm({
+                                    title: 'Transferir Comanda',
+                                    description: `Confirms mover o consumo da Mesa ${tableNumber} para a Mesa ${t.number}?`,
+                                    confirmText: 'Transferir Mesa',
+                                    onConfirm: () => {
+                                      transferComanda(activeOrder.id, t.number);
+                                      log('comanda_transfer', `Mesa ${tableNumber} transferida para Mesa ${t.number}`);
+                                      onClose();
+                                    }
+                                  });
+                                }}
+                                className={`aspect-square rounded-lg border flex items-center justify-center text-sm font-bold transition-all hover:bg-[#475569] hover:text-white hover:border-[#475569] ${isDark ? 'bg-[#121214] border-[#2C2C2E]' : 'bg-gray-50 border-gray-100'}`}
+                              >
+                                {t.number}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Junção / Agrupar Mesas Ocupadas */}
+                        <div>
+                          <h4 className="text-xs font-bold uppercase tracking-wider mb-3 flex items-center gap-3 text-amber-500"><Merge className="w-5 h-5" /> Juntar Consumo (Mesa Ocupada)</h4>
+                          <p className="text-[10px] font-semibold opacity-40 mb-4">Unir o consumo desta mesa com outra mesa em atendimento:</p>
+                          <div className="grid grid-cols-6 gap-3">
+                            {tables.filter(t => t.status === 'ocupada' && t.number !== tableNumber).map(t => (
+                              <button
+                                key={t.number}
+                                onClick={() => {
+                                  if (!tableNumber) return;
+                                  requestConfirm({
+                                    title: 'Juntar Mesas',
+                                    description: `Confirma agrupar o consumo da Mesa ${tableNumber} junto com a Mesa ${t.number}?`,
+                                    confirmText: 'Juntar Mesas',
+                                    onConfirm: () => {
+                                      mergeTables(tableNumber, t.number);
+                                      log('table_merge', `Consumo da Mesa ${tableNumber} agrupado com a Mesa ${t.number}`);
+                                      onClose();
+                                    }
+                                  });
+                                }}
+                                className={`aspect-square rounded-lg border flex items-center justify-center text-sm font-bold transition-all hover:bg-amber-500 hover:text-white hover:border-amber-500 ${isDark ? 'bg-[#121214] border-[#2C2C2E]' : 'bg-gray-50 border-gray-100'}`}
+                              >
+                                {t.number}
+                              </button>
+                            ))}
                           </div>
                         </div>
                       </div>

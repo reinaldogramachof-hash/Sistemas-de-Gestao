@@ -8,7 +8,9 @@ import {
   CheckCircle2,
   CalendarCheck,
   Check,
-  X
+  X,
+  RefreshCw,
+  Loader2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ui } from '../ui/styles';
@@ -42,7 +44,7 @@ const TableTimer: React.FC<{ timestamp: string; isDark: boolean; status: string 
 };
 
 export const Tables: React.FC = () => {
-  const { tables, theme, orders, reserveTable, clearTable, supabaseOnline } = useApp();
+  const { tables, theme, orders, reserveTable, clearTable, supabaseOnline, pdvOfflineQueue, isSyncingPdvQueue, syncPdvOfflineQueue } = useApp();
   const isDark = theme === 'dark';
   const [selectedTable, setSelectedTable] = useState<number | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -172,6 +174,26 @@ export const Tables: React.FC = () => {
           description="Alterações ficam neste dispositivo até a conexão ser restabelecida. Evite operar a mesma mesa em outro terminal."
           compact
         />
+      )}
+
+      {pdvOfflineQueue.length > 0 && (
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400">
+          <div className="flex items-center gap-3">
+            <RefreshCw className="w-5 h-5 animate-spin text-amber-500" />
+            <div>
+              <p className="text-xs font-bold uppercase tracking-wide">Fila Offline Pendente</p>
+              <p className="text-[10px] opacity-80">Há {pdvOfflineQueue.length} operação(ões) aguardando sincronização com a nuvem.</p>
+            </div>
+          </div>
+          <button
+            onClick={() => syncPdvOfflineQueue()}
+            disabled={isSyncingPdvQueue}
+            className="px-4 h-9 rounded-lg bg-amber-500 text-white font-bold text-[10px] uppercase tracking-wider flex items-center justify-center gap-2 hover:opacity-90 active:scale-95 disabled:opacity-50"
+          >
+            {isSyncingPdvQueue ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
+            Sincronizar Agora
+          </button>
+        </div>
       )}
       <div className="space-y-6">
         <div className="flex flex-col md:flex-row justify-between md:items-end gap-6">

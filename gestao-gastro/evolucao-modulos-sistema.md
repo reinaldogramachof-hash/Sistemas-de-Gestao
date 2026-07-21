@@ -64,9 +64,9 @@ A central de segurança deve ir além de dados estáticos e fornecer um ambiente
 Manter o cliente engajado com as atualizações do sistema e coletar feedbacks.
 
 ### Ações de Melhoria:
-- [ ] **Changelog Visível (O que há de novo):**
+- [x] **Changelog Visível (O que há de novo):**
   - Consumir de um arquivo JSON estático ou do Supabase as últimas notas de atualização (Release Notes) para o cliente ver o que melhorou na versão atual.
-- [ ] **Quadro de Sugestões:**
+- [x] **Quadro de Sugestões:**
   - Pequeno formulário onde o cliente pode enviar uma sugestão de melhoria diretamente para a equipe de desenvolvimento.
 
 ---

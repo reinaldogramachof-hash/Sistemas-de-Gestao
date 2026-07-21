@@ -88,11 +88,19 @@ export const roleModuleMatrix: Record<UserRole, AppModule[]> = {
     'caixa',
     'produtos',
     'relatorios',
+    'estoque',
+    'manual',
+    'configuracoes',
     'suporte',
+    'seguranca',
+    'evolucao',
   ],
   waiter: [
     'mesas',
     'produtos',
+    'manual',
+    'suporte',
+    'evolucao',
   ],
 };
 

@@ -38,7 +38,7 @@ const moduleLabels: Record<AppModule, string> = {
 };
 
 export const Support: React.FC = () => {
-  const { theme, currentEmpresa, currentUser, supabaseOnline } = useApp();
+  const { theme, currentEmpresa, currentUser, supabaseOnline, pdvOfflineQueue } = useApp();
   const { currentPlan, checkAccess } = useModules();
   const [browserOnline, setBrowserOnline] = useState(() => navigator.onLine);
   const [copyState, setCopyState] = useState<'idle' | 'copied' | 'error'>('idle');
@@ -55,6 +55,13 @@ export const Support: React.FC = () => {
       window.removeEventListener('offline', handleOffline);
     };
   }, []);
+
+  const garcomQueueStr = localStorage.getItem('garcom_offline_queue');
+  let garcomQueueCount = 0;
+  try {
+    if (garcomQueueStr) garcomQueueCount = (JSON.parse(garcomQueueStr) as any[]).length || 0;
+  } catch {}
+  const pendingOfflineQueueCount = (pdvOfflineQueue?.length || 0) + garcomQueueCount;
 
   const visibleModules = planMatrix[currentPlan].allowedModules
     .filter(checkAccess)
@@ -73,6 +80,7 @@ export const Support: React.FC = () => {
     supabaseOnline,
     pwaInstalled: window.matchMedia?.('(display-mode: standalone)').matches ?? false,
     serviceWorkerControlled: Boolean(navigator.serviceWorker?.controller),
+    pendingOfflineQueueCount,
   });
 
   const refreshDiagnostic = () => {
@@ -130,6 +138,41 @@ export const Support: React.FC = () => {
         <p className="text-sm font-bold opacity-50 uppercase tracking-[0.2em] max-w-2xl mx-auto">
           Envie o diagnóstico junto ao chamado para reduzir o tempo de atendimento.
         </p>
+      </div>
+
+      {/* Painel de Saúde do Sistema (Health Check) */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className={`p-5 rounded-xl border flex flex-col justify-between ${isDark ? 'bg-[#1C1C1E] border-[#2C2C2E]' : 'bg-white border-gray-100 shadow-sm'}`}>
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-[10px] font-bold uppercase tracking-wide opacity-50">Conexão Internet</span>
+            <div className={`w-3 h-3 rounded-full ${browserOnline ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`} />
+          </div>
+          <p className="text-xl font-black tracking-tight">{browserOnline ? 'Online' : 'Offline'}</p>
+        </div>
+
+        <div className={`p-5 rounded-xl border flex flex-col justify-between ${isDark ? 'bg-[#1C1C1E] border-[#2C2C2E]' : 'bg-white border-gray-100 shadow-sm'}`}>
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-[10px] font-bold uppercase tracking-wide opacity-50">Banco de Dados</span>
+            <div className={`w-3 h-3 rounded-full ${supabaseOnline ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} />
+          </div>
+          <p className="text-xl font-black tracking-tight">{supabaseOnline ? 'Conectado' : 'Modo Local'}</p>
+        </div>
+
+        <div className={`p-5 rounded-xl border flex flex-col justify-between ${isDark ? 'bg-[#1C1C1E] border-[#2C2C2E]' : 'bg-white border-gray-100 shadow-sm'}`}>
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-[10px] font-bold uppercase tracking-wide opacity-50">Aplicativo PWA</span>
+            <div className={`w-3 h-3 rounded-full ${window.matchMedia?.('(display-mode: standalone)').matches ? 'bg-emerald-500' : 'bg-blue-500'}`} />
+          </div>
+          <p className="text-xl font-black tracking-tight">{window.matchMedia?.('(display-mode: standalone)').matches ? 'Instalado' : 'Navegador'}</p>
+        </div>
+
+        <div className={`p-5 rounded-xl border flex flex-col justify-between ${isDark ? 'bg-[#1C1C1E] border-[#2C2C2E]' : 'bg-white border-gray-100 shadow-sm'}`}>
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-[10px] font-bold uppercase tracking-wide opacity-50">Fila Offline</span>
+            <div className={`w-3 h-3 rounded-full ${pendingOfflineQueueCount === 0 ? 'bg-emerald-500' : 'bg-amber-500 animate-bounce'}`} />
+          </div>
+          <p className="text-xl font-black tracking-tight">{pendingOfflineQueueCount} {pendingOfflineQueueCount === 1 ? 'pendente' : 'pendentes'}</p>
+        </div>
       </div>
 
       <section

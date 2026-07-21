@@ -11,6 +11,7 @@ export interface SupportDiagnosticInput {
   supabaseOnline: boolean;
   pwaInstalled: boolean;
   serviceWorkerControlled: boolean;
+  pendingOfflineQueueCount: number;
 }
 
 const safeText = (value: string, fallback = 'não informado') => {
@@ -44,6 +45,7 @@ export const buildSupportDiagnostic = (input: SupportDiagnosticInput): string =>
     `Módulos visíveis: ${visibleModules || 'nenhum'}`,
     `Navegador online: ${yesOrNo(input.browserOnline)}`,
     `Sincronização remota: ${input.supabaseOnline ? 'conectada' : 'indisponível'}`,
+    `Fila offline pendente: ${input.pendingOfflineQueueCount} item(ns)`,
     `PWA instalado: ${yesOrNo(input.pwaInstalled)}`,
     `Service worker controlando a página: ${yesOrNo(input.serviceWorkerControlled)}`,
   ].join('\n');

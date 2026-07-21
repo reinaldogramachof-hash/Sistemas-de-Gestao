@@ -22,10 +22,21 @@ export const Settings: React.FC = () => {
   const { settings, updateSettings, exportData, importData, resetToMocks, theme, collaborators, tables, currentEmpresa, supabaseOnline, reloadCollaborators, initializeTables, currentUser, requestConfirm } = useApp();
   const { checkAccess } = useModules();
   const isDark = theme === 'dark';
+  const isAdminOrOwner = ['admin', 'owner', 'administrador', 'proprietário'].includes(currentUser.role?.toLowerCase() || '');
 
   const [formData, setFormData] = useState<AppSettings>(settings);
   const [feedback, setFeedback] = useState<OperationFeedbackMessage | null>(null);
-  const [activeTab, setActiveTab] = useState<'store' | 'tables' | 'access' | 'kitchen' | 'printer' | 'data'>('store');
+  const [activeTab, setActiveTab] = useState<'store' | 'access' | 'network' | 'tables' | 'kitchen' | 'printer' | 'data'>('store');
+
+  const tabs = [
+    { id: 'store', label: 'Estabelecimento', icon: Store },
+    { id: 'access', label: 'Equipe & Acessos', icon: Users },
+    { id: 'network', label: 'Rede & QR Code', icon: QrCode },
+    ...(isAdminOrOwner ? [{ id: 'tables', label: 'Mesas do salão', icon: Table2 }] : []),
+    ...(checkAccess('cozinha') ? [{ id: 'kitchen', label: 'Cozinha (KDS)', icon: Layout }] : []),
+    { id: 'printer', label: 'Impressão', icon: Printer },
+    { id: 'data', label: 'Dados & Backup', icon: Database },
+  ];
   const [isSaving, setIsSaving] = useState(false);
   const [copiedAccess, setCopiedAccess] = useState(false);
   const [qrDataUrl, setQrDataUrl] = useState('');
@@ -635,18 +646,6 @@ export const Settings: React.FC = () => {
     window.open(comandaAccessUrl, '_blank', 'noopener,noreferrer');
   };
 
-  const isAdminOrOwner = ['admin', 'owner', 'administrador', 'proprietário'].includes(currentUser.role?.toLowerCase());
-  const isCashier = ['cashier', 'caixa', 'atendente'].includes(currentUser.role?.toLowerCase());
-
-  const tabs = [
-    { id: 'store', label: 'Estabelecimento', icon: Store },
-    ...(isAdminOrOwner ? [{ id: 'tables', label: 'Mesas do salão', icon: Table2 }] : []),
-    { id: 'access', label: 'Acessos e QR Code', icon: QrCode },
-    ...(checkAccess('cozinha') ? [{ id: 'kitchen', label: 'Cozinha (KDS)', icon: Layout }] : []),
-    { id: 'printer', label: 'Impressão', icon: Printer },
-    { id: 'data', label: 'Dados & Backup', icon: Database },
-  ];
-
   return (
     <div className="space-y-8 animate-in fade-in duration-200 pb-24">
       <OperationFeedback feedback={feedback} onDismiss={() => setFeedback(null)} />
@@ -916,11 +915,11 @@ export const Settings: React.FC = () => {
             <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-200">
               <div className="flex items-center gap-4 border-b border-dashed border-current/10 pb-6 mb-8">
                 <div className="w-12 h-12 rounded-lg bg-emerald-500/10 flex items-center justify-center">
-                  <QrCode className="w-6 h-6 text-emerald-500" />
+                  <Users className="w-6 h-6 text-emerald-500" />
                 </div>
                 <div>
-                  <h3 className="text-xl font-bold uppercase tracking-tighter">Acesso dos Garçons</h3>
-                  <p className="text-[10px] font-bold uppercase tracking-wide opacity-40">Modo de acesso da comanda e QR Code</p>
+                  <h3 className="text-xl font-bold uppercase tracking-tighter">Equipe & Acessos Operacionais</h3>
+                  <p className="text-[10px] font-bold uppercase tracking-wide opacity-40">Perfil do administrador principal e gerenciamento dos membros da equipe</p>
                 </div>
               </div>
 
@@ -985,6 +984,277 @@ export const Settings: React.FC = () => {
                   )}
                 </div>
               )}
+
+              {/* Grade de Colaboradores e Cadastro */}
+              <div className="space-y-4">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div>
+                    <p className="flex items-center gap-2 text-base font-bold tracking-tighter uppercase">Membros da Equipe <HelpTooltip content="Atenção: Administradores têm acesso irrestrito ao sistema. Atendentes operam Caixa e Mesas. Garçons usam acesso móvel para comandas." /></p>
+                    <p className="text-[9px] font-bold uppercase tracking-wide opacity-40">Equipe gerenciada na nuvem para este restaurante</p>
+                  </div>
+                  {supabaseOnline && isAdminOrOwner && (
+                    <button
+                      type="button"
+                      onClick={() => setModalOpen(true)}
+                      className="px-6 h-10 rounded-xl bg-emerald-500 text-white text-[10px] font-bold uppercase tracking-wide flex items-center justify-center gap-2 hover:opacity-90 active:scale-95 transition-all shadow-sm"
+                    >
+                      <UserPlus className="w-4 h-4" />
+                      Adicionar Novo
+                    </button>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-4">
+                  {collaborators.length === 0 ? (
+                    <div className={`col-span-full p-8 rounded-xl border text-center ${isDark ? 'bg-white/5 border-white/5 text-white/40' : 'bg-gray-50 border-gray-100 text-gray-400'}`}>
+                      <p className="text-xs font-bold uppercase tracking-wide">Nenhum colaborador cadastrado</p>
+                    </div>
+                  ) : collaborators.map(member => {
+                    const isAtivo = member.status === 'active';
+                    const initials = member.name?.substring(0, 2).toUpperCase() || 'US';
+                    return (
+                      <div key={member.id} className={`p-5 rounded-xl border flex flex-col justify-between gap-4 transition-all hover:shadow-md ${isDark ? 'bg-[#1C1C1E] border-[#2C2C2E]' : 'bg-white border-gray-100'}`}>
+                        <div className="flex items-start gap-4">
+                          <div className={`w-12 h-12 rounded-full flex items-center justify-center text-sm font-black tracking-tighter shrink-0 ${isAtivo ? 'bg-emerald-500/10 text-emerald-500' : 'bg-gray-500/10 text-gray-500'}`}>
+                            {initials}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between gap-2">
+                              <p className="text-sm font-bold truncate">{member.name}</p>
+                              <span className={`px-2 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider shrink-0 ${isAtivo ? 'bg-emerald-500 text-white' : 'bg-gray-500 text-white'}`}>
+                                {isAtivo ? 'Ativo' : 'Inativo'}
+                              </span>
+                            </div>
+                            <p className="text-[10px] font-bold uppercase tracking-wide opacity-50 mt-1">{member.role}</p>
+                          </div>
+                        </div>
+
+                        {supabaseOnline && isAdminOrOwner && member.id !== currentUser.id && (
+                          <div className="grid grid-cols-2 gap-2 mt-2 border-t border-current/5 pt-4">
+                            <button
+                              type="button"
+                              onClick={() => openEditMemberModal(member)}
+                              className="h-9 rounded-lg bg-[#475569]/10 text-[#475569] dark:bg-white/5 dark:text-white dark:hover:bg-white/10 hover:bg-[#475569]/20 text-[9px] font-bold uppercase tracking-wide transition-all flex items-center justify-center gap-1.5"
+                            >
+                              <Pencil className="w-3.5 h-3.5" />
+                              Editar
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteMember(member.id)}
+                              className="h-9 rounded-lg bg-red-500/10 text-red-500 hover:bg-red-500/20 text-[9px] font-bold uppercase tracking-wide transition-all flex items-center justify-center gap-1.5"
+                            >
+                              <XIcon className="w-3.5 h-3.5" />
+                              Excluir
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Modal de Criação de Colaboradores */}
+              <AnimatePresence>
+                {modalOpen && (
+                  <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-200">
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.95 }}
+                      className={`w-full max-w-md rounded-2xl border p-8 space-y-6 shadow-2xl relative
+                        ${isDark ? 'bg-[#1C1C1E] border-[#2C2C2E]' : 'bg-white border-gray-100'}
+                      `}
+                    >
+                      <button
+                        onClick={() => setModalOpen(false)}
+                        className="absolute right-4 top-4 p-2 rounded-lg hover:bg-current/10 text-muted"
+                      >
+                        <XIcon className="w-5 h-5" />
+                      </button>
+
+                      <div className="space-y-1">
+                        <h4 className="text-xl font-bold uppercase tracking-tight">Adicionar Colaborador</h4>
+                        <p className="text-[9px] opacity-40 font-bold uppercase tracking-wide">Cria login remoto de garçom, atendente ou admin</p>
+                      </div>
+
+                      <form onSubmit={handleAddMember} className="space-y-4">
+                        <div className="space-y-1">
+                          <label className="text-[9px] font-bold text-gray-400 uppercase tracking-wide">Nome do Colaborador</label>
+                          <input
+                            type="text"
+                            value={newUserName}
+                            onChange={e => setNewUserName(e.target.value)}
+                            placeholder="Nome de exibição"
+                            required
+                            className={`w-full h-12 px-4 rounded-xl border outline-none text-sm ${isDark ? 'bg-transparent border-[#2C2C2E] focus:border-[#475569]' : 'bg-gray-50 border-gray-100 focus:border-[#475569]'}`}
+                          />
+                        </div>
+
+                        <div className="space-y-1">
+                          <label className="text-[9px] font-bold text-gray-400 uppercase tracking-wide">E-mail do Colaborador</label>
+                          <input
+                            type="email"
+                            value={newUserEmail}
+                            onChange={e => setNewUserEmail(e.target.value)}
+                            placeholder="exemplo@email.com"
+                            required
+                            className={`w-full h-12 px-4 rounded-xl border outline-none text-sm ${isDark ? 'bg-transparent border-[#2C2C2E] focus:border-[#475569]' : 'bg-gray-50 border-gray-100 focus:border-[#475569]'}`}
+                          />
+                        </div>
+
+                        <div className="space-y-1">
+                          <label className="text-[9px] font-bold text-gray-400 uppercase tracking-wide">Senha Inicial</label>
+                          <input
+                            type="password"
+                            value={newUserPassword}
+                            onChange={e => setNewUserPassword(e.target.value)}
+                            placeholder="Mínimo 6 caracteres"
+                            required
+                            className={`w-full h-12 px-4 rounded-xl border outline-none text-sm ${isDark ? 'bg-transparent border-[#2C2C2E] focus:border-[#475569]' : 'bg-gray-50 border-gray-100 focus:border-[#475569]'}`}
+                          />
+                        </div>
+
+                        <div className="space-y-1">
+                          <label className="text-[9px] font-bold text-gray-400 uppercase tracking-wide">Função / Nível de Acesso</label>
+                          <select
+                            value={newUserRole}
+                            onChange={e => setNewUserRole(e.target.value as any)}
+                            className={`w-full h-12 px-4 rounded-xl border outline-none text-sm ${isDark ? 'bg-[#1C1C1E] border-[#2C2C2E]' : 'bg-gray-50 border-gray-100'}`}
+                          >
+                            <option value="waiter">Garçom (Apenas Comanda Mobile)</option>
+                            <option value="cashier">Atendente/Caixa (Acesso ao PDV/Caixa)</option>
+                            <option value="admin">Administrador (Acesso Geral)</option>
+                          </select>
+                        </div>
+
+                        {newMemberError && (
+                          <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl">
+                            <p className="text-red-400 text-xs text-center font-semibold">{newMemberError}</p>
+                          </div>
+                        )}
+
+                        <button
+                          type="submit"
+                          disabled={newMemberLoading}
+                          className="w-full h-12 bg-emerald-500 text-white font-bold rounded-xl text-xs uppercase tracking-wide hover:opacity-90 active:scale-95 transition-all flex justify-center items-center gap-2"
+                        >
+                          {newMemberLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Criar Colaborador'}
+                        </button>
+                      </form>
+                    </motion.div>
+                  </div>
+                )}
+              </AnimatePresence>
+
+              {/* Modal de Edição de Colaboradores */}
+              <AnimatePresence>
+                {editingMember && (
+                  <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-200">
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.95 }}
+                      className={`w-full max-w-md rounded-2xl border p-8 space-y-6 shadow-2xl relative
+                        ${isDark ? 'bg-[#1C1C1E] border-[#2C2C2E]' : 'bg-white border-gray-100'}
+                      `}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => closeEditMemberModal()}
+                        className="absolute right-4 top-4 p-2 rounded-lg hover:bg-current/10 text-muted"
+                      >
+                        <XIcon className="w-5 h-5" />
+                      </button>
+
+                      <div className="space-y-1">
+                        <h4 className="text-xl font-bold uppercase tracking-tight">Editar Colaborador</h4>
+                        <p className="text-[9px] opacity-40 font-bold uppercase tracking-wide">Atualize acesso, funcao, status ou senha</p>
+                      </div>
+
+                      <form onSubmit={handleUpdateMember} className="space-y-4">
+                        <div className="space-y-1">
+                          <label className="text-[9px] font-bold text-gray-400 uppercase tracking-wide">Nome do Colaborador</label>
+                          <input
+                            type="text"
+                            value={editMemberName}
+                            onChange={e => setEditMemberName(e.target.value)}
+                            placeholder="Nome de exibicao"
+                            required
+                            className={`w-full h-12 px-4 rounded-xl border outline-none text-sm ${isDark ? 'bg-transparent border-[#2C2C2E] focus:border-[#475569]' : 'bg-gray-50 border-gray-100 focus:border-[#475569]'}`}
+                          />
+                        </div>
+
+                        <div className="space-y-1">
+                          <label className="text-[9px] font-bold text-gray-400 uppercase tracking-wide">Funcao / Nivel de Acesso</label>
+                          <select
+                            value={editMemberRole}
+                            onChange={e => setEditMemberRole(e.target.value as EditableMemberRole)}
+                            className={`w-full h-12 px-4 rounded-xl border outline-none text-sm ${isDark ? 'bg-[#1C1C1E] border-[#2C2C2E]' : 'bg-gray-50 border-gray-100'}`}
+                          >
+                            <option value="waiter">Garcom (Apenas Comanda Mobile)</option>
+                            <option value="cashier">Atendente/Caixa (Acesso ao PDV/Caixa)</option>
+                            <option value="admin">Administrador (Acesso Geral)</option>
+                          </select>
+                        </div>
+
+                        <label className={`flex items-center justify-between gap-4 p-4 rounded-xl border cursor-pointer ${isDark ? 'border-[#2C2C2E] bg-black/20' : 'border-gray-100 bg-gray-50'}`}>
+                          <span>
+                            <span className="block text-[10px] font-bold uppercase tracking-wide">Acesso ativo</span>
+                            <span className="block text-[9px] font-semibold opacity-50 mt-1">Desative temporariamente sem excluir o login.</span>
+                          </span>
+                          <input
+                            type="checkbox"
+                            checked={editMemberActive}
+                            onChange={e => setEditMemberActive(e.target.checked)}
+                            className="w-5 h-5 accent-emerald-500"
+                          />
+                        </label>
+
+                        <div className="space-y-1">
+                          <label className="text-[9px] font-bold text-gray-400 uppercase tracking-wide">Nova senha</label>
+                          <input
+                            type="password"
+                            value={editMemberPassword}
+                            onChange={e => setEditMemberPassword(e.target.value)}
+                            placeholder="Deixe em branco para manter"
+                            className={`w-full h-12 px-4 rounded-xl border outline-none text-sm ${isDark ? 'bg-transparent border-[#2C2C2E] focus:border-[#475569]' : 'bg-gray-50 border-gray-100 focus:border-[#475569]'}`}
+                          />
+                        </div>
+
+                        {editMemberError && (
+                          <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl">
+                            <p className="text-red-400 text-xs text-center font-semibold">{editMemberError}</p>
+                          </div>
+                        )}
+
+                        <button
+                          type="submit"
+                          disabled={editMemberLoading}
+                          className="w-full h-12 bg-blue-500 text-white font-bold rounded-xl text-xs uppercase tracking-wide hover:opacity-90 active:scale-95 transition-all flex justify-center items-center gap-2"
+                        >
+                          {editMemberLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Salvar Alteracoes'}
+                        </button>
+                      </form>
+                    </motion.div>
+                  </div>
+                )}
+              </AnimatePresence>
+            </div>
+          )}
+
+          {activeTab === 'network' && (
+            <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-200">
+              <div className="flex items-center gap-4 border-b border-dashed border-current/10 pb-6 mb-8">
+                <div className="w-12 h-12 rounded-lg bg-blue-500/10 flex items-center justify-center">
+                  <QrCode className="w-6 h-6 text-blue-500" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold uppercase tracking-tighter">Rede Local & Comanda Mobile</h3>
+                  <p className="text-[10px] font-bold uppercase tracking-wide opacity-40">Modo de acesso da comanda, endereço IP local e geração do QR Code</p>
+                </div>
+              </div>
 
               {/* Controle de Modo de Acesso */}
               <div className={`p-6 rounded-xl border mb-6 ${isDark ? 'bg-white/5 border-white/5' : 'bg-gray-50 border-gray-100'}`}>
@@ -1128,79 +1398,6 @@ export const Settings: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Grade de Colaboradores e Cadastro */}
-                  <div className="space-y-4">
-                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                      <div>
-                        <p className="flex items-center gap-2 text-base font-bold tracking-tighter uppercase">Membros da Equipe <HelpTooltip content="Atenção: Administradores têm acesso irrestrito ao sistema. Atendentes operam Caixa e Mesas. Garçons usam acesso móvel para comandas." /></p>
-                        <p className="text-[9px] font-bold uppercase tracking-wide opacity-40">Equipe gerenciada na nuvem para este restaurante</p>
-                      </div>
-                      {supabaseOnline && isAdminOrOwner && (
-                        <button
-                          type="button"
-                          onClick={() => setModalOpen(true)}
-                          className="px-6 h-10 rounded-xl bg-emerald-500 text-white text-[10px] font-bold uppercase tracking-wide flex items-center justify-center gap-2 hover:opacity-90 active:scale-95 transition-all shadow-sm"
-                        >
-                          <UserPlus className="w-4 h-4" />
-                          Adicionar Novo
-                        </button>
-                      )}
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-4">
-                      {collaborators.length === 0 ? (
-                        <div className={`col-span-full p-8 rounded-xl border text-center ${isDark ? 'bg-white/5 border-white/5 text-white/40' : 'bg-gray-50 border-gray-100 text-gray-400'}`}>
-                          <p className="text-xs font-bold uppercase tracking-wide">Nenhum colaborador cadastrado</p>
-                        </div>
-                      ) : collaborators.map(member => {
-                        const isAtivo = member.status === 'active';
-                        const initials = member.name?.substring(0, 2).toUpperCase() || 'US';
-                        return (
-                          <div key={member.id} className={`p-5 rounded-xl border flex flex-col justify-between gap-4 transition-all hover:shadow-md ${isDark ? 'bg-[#1C1C1E] border-[#2C2C2E]' : 'bg-white border-gray-100'}`}>
-                            
-                            {/* Avatar & Info */}
-                            <div className="flex items-start gap-4">
-                              <div className={`w-12 h-12 rounded-full flex items-center justify-center text-sm font-black tracking-tighter shrink-0 ${isAtivo ? 'bg-emerald-500/10 text-emerald-500' : 'bg-gray-500/10 text-gray-500'}`}>
-                                {initials}
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center justify-between gap-2">
-                                  <p className="text-sm font-bold truncate">{member.name}</p>
-                                  <span className={`px-2 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider shrink-0 ${isAtivo ? 'bg-emerald-500 text-white' : 'bg-gray-500 text-white'}`}>
-                                    {isAtivo ? 'Ativo' : 'Inativo'}
-                                  </span>
-                                </div>
-                                <p className="text-[10px] font-bold uppercase tracking-wide opacity-50 mt-1">{member.role}</p>
-                              </div>
-                            </div>
-
-                            {/* Actions */}
-                            {supabaseOnline && isAdminOrOwner && member.id !== currentUser.id && (
-                              <div className="grid grid-cols-2 gap-2 mt-2 border-t border-current/5 pt-4">
-                                <button
-                                  type="button"
-                                  onClick={() => openEditMemberModal(member)}
-                                  className="h-9 rounded-lg bg-[#475569]/10 text-[#475569] dark:bg-white/5 dark:text-white dark:hover:bg-white/10 hover:bg-[#475569]/20 text-[9px] font-bold uppercase tracking-wide transition-all flex items-center justify-center gap-1.5"
-                                >
-                                  <Pencil className="w-3.5 h-3.5" />
-                                  Editar
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => handleDeleteMember(member.id)}
-                                  className="h-9 rounded-lg bg-red-500/10 text-red-500 hover:bg-red-500/20 text-[9px] font-bold uppercase tracking-wide transition-all flex items-center justify-center gap-1.5"
-                                >
-                                  <XIcon className="w-3.5 h-3.5" />
-                                  Excluir
-                                </button>
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-
                   <div className={`p-6 rounded-xl border ${isDark ? 'bg-white/5 border-white/5' : 'bg-gray-50 border-gray-100'}`}>
                     <div className="flex items-start gap-4">
                       <KeyRound className="w-5 h-5 text-amber-500 mt-0.5" />
@@ -1253,193 +1450,6 @@ export const Settings: React.FC = () => {
                   </button>
                 </div>
               </div>
-
-              {/* Modal de Criação de Colaboradores */}
-              <AnimatePresence>
-                {modalOpen && (
-                  <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-200">
-                    <motion.div
-                      initial={{ opacity: 0, scale: 0.95 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.95 }}
-                      className={`w-full max-w-md rounded-2xl border p-8 space-y-6 shadow-2xl relative
-                        ${isDark ? 'bg-[#1C1C1E] border-[#2C2C2E]' : 'bg-white border-gray-100'}
-                      `}
-                    >
-                      <button
-                        onClick={() => setModalOpen(false)}
-                        className="absolute right-4 top-4 p-2 rounded-lg hover:bg-current/10 text-muted"
-                      >
-                        <XIcon className="w-5 h-5" />
-                      </button>
-
-                      <div className="space-y-1">
-                        <h4 className="text-xl font-bold uppercase tracking-tight">Adicionar Colaborador</h4>
-                        <p className="text-[9px] opacity-40 font-bold uppercase tracking-wide">Cria login remoto de garçom, atendente ou admin</p>
-                      </div>
-
-                      <form onSubmit={handleAddMember} className="space-y-4">
-                        <div className="space-y-1">
-                          <label className="text-[9px] font-bold text-gray-400 uppercase tracking-wide">Nome do Colaborador</label>
-                          <input
-                            type="text"
-                            value={newUserName}
-                            onChange={e => setNewUserName(e.target.value)}
-                            placeholder="Nome de exibição"
-                            required
-                            className={`w-full h-12 px-4 rounded-xl border outline-none text-sm ${isDark ? 'bg-transparent border-[#2C2C2E] focus:border-[#475569]' : 'bg-gray-50 border-gray-100 focus:border-[#475569]'}`}
-                          />
-                        </div>
-
-                        <div className="space-y-1">
-                          <label className="text-[9px] font-bold text-gray-400 uppercase tracking-wide">E-mail do Colaborador</label>
-                          <input
-                            type="email"
-                            value={newUserEmail}
-                            onChange={e => setNewUserEmail(e.target.value)}
-                            placeholder="exemplo@email.com"
-                            required
-                            className={`w-full h-12 px-4 rounded-xl border outline-none text-sm ${isDark ? 'bg-transparent border-[#2C2C2E] focus:border-[#475569]' : 'bg-gray-50 border-gray-100 focus:border-[#475569]'}`}
-                          />
-                        </div>
-
-                        <div className="space-y-1">
-                          <label className="text-[9px] font-bold text-gray-400 uppercase tracking-wide">Senha Inicial</label>
-                          <input
-                            type="password"
-                            value={newUserPassword}
-                            onChange={e => setNewUserPassword(e.target.value)}
-                            placeholder="Mínimo 6 caracteres"
-                            required
-                            className={`w-full h-12 px-4 rounded-xl border outline-none text-sm ${isDark ? 'bg-transparent border-[#2C2C2E] focus:border-[#475569]' : 'bg-gray-50 border-gray-100 focus:border-[#475569]'}`}
-                          />
-                        </div>
-
-                        <div className="space-y-1">
-                          <label className="text-[9px] font-bold text-gray-400 uppercase tracking-wide">Função / Nível de Acesso</label>
-                          <select
-                            value={newUserRole}
-                            onChange={e => setNewUserRole(e.target.value as any)}
-                            className={`w-full h-12 px-4 rounded-xl border outline-none text-sm ${isDark ? 'bg-[#1C1C1E] border-[#2C2C2E]' : 'bg-gray-50 border-gray-100'}`}
-                          >
-                            <option value="waiter">Garçom (Apenas Comanda Mobile)</option>
-                            <option value="cashier">Atendente/Caixa (Acesso ao PDV/Caixa)</option>
-                            <option value="admin">Administrador (Acesso Geral)</option>
-                          </select>
-                        </div>
-
-                        {newMemberError && (
-                          <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl">
-                            <p className="text-red-400 text-xs text-center font-semibold">{newMemberError}</p>
-                          </div>
-                        )}
-
-                        <button
-                          type="submit"
-                          disabled={newMemberLoading}
-                          className="w-full h-12 bg-emerald-500 text-white font-bold rounded-xl text-xs uppercase tracking-wide hover:opacity-90 active:scale-95 transition-all flex justify-center items-center gap-2"
-                        >
-                          {newMemberLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Criar Colaborador'}
-                        </button>
-                      </form>
-                    </motion.div>
-                  </div>
-                )}
-              </AnimatePresence>
-
-              {/* Modal de Edicao de Colaboradores */}
-              <AnimatePresence>
-                {editingMember && (
-                  <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-200">
-                    <motion.div
-                      initial={{ opacity: 0, scale: 0.95 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.95 }}
-                      className={`w-full max-w-md rounded-2xl border p-8 space-y-6 shadow-2xl relative
-                        ${isDark ? 'bg-[#1C1C1E] border-[#2C2C2E]' : 'bg-white border-gray-100'}
-                      `}
-                    >
-                      <button
-                        type="button"
-                        onClick={() => closeEditMemberModal()}
-                        className="absolute right-4 top-4 p-2 rounded-lg hover:bg-current/10 text-muted"
-                      >
-                        <XIcon className="w-5 h-5" />
-                      </button>
-
-                      <div className="space-y-1">
-                        <h4 className="text-xl font-bold uppercase tracking-tight">Editar Colaborador</h4>
-                        <p className="text-[9px] opacity-40 font-bold uppercase tracking-wide">Atualize acesso, funcao, status ou senha</p>
-                      </div>
-
-                      <form onSubmit={handleUpdateMember} className="space-y-4">
-                        <div className="space-y-1">
-                          <label className="text-[9px] font-bold text-gray-400 uppercase tracking-wide">Nome do Colaborador</label>
-                          <input
-                            type="text"
-                            value={editMemberName}
-                            onChange={e => setEditMemberName(e.target.value)}
-                            placeholder="Nome de exibicao"
-                            required
-                            className={`w-full h-12 px-4 rounded-xl border outline-none text-sm ${isDark ? 'bg-transparent border-[#2C2C2E] focus:border-[#475569]' : 'bg-gray-50 border-gray-100 focus:border-[#475569]'}`}
-                          />
-                        </div>
-
-                        <div className="space-y-1">
-                          <label className="text-[9px] font-bold text-gray-400 uppercase tracking-wide">Funcao / Nivel de Acesso</label>
-                          <select
-                            value={editMemberRole}
-                            onChange={e => setEditMemberRole(e.target.value as EditableMemberRole)}
-                            className={`w-full h-12 px-4 rounded-xl border outline-none text-sm ${isDark ? 'bg-[#1C1C1E] border-[#2C2C2E]' : 'bg-gray-50 border-gray-100'}`}
-                          >
-                            <option value="waiter">Garcom (Apenas Comanda Mobile)</option>
-                            <option value="cashier">Atendente/Caixa (Acesso ao PDV/Caixa)</option>
-                            <option value="admin">Administrador (Acesso Geral)</option>
-                          </select>
-                        </div>
-
-                        <label className={`flex items-center justify-between gap-4 p-4 rounded-xl border cursor-pointer ${isDark ? 'border-[#2C2C2E] bg-black/20' : 'border-gray-100 bg-gray-50'}`}>
-                          <span>
-                            <span className="block text-[10px] font-bold uppercase tracking-wide">Acesso ativo</span>
-                            <span className="block text-[9px] font-semibold opacity-50 mt-1">Desative temporariamente sem excluir o login.</span>
-                          </span>
-                          <input
-                            type="checkbox"
-                            checked={editMemberActive}
-                            onChange={e => setEditMemberActive(e.target.checked)}
-                            className="w-5 h-5 accent-emerald-500"
-                          />
-                        </label>
-
-                        <div className="space-y-1">
-                          <label className="text-[9px] font-bold text-gray-400 uppercase tracking-wide">Nova senha</label>
-                          <input
-                            type="password"
-                            value={editMemberPassword}
-                            onChange={e => setEditMemberPassword(e.target.value)}
-                            placeholder="Deixe em branco para manter"
-                            className={`w-full h-12 px-4 rounded-xl border outline-none text-sm ${isDark ? 'bg-transparent border-[#2C2C2E] focus:border-[#475569]' : 'bg-gray-50 border-gray-100 focus:border-[#475569]'}`}
-                          />
-                        </div>
-
-                        {editMemberError && (
-                          <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl">
-                            <p className="text-red-400 text-xs text-center font-semibold">{editMemberError}</p>
-                          </div>
-                        )}
-
-                        <button
-                          type="submit"
-                          disabled={editMemberLoading}
-                          className="w-full h-12 bg-blue-500 text-white font-bold rounded-xl text-xs uppercase tracking-wide hover:opacity-90 active:scale-95 transition-all flex justify-center items-center gap-2"
-                        >
-                          {editMemberLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Salvar Alteracoes'}
-                        </button>
-                      </form>
-                    </motion.div>
-                  </div>
-                )}
-              </AnimatePresence>
             </div>
           )}
 

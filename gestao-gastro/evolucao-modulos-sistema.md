@@ -6,74 +6,80 @@ Essas melhorias visam reduzir a dependência de suporte técnico, simplificar o 
 
 ---
 
+## Histórico de Sessões
+
+### 🗓️ Sessão 21/07/2026 — Controle de Acesso por Perfil, Auditoria e Redirecionamento Inteligente
+
+**Commits:** `a736e14` · `5250a26` · `2165089`
+**Pacote deploy:** `deploy_packages/atualizar.zip`
+
+#### ✅ Controle de Acesso e Perfis
+
+- [x] Separação dos painéis de login: **Administrador**, **Atendente (cashier)** e **Garçom (waiter)**.
+- [x] Permissões por perfil consolidadas:
+  - **Atendente:** PDV, Mesas, Caixa — sem acesso a Gestão (Cardápio, Financeiro, Estoque) nem a Sistema (Configurações, Segurança).
+  - **Garçom:** apenas Mesas / Comanda Mobile.
+  - **Administrador/Owner:** acesso total a todos os módulos.
+- [x] **Redirecionamento automático ao login por perfil:**
+  - Atendente → **PDV (Balcão)** diretamente.
+  - Garçom → **Mesas** (mobile → `/comanda`) diretamente.
+  - Administrador → **Dashboard de Indicadores**.
+  - Guard ativo: tentativa de acessar módulo restrito redireciona para o módulo principal do perfil (sem mensagem de "recurso não disponível").
+
+#### ✅ Auditoria de Segurança — Trilha Completa de Ações
+
+- [x] **PDV:** `operator_switch`, `sale_complete`, `order_cancel`
+- [x] **Caixa:** `cashier_open`, `cashier_close`, `cashier_movement`, `cashier_movement_delete`
+- [x] **Salão:** `table_open`, `table_release`
+- [x] **Equipe:** `collaborator_add`, `collaborator_update`, `collaborator_status`
+- [x] Filtragem de metadados: segredos mascarados; dados operacionais (operador, valor, forma de pagamento, item) visíveis para revisão dos administradores.
+- [x] Remoção do card estático **"Matriz de Acesso & Permissões dos Usuários"** — tela de Segurança focada na Trilha de Auditoria com filtros e exportação CSV.
+
+#### ✅ PDV — Vinculação de Operador
+
+- [x] Colaborador logado detectado automaticamente como operador padrão no PDV (`selectedOperatorId`).
+- [x] Troca manual de operador registrada no log de auditoria.
+
+---
+
 ## 1. Módulo de Configurações (`Settings.tsx`)
 
-Atualmente, a tela de configurações concentra muitas informações em uma única visão, o que pode sobrecarregar novos usuários.
-
 ### Ações de Melhoria:
-- [x] **Reorganização Visual (Abas/Pílulas):** Dividir a interface nas seguintes categorias lógicas:
-  - **Estabelecimento:** Nome, CNPJ, Endereço, Logo.
-  - **Equipe & Acessos:** Perfil do Administrador Principal e Gestão de Colaboradores/Senhas.
-  - **Rede Local & QR Code:** Status do IP, porta do servidor, atalhos de detecção e QR Code para garçons.
-  - **Mesas e Salão:** Definição da quantidade de mesas e reinicialização.
-  - **Impressão:** Configuração de impressoras térmicas e cupons.
-  - **Dados e Backups:** Exportação, Importação e Zonas de Perigo.
-- [ ] **Assistente de Rede (Troubleshooting):** Ao invés de apenas mostrar o IP, adicionar um botão "Diagnosticar Conexão" que verifica se as portas estão liberadas no firewall do Windows.
-- [ ] **Visibilidade de Nuvem vs Local:** Adicionar rótulos visuais nas áreas de dados informando quais ações afetam apenas o dispositivo local e quais afetam a nuvem (Supabase).
+- [x] **Reorganização Visual (Abas/Pílulas):** Estabelecimento, Equipe & Acessos, Rede Local & QR Code, Mesas e Salão, Impressão, Dados e Backups.
+- [ ] **Assistente de Rede (Troubleshooting):** Botão "Diagnosticar Conexão" com verificação de portas no firewall do Windows.
+- [ ] **Visibilidade de Nuvem vs Local:** Rótulos visuais indicando se a ação afeta dispositivo local ou Supabase.
 
 ---
 
 ## 2. Módulo de Suporte (`Support.tsx`)
 
-O objetivo é transformar a tela de suporte, que hoje é estática, em uma ferramenta ativa de diagnóstico para o atendimento.
-
 ### Ações de Melhoria:
-- [x] **Painel de Saúde do Sistema (Health Check):**
-  - Indicador de status da conexão com a internet (Navegador).
-  - Indicador de conexão com o banco de dados (Supabase / Modo Local).
-  - Status do Service Worker (PWA) e se a aplicação está instalada.
-  - Quantidade de requisições pendentes na fila offline (PDV + Comanda Garçom).
-- [x] **Diagnóstico Copiável (One-Click):**
-  - Botão "Copiar Diagnóstico para o Suporte".
-  - Gera um texto amigável e limpo contendo informações vitais da máquina, Tenant ID, versão, fila offline e falhas ativas, ocultando qualquer chave de API, senha ou token.
-- [ ] **Links Úteis e Base de Conhecimento:**
-  - Adicionar links diretos para vídeos curtos de como usar as principais funções da operação.
+- [x] **Painel de Saúde do Sistema (Health Check):** Status internet, Supabase, Service Worker (PWA) e fila offline.
+- [x] **Diagnóstico Copiável (One-Click):** Gera texto limpo com Tenant ID, versão, fila offline e falhas ativas — sem expor chaves de API ou tokens.
+- [ ] **Links Úteis e Base de Conhecimento:** Links para vídeos curtos das principais funções operacionais.
 
 ---
 
 ## 3. Módulo de Segurança (`Security.tsx`)
 
-A central de segurança deve ir além de dados estáticos e fornecer um ambiente auditável para o proprietário/gerente do restaurante.
-
 ### Ações de Melhoria:
-- [x] **Trilha de Auditoria (Logs Críticos):**
-  - Registrar cancelamento de pedidos no PDV (`order_cancel`).
-  - Registrar adicões de produtos (`product_add`).
-  - Registrar alteração/reset de status de mesas (`table_reset`, `comanda_transfer`, `table_merge`).
-- [x] **Tabela de Auditoria com Filtros:**
-  - Interface avançada para o Administrador buscar logs por tipo de evento, colaborador ou período de datas.
-  - Paginação automática dos resultados.
-  - Botão de **Exportar CSV** para download direto do histórico do restaurante em planilha.
-- [ ] **Revogação de Dispositivos (Sessões):**
-  - Permitir deslogar forçadamente outras sessões ativas caso o garçom perca o celular ou haja troca de equipe.
+- [x] **Trilha de Auditoria (Logs Críticos):** Cobertura completa de PDV, Caixa, Salão e Equipe (ver Sessão 21/07/2026).
+- [x] **Tabela de Auditoria com Filtros:** Busca por tipo de evento, colaborador e período; paginação; exportação CSV.
+- [x] **Remoção da Matriz de Permissões Estática:** Tela focada na Trilha de Auditoria dinâmica.
+- [ ] **Revogação de Dispositivos (Sessões):** Deslogar forçadamente sessões ativas remotamente.
 
 ---
 
 ## 4. Módulo Central de Evolução (`EvolutionCenter.tsx`)
 
-Manter o cliente engajado com as atualizações do sistema e coletar feedbacks.
-
 ### Ações de Melhoria:
-- [x] **Changelog Visível (O que há de novo):**
-  - Consumir de um arquivo JSON estático ou do Supabase as últimas notas de atualização (Release Notes) para o cliente ver o que melhorou na versão atual.
-- [x] **Quadro de Sugestões:**
-  - Pequeno formulário onde o cliente pode enviar uma sugestão de melhoria diretamente para a equipe de desenvolvimento.
+- [x] **Changelog Visível (O que há de novo):** Release notes consumidas de JSON/Supabase.
+- [x] **Quadro de Sugestões:** Formulário de envio de sugestões direto para a equipe de desenvolvimento.
 
 ---
 
-## Ordem de Execução Sugerida
+## Próximos Itens Pendentes
 
-1. **Configurações:** Reorganizar a UI em abas. É rápido, tem alto impacto visual e organiza a casa para novas configurações.
-2. **Suporte:** Criar o diagnóstico copiável. Isso facilitará imediatamente o seu dia a dia ao testar os clientes.
-3. **Segurança:** Estruturar a trilha de auditoria e exibir na tela de segurança.
-4. **Central de Evolução:** Implementar o mural de novidades e formulário de feedback.
+- [ ] Assistente de diagnóstico de rede em Configurações.
+- [ ] Links e base de conhecimento em vídeo no Suporte.
+- [ ] Revogação de sessões remotas em Segurança.

@@ -147,33 +147,47 @@ Autenticação, permissões, sincronização, auditoria, PWA e observabilidade p
 
 **Objetivo:** estabelecer uma base confiável antes de ampliar funcionalidades.
 
-**Entregas**
+**Status:** 🟡 Em andamento — Sessão 21/07/2026
 
-- Consolidar e revisar as alterações locais em andamento.
-- Validar as rotas do Cantinho em produção, cache, service worker e atualização do PWA.
-- Criar inventário de nomenclaturas, ações e estados usados nos 10 módulos.
-- Definir componentes ou padrões compartilhados de feedback, confirmação e estado de tela.
-- Substituir primeiro os alertas bloqueantes dos fluxos críticos.
-- Registrar a linha de base dos indicadores e os cenários de regressão.
+**Entregas planejadas**
+
+- [x] Consolidar e revisar as alterações locais em andamento.
+- [x] Validar as rotas do Cantinho em produção, cache, service worker e atualização do PWA.
+- [ ] Criar inventário de nomenclaturas, ações e estados usados nos 10 módulos.
+- [x] Definir componentes ou padrões compartilhados de feedback, confirmação e estado de tela.
+- [x] Substituir os alertas bloqueantes dos fluxos críticos (mensagem "módulo não disponível" resolvida).
+- [ ] Registrar a linha de base dos indicadores e os cenários de regressão.
+
+**Entregas realizadas (21/07/2026)**
+
+- Controle de acesso por perfil (Administrador, Atendente, Garçom) com permissões segmentadas por grupo de módulos.
+- Redirecionamento automático ao login: Atendente → PDV, Garçom → Mesas, Admin → Dashboard.
+- Guard ativo de módulos: redireciona perfis restritos em vez de exibir tela de bloqueio.
+- Trilha de auditoria completa: PDV (venda, cancelamento, troca de operador), Caixa (abertura, fechamento, movimentações), Salão (mesa) e Equipe (colaboradores).
+- Vinculação automática do colaborador logado como operador padrão no PDV.
+- Tela de Segurança refatorada: Trilha de Auditoria com filtros, paginação e exportação CSV.
+- Commits: `a736e14`, `5250a26`, `2165089`.
 
 **Dependências**
 
 - Estado local consolidado e revisado.
-- Ambiente de homologação com perfis de administrador, caixa e garçom.
+- Ambiente de homologação com perfis de administrador, caixa e garçom. ✅
 - Mesas, cardápio e estoque de teste disponíveis.
 
 **Critérios de aceite**
 
 - Produção carrega o bundle atual nas rotas do painel e da comanda.
-- Nenhum módulo fora do contrato aparece no menu, Manual ou acesso direto.
-- Estados padrão estão documentados e aplicados ao menos aos fluxos críticos.
-- Erros de operação não exigem consulta ao console para serem compreendidos.
+- Nenhum módulo fora do contrato aparece no menu, Manual ou acesso direto. ✅
+- Estados padrão estão documentados e aplicados ao menos aos fluxos críticos. ✅
+- Erros de operação não exigem consulta ao console para serem compreendidos. ✅
 
 **Indicadores**
 
 - Incidentes de cache/PWA após publicação.
 - Quantidade de alertas bloqueantes nos fluxos críticos.
 - Cobertura de estados padrão nos módulos contratados.
+
+
 
 ### Ciclo 2 — Semanas 3–4: Operação principal
 

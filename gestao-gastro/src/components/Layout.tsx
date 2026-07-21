@@ -128,34 +128,29 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setCurrentView, chi
 
   const navGroups = [
     {
-      title: 'Operacional',
+      title: 'Módulos Operacionais',
       items: [
         { id: 'pdv',           icon: MonitorPlay,     label: 'PDV (Balcão)' },
         { id: 'mesas',         icon: Table2,          label: 'Mesas'        },
         { id: 'cozinha',       icon: ChefHat,         label: 'Cozinha'      },
         { id: 'caixa',         icon: Wallet,          label: 'Caixa'        },
-      ]
-    },
-    {
-      title: 'Gestão',
-      items: [
         { id: 'dashboard',     icon: LayoutDashboard, label: 'Dashboard'    },
+        { id: 'produtos',      icon: BookOpen,        label: 'Cardápio'     },
+        { id: 'estoque',       icon: Package,         label: 'Estoque'      },
+        { id: 'relatorios',    icon: LineChart,       label: 'Financeiro'   },
         { id: 'clientes',      icon: Users,           label: 'Clientes'     },
         { id: 'colaboradores', icon: UserCheck,       label: 'Colaboradores'},
         { id: 'fornecedores',  icon: Truck,           label: 'Fornecedores' },
-        { id: 'produtos',      icon: BookOpen,        label: 'Cardápio'     },
-        { id: 'relatorios',    icon: LineChart,       label: 'Financeiro'   },
-        { id: 'estoque',       icon: Package,         label: 'Estoque'      },
       ]
     },
     {
-      title: 'Sistema',
+      title: 'Módulos de Sistema',
       items: [
-        { id: 'manual',        icon: HelpCircle,      label: 'Manual de Uso' },
-        { id: 'seguranca',     icon: Shield,          label: 'Segurança'    },
         { id: 'configuracoes', icon: Settings,        label: 'Configurações'},
+        { id: 'seguranca',     icon: Shield,          label: 'Segurança'    },
         { id: 'suporte',       icon: Headphones,      label: 'Suporte'      },
-        { id: 'evolucao',      icon: Rocket,          label: 'Evolução'     }
+        { id: 'evolucao',      icon: Rocket,          label: 'Evolução'     },
+        { id: 'manual',        icon: HelpCircle,      label: 'Manual de Uso' },
       ]
     }
   ];

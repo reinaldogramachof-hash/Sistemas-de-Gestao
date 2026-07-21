@@ -246,16 +246,17 @@ export const Security: React.FC = () => {
               {[
                 { name: 'PDV (Frente de Balcão)', owner: true, cashier: true, waiter: false },
                 { name: 'Mesas & Comanda Mobile', owner: true, cashier: true, waiter: true },
-                { name: 'Cozinha (KDS)', owner: true, cashier: false, waiter: false },
+                { name: 'Cozinha (KDS)', owner: true, cashier: true, waiter: false },
                 { name: 'Caixa & Sangria', owner: true, cashier: true, waiter: false },
-                { name: 'Estoque & Ficha Técnica', owner: true, cashier: true, waiter: false },
-                { name: 'Dashboard de Vendas', owner: true, cashier: true, waiter: false },
-                { name: 'Cardápio / Produtos', owner: true, cashier: true, waiter: true },
-                { name: 'Financeiro & DRE', owner: true, cashier: true, waiter: false },
-                { name: 'Clientes', owner: true, cashier: false, waiter: false },
-                { name: 'Colaboradores & Acessos', owner: true, cashier: false, waiter: false },
-                { name: 'Fornecedores', owner: true, cashier: false, waiter: false },
-                { name: 'Sistema (Config, Seg, Sup, Evol)', owner: true, cashier: true, waiter: true }
+                { name: 'Dashboard de Vendas (Gestão)', owner: true, cashier: false, waiter: false },
+                { name: 'Cardápio / Produtos (Gestão)', owner: true, cashier: false, waiter: false },
+                { name: 'Estoque & Ficha Técnica (Gestão)', owner: true, cashier: false, waiter: false },
+                { name: 'Financeiro & DRE (Gestão)', owner: true, cashier: false, waiter: false },
+                { name: 'Clientes (Gestão)', owner: true, cashier: false, waiter: false },
+                { name: 'Colaboradores & Acessos (Gestão)', owner: true, cashier: false, waiter: false },
+                { name: 'Fornecedores (Gestão)', owner: true, cashier: false, waiter: false },
+                { name: 'Configurações (Criar/Excluir Acessos)', owner: true, cashier: false, waiter: false },
+                { name: 'Suporte, Segurança, Evolução & Manual', owner: true, cashier: true, waiter: true }
               ].map((row, idx) => (
                 <tr key={idx} className={isDark ? 'hover:bg-white/5' : 'hover:bg-gray-50'}>
                   <td className="py-3 px-4 font-semibold text-slate-300 dark:text-white">{row.name}</td>

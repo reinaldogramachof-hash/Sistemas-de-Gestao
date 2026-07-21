@@ -220,69 +220,7 @@ export const Security: React.FC = () => {
         </div>
       </div>
 
-      {/* Matriz de Permissões por Perfil de Usuário */}
-      <div className={`p-8 rounded-lg border space-y-6 ${isDark ? 'bg-[#1C1C1E] border-[#2C2C2E]' : 'bg-white border-gray-100 shadow-sm'}`}>
-        <div className="flex justify-between items-center">
-          <div className="flex items-center gap-3">
-            <Activity className="w-5 h-5 text-indigo-500" />
-            <div>
-              <h2 className="text-sm font-bold uppercase tracking-wide">Matriz de Acesso & Permissões dos Usuários</h2>
-              <p className="text-[10px] font-bold opacity-40 uppercase tracking-wide">Visibilidade de módulos de acordo com o perfil atrelado à conta</p>
-            </div>
-          </div>
-        </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs border-collapse">
-            <thead>
-              <tr className={`border-b text-[10px] font-bold uppercase tracking-wider ${isDark ? 'border-white/10 text-slate-400' : 'border-gray-200 text-gray-500'}`}>
-                <th className="py-3 px-4">Módulo do Sistema</th>
-                <th className="py-3 px-4 text-center">👑 Proprietária / Admin</th>
-                <th className="py-3 px-4 text-center">💼 Operador de Caixa</th>
-                <th className="py-3 px-4 text-center">🍽️ Garçom / Salão</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-current/5">
-              {[
-                { name: 'PDV (Frente de Balcão)', owner: true, cashier: true, waiter: false },
-                { name: 'Mesas & Comanda Mobile', owner: true, cashier: true, waiter: true },
-                { name: 'Cozinha (KDS)', owner: true, cashier: true, waiter: false },
-                { name: 'Caixa & Sangria', owner: true, cashier: true, waiter: false },
-                { name: 'Dashboard de Vendas (Gestão)', owner: true, cashier: false, waiter: false },
-                { name: 'Cardápio / Produtos (Gestão)', owner: true, cashier: false, waiter: false },
-                { name: 'Estoque & Ficha Técnica (Gestão)', owner: true, cashier: false, waiter: false },
-                { name: 'Financeiro & DRE (Gestão)', owner: true, cashier: false, waiter: false },
-                { name: 'Clientes (Gestão)', owner: true, cashier: false, waiter: false },
-                { name: 'Colaboradores & Acessos (Gestão)', owner: true, cashier: false, waiter: false },
-                { name: 'Fornecedores (Gestão)', owner: true, cashier: false, waiter: false },
-                { name: 'Configurações (Criar/Excluir Acessos)', owner: true, cashier: false, waiter: false },
-                { name: 'Suporte, Segurança, Evolução & Manual', owner: true, cashier: true, waiter: true }
-              ].map((row, idx) => (
-                <tr key={idx} className={isDark ? 'hover:bg-white/5' : 'hover:bg-gray-50'}>
-                  <td className="py-3 px-4 font-semibold text-slate-300 dark:text-white">{row.name}</td>
-                  <td className="py-3 px-4 text-center">
-                    <span className="px-2.5 py-1 rounded text-[9px] font-bold uppercase bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">Liberado</span>
-                  </td>
-                  <td className="py-3 px-4 text-center">
-                    {row.cashier ? (
-                      <span className="px-2.5 py-1 rounded text-[9px] font-bold uppercase bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">Liberado</span>
-                    ) : (
-                      <span className="px-2.5 py-1 rounded text-[9px] font-bold uppercase bg-gray-500/10 text-gray-400 border border-gray-500/20">Restrito</span>
-                    )}
-                  </td>
-                  <td className="py-3 px-4 text-center">
-                    {row.waiter ? (
-                      <span className="px-2.5 py-1 rounded text-[9px] font-bold uppercase bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">Liberado</span>
-                    ) : (
-                      <span className="px-2.5 py-1 rounded text-[9px] font-bold uppercase bg-gray-500/10 text-gray-400 border border-gray-500/20">Restrito</span>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
 
       {/* Local Audit Log with Filters and CSV Export */}
       <div className={`p-8 rounded-lg border space-y-6 ${isDark ? 'bg-[#1C1C1E] border-[#2C2C2E]' : 'bg-white border-gray-100 shadow-sm'}`}>

@@ -5,7 +5,7 @@ import { isSupabaseConfigured, supabase } from '../lib/supabase';
 
 const sanitizeAuditMetadata = (extra?: Record<string, unknown>): Record<string, unknown> => {
   if (!extra) return {};
-  const blocked = /password|token|license|email|name|description|observation|item|customer|expense/i;
+  const blocked = /password|token|secret|license_key/i;
   return Object.fromEntries(Object.entries(extra)
     .filter(([key, value]) => !blocked.test(key) && ['string', 'number', 'boolean'].includes(typeof value))
     .map(([key, value]) => [key, typeof value === 'string' ? value.slice(0, 120) : value]));

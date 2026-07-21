@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useApp } from '../store/AppContext';
+import { useAudit } from '../hooks/useAudit';
 import { Order, PartialPaymentItem, PaymentItem, PaymentMethod } from '../types';
 import { X } from 'lucide-react';
 import { ReceiptModal } from './ReceiptModal';
@@ -36,6 +37,7 @@ const SHORTCUT_LABELS: Record<PaymentMethod, string> = {
 
 export const CheckoutModal: React.FC<CheckoutModalProps> = ({ order, onClose, onSuccess }) => {
   const { theme, closeOrder, updateOrder, waiters, customers, loyaltyConfig, loyaltyEntries, addLoyaltyEntry, settings } = useApp();
+  const { log } = useAudit();
   const isDark = theme === 'dark';
   const isMesa = order.mode === 'mesa';
   const partialPayments = order.partialPayments ?? [];
@@ -122,6 +124,15 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ order, onClose, on
     }
 
     const result = await closeOrder(closedOrder, finalPayments, serviceCharge);
+
+    log('sale_complete', `Venda ${closedOrder.mode === 'mesa' ? 'da Mesa ' + (closedOrder.tableNumber ?? '') : 'no Balcão'} finalizada no valor de ${formatCurrency(closedOrder.total)}`, {
+      orderId: closedOrder.id,
+      total: closedOrder.total,
+      mode: closedOrder.mode,
+      tableNumber: closedOrder.tableNumber,
+      payments: finalPayments.map(p => ({ method: p.method, amount: p.amount })),
+      operatorId: closedOrder.waiterId,
+    });
 
     if (result.remoteSynced) {
       setSyncResult({ message: 'Venda sincronizada com a nuvem.', status: 'success' });

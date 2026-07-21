@@ -116,7 +116,7 @@ export const Cashier: React.FC = () => {
     openCashier(val, { id: currentUser.id, name: currentUser.name });
     setInitialBalanceInput('');
     setOpeningError('');
-    log('Caixa', 'abertura', { initialBalance: val, operatorId: currentUser.id });
+    log('cashier_open', `Abertura de Caixa realizada com fundo inicial de ${formatCurrency(val)}`, { initialBalance: val, operatorId: currentUser.id, operatorName: currentUser.name });
   };
 
   const handleAddExpense = () => {
@@ -131,7 +131,7 @@ export const Cashier: React.FC = () => {
     if (editingExpense) {
        const updated: Expense = { ...editingExpense, description: expenseDesc.trim(), amount: value, entryType, movementKind };
        updateExpense(updated);
-       log('Caixa', 'edicao_movimentacao', { expense: updated as unknown as Record<string, unknown> });
+       log('cashier_movement_edit', `Movimentação de caixa alterada para ${movementKind.toUpperCase()} de ${formatCurrency(value)} (${expenseDesc.trim()})`, { kind: movementKind, amount: value, description: expenseDesc.trim(), operator: currentUser.name });
        setEditingExpense(null);
        setExpenseDesc('');
        setExpenseVal('');
@@ -152,7 +152,7 @@ export const Cashier: React.FC = () => {
     };
 
     addExpense(newExpense);
-    log('Caixa', 'movimentacao', { expense: newExpense as unknown as Record<string, unknown> });
+    log('cashier_movement', `${movementKind.toUpperCase()} de ${formatCurrency(value)} (${expenseDesc.trim()}) registrada por ${currentUser.name}`, { kind: movementKind, amount: value, description: expenseDesc.trim(), operator: currentUser.name });
     setExpenseDesc('');
     setExpenseVal('');
     setMovementError('');
@@ -169,7 +169,7 @@ export const Cashier: React.FC = () => {
   const handleDeleteConfirm = () => {
     if(!deletingExpense) return;
     deleteExpense(deletingExpense.id);
-    log('Caixa', 'exclusao_movimentacao', { expense: deletingExpense as unknown as Record<string, unknown> });
+    log('cashier_movement_delete', `Lançamento de ${deletingExpense.movementKind || deletingExpense.entryType} (${formatCurrency(deletingExpense.amount)}) removido por ${currentUser.name}`, { description: deletingExpense.description, amount: deletingExpense.amount, operator: currentUser.name });
     setDeletingExpense(null);
   };
 
@@ -180,7 +180,7 @@ export const Cashier: React.FC = () => {
       return;
     }
     closeCashier(parsedTips, parsedCountedCash, expectedCashBalance);
-    log('Caixa', 'fechamento', { tips: parsedTips, counted: parsedCountedCash, expectedCashBalance });
+    log('cashier_close', `Fechamento de Caixa encerrado por ${currentUser.name}. Dinheiro esperado: ${formatCurrency(expectedCashBalance)}${parsedCountedCash !== undefined ? ', Contado: ' + formatCurrency(parsedCountedCash) : ''}`, { tips: parsedTips, counted: parsedCountedCash, expectedCashBalance, operator: currentUser.name });
     setTipsTotal('');
     setCountedCash('');
     setClosingError('');

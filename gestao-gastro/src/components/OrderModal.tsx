@@ -208,6 +208,7 @@ export const OrderModal: React.FC<OrderModalProps> = ({ tableNumber, mode, onClo
       const created = await addOrder(newOrder);
       setActiveOrder(created);
       setIsOpening(false);
+      log('table_open', `Mesa ${tableNumber} aberta com ${newOrder.customerCount} pessoa(s)`, { tableNumber, waiterId: selectedWaiterId, adultCount, childrenCount });
     } catch (err) {
       console.error('Erro ao abrir mesa', err);
       // Fallback
@@ -231,6 +232,7 @@ export const OrderModal: React.FC<OrderModalProps> = ({ tableNumber, mode, onClo
   const handleReleaseEmptyTable = () => {
     if (!tableNumber || activeOrderHasConsumption) return;
     clearTable(tableNumber);
+    log('table_release', `Mesa ${tableNumber} liberada pelo atendente`, { tableNumber });
     setActiveOrder(null);
     onClose();
   };

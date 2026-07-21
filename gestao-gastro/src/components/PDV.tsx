@@ -15,7 +15,7 @@ import { OperationFeedback, type OperationFeedbackMessage } from './OperationFee
 import { OperationalState } from './OperationalState';
 
 export const PDV: React.FC = () => {
-  const { collaborators, currentEmpresa, waiters, theme, promotions, campaigns, combos, products, customers, draftOrder, setDraftOrder, clearDraftOrder, stockItems, supabaseOnline, requestConfirm } = useApp();
+  const { collaborators, currentEmpresa, waiters, theme, promotions, campaigns, combos, products, customers, draftOrder, setDraftOrder, clearDraftOrder, stockItems, supabaseOnline, requestConfirm, currentUser } = useApp();
   const isDark = theme === 'dark';
   const activeOperators = collaborators.filter(c => c.status === 'active');
   const systemOperator = {
@@ -25,7 +25,10 @@ export const PDV: React.FC = () => {
     status: 'active'
   };
   const hasOperators = activeOperators.length > 0;
-  const initialOperatorId = hasOperators ? activeOperators[0].id : (waiters[0]?.id ?? systemOperator.id);
+  const loggedUserOperator = currentUser?.id 
+    ? (activeOperators.find(c => c.id === currentUser.id) || waiters.find(w => w.id === currentUser.id))
+    : null;
+  const initialOperatorId = loggedUserOperator?.id ?? (hasOperators ? activeOperators[0].id : (waiters[0]?.id ?? systemOperator.id));
   const [selectedOperatorId, setSelectedOperatorId] = useState<string>(
     () => draftOrder?.waiterId ?? initialOperatorId
   );
@@ -57,6 +60,16 @@ export const PDV: React.FC = () => {
   const [category, setCategory] = useState('Todos');
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const { log } = useAudit();
+
+  useEffect(() => {
+    if (currentUser?.id) {
+      const userOpId = currentUser.id;
+      const existsInTeam = activeOperators.some(c => c.id === userOpId) || waiters.some(w => w.id === userOpId);
+      if (existsInTeam && selectedOperatorId !== userOpId && (!draftOrder || draftOrder.items.length === 0)) {
+        setSelectedOperatorId(userOpId);
+      }
+    }
+  }, [currentUser, activeOperators, waiters]);
 
   useEffect(() => {
     if (!draftOrder) {
@@ -261,6 +274,11 @@ export const PDV: React.FC = () => {
   };
 
   const handleSelectOperator = (id: string) => {
+    const prevName = activeOperators.find(o => o.id === selectedOperatorId)?.name || 'Responsável Padrão';
+    const newName = activeOperators.find(o => o.id === id)?.name || waiters.find(w => w.id === id)?.name || 'Atendente';
+    if (prevName !== newName) {
+      log('operator_switch', `Atendente do PDV alterado de "${prevName}" para "${newName}"`, { from: prevName, to: newName });
+    }
     setSelectedOperatorId(id);
     setWaiterMenuOpen(false);
     updateActiveOrder(order => ({ ...order, waiterId: id }));

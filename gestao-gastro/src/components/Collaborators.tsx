@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useApp } from '../store/AppContext';
+import { useAudit } from '../hooks/useAudit';
 import { HelpTooltip } from './HelpTooltip';
 import { Search, UserPlus, Shield, Briefcase, Calendar, Edit3, Trash2, CheckCircle2, XCircle, User, Clock, Zap, X, LayoutGrid, List, LogIn, LogOut, FileText, Banknote, CreditCard, MapPin, UserCheck } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -8,6 +9,7 @@ import { motion, AnimatePresence } from 'motion/react';
 
 export const Collaborators: React.FC = () => {
   const { theme, collaborators, deleteCollaborator, addCollaborator, updateCollaborator } = useApp();
+  const { log } = useAudit();
   const isDark = theme === 'dark';
   const [searchTerm, setSearchTerm] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>(() => (localStorage.getItem('viewMode_collaborators') as any) || 'list');
@@ -45,11 +47,11 @@ export const Collaborators: React.FC = () => {
     if (member) {
       setEditingMember(member);
       setFormData({
-        name: member.name,
-        email: member.email,
-        role: member.role,
-        permissions: member.permissions,
-        status: member.status,
+        name: member.name || '',
+        email: member.email || '',
+        role: member.role || '',
+        permissions: member.permissions || 'waiter',
+        status: member.status || 'active',
         observations: member.observations || '',
         contractType: member.contractType || 'CLT',
         salary: member.salary || 0,
@@ -82,12 +84,14 @@ export const Collaborators: React.FC = () => {
 
   const handleToggleStatus = (member: any) => {
     const isActive = member.status === 'active';
+    const newStatus = isActive ? 'inactive' : 'active';
     updateCollaborator({
       ...member,
-      status: isActive ? 'inactive' : 'active',
+      status: newStatus,
       lastCheckIn: !isActive ? new Date().toISOString() : member.lastCheckIn,
       lastCheckOut: isActive ? new Date().toISOString() : member.lastCheckOut
     });
+    log('collaborator_status', `Status do colaborador "${member.name}" alterado para ${newStatus}`, { name: member.name, newStatus });
   };
 
 
@@ -95,6 +99,7 @@ export const Collaborators: React.FC = () => {
     e.preventDefault();
     if (editingMember) {
       updateCollaborator({ ...editingMember, ...formData });
+      log('collaborator_update', `Dados do colaborador "${formData.name}" atualizados`, { name: formData.name, role: formData.role, permissions: formData.permissions });
     } else {
       addCollaborator({
         id: Date.now().toString(),
@@ -102,6 +107,7 @@ export const Collaborators: React.FC = () => {
         joinedAt: new Date().toISOString(),
         totalSales: 0
       });
+      log('collaborator_add', `Novo colaborador "${formData.name}" (${formData.role || formData.permissions}) cadastrado`, { name: formData.name, role: formData.role, permissions: formData.permissions });
     }
     setIsModalOpen(false);
   };

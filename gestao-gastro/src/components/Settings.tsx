@@ -19,7 +19,7 @@ type EditableMemberRole = 'waiter' | 'cashier' | 'admin';
 type WaiterSettingsStatus = 'idle' | 'loading' | 'saving' | 'saved' | 'pending' | 'error';
 
 export const Settings: React.FC = () => {
-  const { settings, updateSettings, exportData, importData, resetToMocks, theme, collaborators, tables, currentEmpresa, supabaseOnline, reloadCollaborators, initializeTables, currentUser } = useApp();
+  const { settings, updateSettings, exportData, importData, resetToMocks, theme, collaborators, tables, currentEmpresa, supabaseOnline, reloadCollaborators, initializeTables, currentUser, requestConfirm } = useApp();
   const { checkAccess } = useModules();
   const isDark = theme === 'dark';
 
@@ -225,52 +225,55 @@ export const Settings: React.FC = () => {
   };
 
   const handleDeleteMember = async (collabId: string) => {
-    if (!window.confirm("ATENÇÃO: Deseja realmente excluir este colaborador? Esta ação não pode ser desfeita e removerá o login do usuário permanentemente.")) {
-      return;
-    }
+    requestConfirm({
+      title: 'Excluir Colaborador',
+      description: 'ATENÇÃO: Deseja realmente excluir este colaborador? Esta ação não pode ser desfeita e removerá o login do usuário permanentemente.',
+      confirmText: 'Excluir',
+      onConfirm: async () => {
+        if (!supabaseOnline || !currentEmpresa.tenantId) {
+          setFeedback({ tone: 'error', title: 'Ação não permitida', description: 'Operação remota indisponível no momento.' });
+          return;
+        }
 
-    if (!supabaseOnline || !currentEmpresa.tenantId) {
-      setFeedback({ tone: 'error', title: 'Ação não permitida', description: 'Operação remota indisponível no momento.' });
-      return;
-    }
+        const { data: { session } } = await supabase!.auth.getSession();
+        if (!session) {
+          setFeedback({ tone: 'error', title: 'Sessão expirada', description: 'Faça login novamente.' });
+          return;
+        }
 
-    const { data: { session } } = await supabase!.auth.getSession();
-    if (!session) {
-      setFeedback({ tone: 'error', title: 'Sessão expirada', description: 'Faça login novamente.' });
-      return;
-    }
+        setEditMemberLoading(true);
 
-    setEditMemberLoading(true);
+        try {
+          const response = await fetch('/api_admin_users.php', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${session.access_token}`
+            },
+            body: JSON.stringify({
+              action: 'delete_member',
+              tenant_id: currentEmpresa.tenantId,
+              user_id: collabId
+            })
+          });
 
-    try {
-      const response = await fetch('/api_admin_users.php', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`
-        },
-        body: JSON.stringify({
-          action: 'delete_member',
-          tenant_id: currentEmpresa.tenantId,
-          user_id: collabId
-        })
-      });
-
-      const data = await response.json();
-      if (response.ok && data.status === 'success') {
-        setFeedback({ tone: 'success', title: 'Sucesso', description: 'Colaborador excluído com sucesso.' });
-        closeEditMemberModal(true);
-        await reloadCollaborators();
-      } else {
-        setEditMemberError(data.message || 'Erro ao excluir colaborador.');
-        setFeedback({ tone: 'error', title: 'Erro', description: data.message || 'Erro ao excluir colaborador.' });
+          const data = await response.json();
+          if (response.ok && data.status === 'success') {
+            await reloadCollaborators();
+            setFeedback({ tone: 'success', title: 'Sucesso', description: 'Colaborador excluído com sucesso.' });
+            closeEditMemberModal(true);
+          } else {
+            setEditMemberError(data.message || 'Erro ao excluir colaborador.');
+            setFeedback({ tone: 'error', title: 'Erro', description: data.message || 'Erro ao excluir colaborador.' });
+          }
+        } catch (err) {
+          setEditMemberError('Não foi possível conectar ao servidor.');
+          setFeedback({ tone: 'error', title: 'Erro de conexão', description: 'Não foi possível conectar ao servidor.' });
+        } finally {
+          setEditMemberLoading(false);
+        }
       }
-    } catch (err) {
-      setEditMemberError('Não foi possível conectar ao servidor.');
-      setFeedback({ tone: 'error', title: 'Erro de conexão', description: 'Não foi possível conectar ao servidor.' });
-    } finally {
-      setEditMemberLoading(false);
-    }
+    });
   };
 
   const handleUpdateMember = async (e: React.FormEvent) => {
@@ -458,21 +461,27 @@ export const Settings: React.FC = () => {
     }
 
     const confirmMsg = "Atenção: Redefinir mesas irá adicionar novas ou remover mesas extras. Mesas com pedidos em aberto ou ocupadas NÃO poderão ser apagadas.\nDeseja continuar?";
-    if (!window.confirm(confirmMsg)) return;
-
-    setIsInitializingTables(true);
-    try {
-      await withTimeout(
-        initializeTables(initTablesCount),
-        20000,
-        'A sincronizaÃ§Ã£o com o Supabase demorou mais que o esperado. Recarregue a tela e confira sua conexÃ£o antes de tentar novamente.'
-      );
-      setFeedback({ tone: 'success', title: 'Sucesso', description: 'Mesas inicializadas com sucesso no restaurante!' });
-    } catch (err: any) {
-      setFeedback({ tone: 'error', title: 'Erro', description: err.message || 'Erro ao inicializar mesas. Verifique sua conexão com o banco.' });
-    } finally {
-      setIsInitializingTables(false);
-    }
+    
+    requestConfirm({
+      title: 'Redefinir Mesas',
+      description: confirmMsg,
+      confirmText: 'Redefinir',
+      onConfirm: async () => {
+        setIsInitializingTables(true);
+        try {
+          await withTimeout(
+            initializeTables(initTablesCount),
+            20000,
+            'A sincronização com o Supabase demorou mais que o esperado. Recarregue a tela e confira sua conexão antes de tentar novamente.'
+          );
+          setFeedback({ tone: 'success', title: 'Sucesso', description: 'Mesas inicializadas com sucesso no restaurante!' });
+        } catch (err: any) {
+          setFeedback({ tone: 'error', title: 'Erro', description: err.message || 'Erro ao inicializar mesas. Verifique sua conexão com o banco.' });
+        } finally {
+          setIsInitializingTables(false);
+        }
+      }
+    });
   };
 
   const persistSettings = (nextSettings: AppSettings) => {
@@ -1605,11 +1614,17 @@ export const Settings: React.FC = () => {
                       <input type="file" accept=".json" onChange={(e) => {
                         const file = e.target.files?.[0];
                         if (file) {
-                          if(window.confirm("Atenção: A importação irá sobrescrever todos os seus dados locais. Isso pode causar conflito se você estiver online.\nDeseja continuar?")) {
-                            handleImport(e);
-                          } else {
-                            e.target.value = '';
-                          }
+                          requestConfirm({
+                            title: 'Importar Dados',
+                            description: "Atenção: A importação irá sobrescrever todos os seus dados locais. Isso pode causar conflito se você estiver online.\nDeseja continuar?",
+                            confirmText: 'Importar',
+                            onConfirm: () => {
+                              handleImport(e);
+                            },
+                            onCancel: () => {
+                              e.target.value = '';
+                            }
+                          });
                         }
                       }} className="hidden" />
                     </label>

@@ -1,5 +1,6 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { Product, Table, Order, Waiter, Expense, CashierSession, PaymentItem, Customer, Collaborator, StockMovement, StockItem, Supplier, AppSettings, KitchenItemStatus, Promotion, Combo, Campaign, LoyaltyConfig, LoyaltyEntry, OrderCloseResult } from '../types';
+import { ConfirmDialog } from '../components/ConfirmDialog';
 import { mockProducts, mockTables, mockWaiters, mockCustomers, mockCollaborators, mockStockItems, mockSuppliers, mockSettings } from './mock';
 import { cantinhoDaResenhaProducts } from './cantinhoDaResenhaSeed';
 import { CANTINHO_DA_RESENHA_SLUG, CANTINHO_DA_RESENHA_SLUG_ALIAS, getClientRouteFromPath, getClientSlugFromPath, resolveTenant } from '../config/clientRoutes';
@@ -79,6 +80,16 @@ interface AppState {
   isSyncingPdvQueue: boolean;
 }
 
+export interface ConfirmDialogState {
+  isOpen: boolean;
+  title: string;
+  description: string;
+  confirmText?: string;
+  cancelText?: string;
+  onConfirm: () => void;
+  onCancel: () => void;
+}
+
 interface AppContextType extends AppState {
   setTheme: (theme: 'dark' | 'light') => void;
   syncPdvOfflineQueue: () => Promise<void>;
@@ -126,6 +137,7 @@ interface AppContextType extends AppState {
   addLoyaltyEntry: (entry: Omit<LoyaltyEntry, 'id' | 'empresaId' | 'createdAt'>) => void;
   initializeTables: (count: number) => Promise<void>;
   setCurrentUser: React.Dispatch<React.SetStateAction<{ id: string; name: string; role: string }>>;
+  requestConfirm: (options: Omit<ConfirmDialogState, 'isOpen' | 'onCancel'>) => void;
 }
 
 const getTenantKey = (key: string): string => {
@@ -219,6 +231,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [isSyncingPdvQueue, setIsSyncingPdvQueue] = useState(false);
   const [supabaseOnline, setSupabaseOnline] = useState(false);
   const [localHomologationMode, setLocalHomologationMode] = useState(() => isLocalHomologationMode(effectiveTenantId));
+  const [confirmState, setConfirmState] = useState<ConfirmDialogState>({
+    isOpen: false,
+    title: '',
+    description: '',
+    onConfirm: () => {},
+    onCancel: () => {}
+  });
   const remoteWritesEnabled = isSupabaseConfigured && !localHomologationMode;
 
   // ─── Supabase hooks (mesas e pedidos em tempo real) ───────────────────────
@@ -534,6 +553,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     localStorage.setItem(getTenantKey('pdvOfflineQueue'), JSON.stringify(pdvOfflineQueue));
   }, [products, stockItems, suppliers, localTables, waiters, localOrders, expenses, cashierSession, cashierHistory, customers, collaborators, stockMovements, settings, readGuides, theme, draftOrder, promotions, combos, campaigns, loyaltyConfig, loyaltyEntries, productSyncErrors, productSyncIds, pdvOfflineQueue]);
 
+  const requestConfirm = useCallback((options: Omit<ConfirmDialogState, 'isOpen' | 'onCancel'>) => {
+    setConfirmState({
+      ...options,
+      isOpen: true,
+      onCancel: () => {
+        setConfirmState(prev => ({ ...prev, isOpen: false }));
+      },
+      onConfirm: () => {
+        setConfirmState(prev => ({ ...prev, isOpen: false }));
+        options.onConfirm();
+      }
+    });
+  }, []);
+
   const setDraftOrder = (order: Order | null) => setDraftOrderState(order);
   const clearDraftOrder = () => setDraftOrderState(null);
 
@@ -561,24 +594,30 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const resetToMocks = () => {
     if (isSaaS) {
-      const confirmReset = window.confirm(
-        "Atenção: Esta ação irá limpar todos os dados operacionais locais deste restaurante (estoque, fornecedores, clientes locais, histórico de caixa, despesas e pedidos locais).\n\n" +
-        "Esta ação NÃO afeta o cardápio ou dados salvos na nuvem.\n\n" +
-        "Deseja prosseguir com a limpeza?"
-      );
-      if (!confirmReset) return;
-
-      const keysToClear = [
-        'stockItems', 'suppliers', 'customers', 'collaborators',
-        'orders', 'expenses', 'stockMovements', 'cashierSession',
-        'cashierHistory', 'promotions', 'combos', 'campaigns', 'tables', 'localHomologationMode'
-      ];
-      keysToClear.forEach(k => localStorage.removeItem(getTenantKey(k)));
-
-      window.location.reload();
+      requestConfirm({
+        title: 'Limpar Dados Operacionais',
+        description: "Atenção: Esta ação irá limpar todos os dados operacionais locais deste restaurante (estoque, fornecedores, clientes locais, histórico de caixa, despesas e pedidos locais).\n\nEsta ação NÃO afeta o cardápio ou dados salvos na nuvem.\n\nDeseja prosseguir com a limpeza?",
+        confirmText: 'Limpar Dados',
+        onConfirm: () => {
+          const keysToClear = [
+            'stockItems', 'suppliers', 'customers', 'collaborators',
+            'orders', 'expenses', 'stockMovements', 'cashierSession',
+            'cashierHistory', 'promotions', 'combos', 'campaigns', 'tables', 'localHomologationMode'
+          ];
+          keysToClear.forEach(k => localStorage.removeItem(getTenantKey(k)));
+          window.location.reload();
+        }
+      });
     } else {
-      localStorage.clear();
-      window.location.reload();
+      requestConfirm({
+        title: 'Resetar Sistema',
+        description: 'Deseja realmente limpar todos os dados e resetar o sistema?',
+        confirmText: 'Resetar',
+        onConfirm: () => {
+          localStorage.clear();
+          window.location.reload();
+        }
+      });
     }
   };
 
@@ -1335,6 +1374,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       initializeTables: initializeTenantTables, setCurrentUser
     }}>
       {children}
+      <ConfirmDialog {...confirmState} />
     </AppContext.Provider>
   );
 };

@@ -26,7 +26,7 @@ const productStatusLabels: Record<ProductStatusFilter, string> = {
 };
 
 export const Products: React.FC = () => {
-  const { products, stockItems, updateProduct, addProduct, deleteProduct, theme, productSyncErrors, retrySyncProduct, clearSyncError, supabaseOnline } = useApp();
+  const { products, stockItems, updateProduct, addProduct, deleteProduct, theme, productSyncErrors, retrySyncProduct, clearSyncError, supabaseOnline, requestConfirm } = useApp();
   const isDark = theme === 'dark';
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -165,15 +165,27 @@ export const Products: React.FC = () => {
 
   const handleBulkAvailability = (active: boolean) => {
     if (selectedProducts.length === 0) return;
-    if (!active && !window.confirm(`Desativar ${selectedProducts.length} produto(s) selecionado(s) no Cardápio?`)) return;
 
-    selectedProducts.forEach(product => updateProduct({ ...product, active }));
-    setFeedback({
-      tone: 'success',
-      title: active ? 'Produtos ativados' : 'Produtos desativados',
-      description: `${selectedProducts.length} produto(s) foram atualizados${supabaseOnline ? ' e serão sincronizados com a nuvem.' : ' neste dispositivo.'}`,
-    });
-    setSelectedProductIds([]);
+    const doUpdate = () => {
+      selectedProducts.forEach(product => updateProduct({ ...product, active }));
+      setFeedback({
+        tone: 'success',
+        title: active ? 'Produtos ativados' : 'Produtos desativados',
+        description: `${selectedProducts.length} produto(s) foram atualizados${supabaseOnline ? ' e serão sincronizados com a nuvem.' : ' neste dispositivo.'}`,
+      });
+      setSelectedProductIds([]);
+    };
+
+    if (!active) {
+      requestConfirm({
+        title: 'Desativar Produtos',
+        description: `Desativar ${selectedProducts.length} produto(s) selecionado(s) no Cardápio?`,
+        confirmText: 'Desativar',
+        onConfirm: doUpdate
+      });
+    } else {
+      doUpdate();
+    }
   };
 
   const handleBulkRetrySync = async () => {
@@ -196,12 +208,18 @@ export const Products: React.FC = () => {
   };
 
   const handleDeleteProduct = (product: Product) => {
-    if (!window.confirm(`Excluir ${product.name} do Cardápio? Esta ação não pode ser desfeita.`)) return;
-    deleteProduct(product.id);
-    setFeedback({
-      tone: 'success',
-      title: 'Produto excluído',
-      description: `${product.name} foi removido do Cardápio.`,
+    requestConfirm({
+      title: 'Excluir Produto',
+      description: `Excluir ${product.name} do Cardápio? Esta ação não pode ser desfeita.`,
+      confirmText: 'Excluir',
+      onConfirm: () => {
+        deleteProduct(product.id);
+        setFeedback({
+          tone: 'success',
+          title: 'Produto excluído',
+          description: `${product.name} foi removido do Cardápio.`,
+        });
+      }
     });
   };
 

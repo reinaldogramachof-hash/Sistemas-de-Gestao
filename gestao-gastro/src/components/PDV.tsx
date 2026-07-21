@@ -15,7 +15,7 @@ import { OperationFeedback, type OperationFeedbackMessage } from './OperationFee
 import { OperationalState } from './OperationalState';
 
 export const PDV: React.FC = () => {
-  const { collaborators, currentEmpresa, waiters, theme, promotions, campaigns, combos, products, customers, draftOrder, setDraftOrder, clearDraftOrder, stockItems, supabaseOnline } = useApp();
+  const { collaborators, currentEmpresa, waiters, theme, promotions, campaigns, combos, products, customers, draftOrder, setDraftOrder, clearDraftOrder, stockItems, supabaseOnline, requestConfirm } = useApp();
   const isDark = theme === 'dark';
   const activeOperators = collaborators.filter(c => c.status === 'active');
   const systemOperator = {
@@ -65,16 +65,20 @@ export const PDV: React.FC = () => {
   }, [draftOrder, selectedOperatorId, setDraftOrder]);
 
   useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      // Ctrl+K -> Search (só se nenhum modal estiver aberto)
-      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
-        if (checkoutOpen || manualModalOpen || comboMenuOpen || waiterMenuOpen) return;
-        event.preventDefault();
-        searchInputRef.current?.focus();
-        searchInputRef.current?.select();
-        return;
-      }
+    const focusProductSearch = (event: KeyboardEvent) => {
+      if (!(event.ctrlKey || event.metaKey) || event.key.toLowerCase() !== 'k') return;
+      if (checkoutOpen || manualModalOpen || comboMenuOpen || waiterMenuOpen) return;
+      event.preventDefault();
+      searchInputRef.current?.focus();
+      searchInputRef.current?.select();
+    };
 
+    window.addEventListener('keydown', focusProductSearch);
+    return () => window.removeEventListener('keydown', focusProductSearch);
+  }, [checkoutOpen, manualModalOpen, comboMenuOpen, waiterMenuOpen]);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement;
       const isInput = ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName);
       const isSearchFocused = document.activeElement === searchInputRef.current;
@@ -305,16 +309,26 @@ export const PDV: React.FC = () => {
   };
 
   const handleCancelOrder = () => {
-    if (activeOrder.items.length > 0 && !window.confirm('Deseja cancelar o pedido? Todos os itens serão removidos.')) {
-      return;
-    }
+    const doCancel = () => {
+      if (activeOrder.items.length > 0) {
+        log('order_cancel', 'Pedido/Carrinho foi cancelado no balcão', {
+          subtotal: activeOrder.subtotal,
+          itemsCount: activeOrder.items.length
+        });
+      }
+      clearDraftOrder();
+    };
+
     if (activeOrder.items.length > 0) {
-      log('order_cancel', 'Pedido/Carrinho foi cancelado no balcão', {
-        subtotal: activeOrder.subtotal,
-        itemsCount: activeOrder.items.length
+      requestConfirm({
+        title: 'Cancelar Pedido',
+        description: 'Deseja cancelar o pedido? Todos os itens serão removidos.',
+        confirmText: 'Cancelar Pedido',
+        onConfirm: doCancel
       });
+    } else {
+      doCancel();
     }
-    clearDraftOrder();
   };
 
   return (

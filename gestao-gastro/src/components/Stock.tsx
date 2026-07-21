@@ -36,7 +36,7 @@ const getMovementOrigin = (movement: StockMovement): Exclude<MovementOriginFilte
 };
 
 export const Stock: React.FC = () => {
-  const { stockItems, updateStockItem, addStockItem, deleteStockItem, suppliers, stockMovements, addStockMovement, theme, products, supabaseOnline } = useApp();
+  const { stockItems, updateStockItem, addStockItem, deleteStockItem, suppliers, stockMovements, addStockMovement, theme, products, supabaseOnline, requestConfirm } = useApp();
   const isDark = theme === 'dark';
 
   const [activeTab, setActiveTab] = useState<TabType>('overview');
@@ -81,14 +81,19 @@ export const Stock: React.FC = () => {
       });
       return;
     }
-    if (window.confirm(`Tem certeza que deseja excluir o insumo ${name}?`)) {
-      deleteStockItem(id);
-      setFeedback({
-        tone: 'success',
-        title: 'Insumo excluído',
-        description: `${name} foi removido do Estoque.`,
-      });
-    }
+    requestConfirm({
+      title: 'Excluir Insumo',
+      description: `Tem certeza que deseja excluir o insumo ${name}?`,
+      confirmText: 'Excluir',
+      onConfirm: () => {
+        deleteStockItem(id);
+        setFeedback({
+          tone: 'success',
+          title: 'Insumo excluído',
+          description: `${name} foi removido do Estoque.`,
+        });
+      }
+    });
   };
 
   const categories = ['Todas', ...Array.from(new Set(stockItems.map(i => i.category)))];

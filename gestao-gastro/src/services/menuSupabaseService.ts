@@ -75,7 +75,7 @@ export async function listActiveProducts(tenantId: string): Promise<Product[]> {
     name: row.name,
     description: row.description ?? '',
     price: row.price_cents / 100,
-    category: row.category_id ? (categoryMap.get(row.category_id) ?? 'Sem Categoria') : 'Sem Categoria',
+    category: row.category_id ? (categoryMap.get(row.category_id) === 'Porçoões' ? 'Porções' : (categoryMap.get(row.category_id) ?? 'Sem Categoria')) : 'Sem Categoria',
     image: row.image ?? undefined,
     recipe: row.recipe ?? [],
     active: row.active,

@@ -38,6 +38,8 @@ export const planMatrix: Record<PlanType, PlanConfig> = {
       'manual',
       'configuracoes',
       'suporte',
+      'seguranca',
+      'evolucao',
     ]
   },
   premium: {
@@ -63,6 +65,7 @@ export const planMatrix: Record<PlanType, PlanConfig> = {
 export const commercialModuleAliases: Partial<Record<AppModule, string>> = {
   produtos: 'Cardápio',
   relatorios: 'Financeiro',
+  mesas: 'Mesas e Comanda do Garçom',
 };
 
 export const getCommercialModuleName = (module: AppModule): string => {

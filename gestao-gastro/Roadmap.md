@@ -34,8 +34,12 @@ O plano parte do sistema atualmente implementado, das homologações já realiza
 - Financeiro
 - Estoque
 - Manual de Uso
-- Configurações
-- Suporte
+- Configurações (Sistema)
+- Suporte (Sistema)
+- Segurança (Sistema)
+- Central de Evolução (Sistema)
+
+> **Nota:** Todos os módulos da seção "Sistema" (Configurações, Suporte, Segurança e Central de Evolução) estão presentes em todos os planos, pois são estruturas base do sistema e não geram custo adicional ao cliente.
 
 Os aliases comerciais devem permanecer consistentes em todas as superfícies:
 
@@ -49,11 +53,9 @@ Os aliases comerciais devem permanecer consistentes em todas as superfícies:
 - Clientes
 - Colaboradores como módulo independente
 - Fornecedores
-- Segurança como módulo independente
-- Central de Evolução
 - Integrações com iFood, marketplaces, NFC-e ou emissão fiscal
 
-Autenticação, permissões, sincronização, auditoria, PWA e observabilidade permanecem no roadmap somente como fundações técnicas necessárias aos módulos contratados. Configurações poderá administrar acessos operacionais, mas isso não libera o módulo comercial de Colaboradores.
+Autenticação, permissões, sincronização, auditoria, PWA e observabilidade permanecem no roadmap como fundações técnicas que dão suporte aos módulos contratados e à sessão de Segurança. Configurações administra acessos operacionais, mas isso não libera o módulo comercial de Colaboradores.
 
 ## 3. Princípios de produto
 

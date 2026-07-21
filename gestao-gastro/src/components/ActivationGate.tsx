@@ -52,6 +52,18 @@ export const ActivationGate: React.FC<ActivationGateProps> = ({ children }) => {
   };
 
   const checkLicense = async () => {
+    const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    
+    if (isLocalhost) {
+      setIsAuthorized(true);
+      setOfflineWarning(false);
+      // Mantém o plano que estiver salvo ou define um plano completo para desenvolvimento
+      if (!localStorage.getItem('gestao_gastro_verified_plan')) {
+        localStorage.setItem('gestao_gastro_verified_plan', 'pro');
+      }
+      return;
+    }
+
     const savedKey = localStorage.getItem('plena_license');
     const savedEmail = localStorage.getItem('ml_license_email');
     const receiptConfirmed = localStorage.getItem('ml_receipt_confirmed');

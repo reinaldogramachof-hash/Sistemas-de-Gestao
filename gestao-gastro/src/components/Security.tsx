@@ -1,21 +1,28 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useApp } from '../store/AppContext';
 import { useModules } from '../hooks/useModules';
-import { queryLogs } from '../services/auditService';
-import { AuditLogEntry } from '../types';
+import { queryLogs, exportCSV } from '../services/auditService';
 import { AppModule } from '../config/modulesConfig';
 import { HelpTooltip } from './HelpTooltip';
 import {
   Shield, FileText, Database,
   AlertCircle, ShieldCheck, UserCheck,
   Cloud, AlertTriangle, Server,
-  Activity, Users, TerminalSquare, ShieldAlert
+  Activity, Users, TerminalSquare, ShieldAlert,
+  Download, Filter, Calendar, ChevronLeft, ChevronRight
 } from 'lucide-react';
 
 export const Security: React.FC = () => {
   const { theme, currentEmpresa, currentUser, supabaseOnline, collaborators } = useApp();
   const { currentPlan, checkAccess } = useModules();
   const isDark = theme === 'dark';
+
+  const [filterType, setFilterType] = useState<string>('all');
+  const [filterUser, setFilterUser] = useState<string>('all');
+  const [fromDate, setFromDate] = useState<string>('');
+  const [toDate, setToDate] = useState<string>('');
+  const [page, setPage] = useState<number>(1);
+  const pageSize = 8;
 
   const getRoleDisplayName = (role?: string) => {
     if (!role) return 'Não informado';
@@ -41,6 +48,12 @@ export const Security: React.FC = () => {
         return 'Adição de Produto';
       case 'order_cancel':
         return 'Cancelamento de Pedido';
+      case 'table_reset':
+        return 'Reset de Mesa';
+      case 'comanda_transfer':
+        return 'Transferência de Comanda';
+      case 'table_merge':
+        return 'Junção de Mesas';
       case 'login':
         return 'Entrada no Sistema';
       case 'logout':
@@ -52,14 +65,38 @@ export const Security: React.FC = () => {
     }
   };
 
-  const [recentLogs, setRecentLogs] = useState<AuditLogEntry[]>([]);
+  const { logs, total, pages } = useMemo(() => {
+    if (!currentEmpresa) return { logs: [], total: 0, pages: 1 };
+    return queryLogs(currentEmpresa.id, {
+      type: filterType !== 'all' ? filterType : undefined,
+      userId: filterUser !== 'all' ? filterUser : undefined,
+      from: fromDate || undefined,
+      to: toDate || undefined,
+      page,
+      pageSize,
+    });
+  }, [currentEmpresa, filterType, filterUser, fromDate, toDate, page]);
 
-  useEffect(() => {
-    if (currentEmpresa) {
-      const { logs } = queryLogs(currentEmpresa.id, { pageSize: 5 });
-      setRecentLogs(logs);
-    }
-  }, [currentEmpresa]);
+  const handleExportCSV = () => {
+    if (!currentEmpresa) return;
+    const allData = queryLogs(currentEmpresa.id, {
+      type: filterType !== 'all' ? filterType : undefined,
+      userId: filterUser !== 'all' ? filterUser : undefined,
+      from: fromDate || undefined,
+      to: toDate || undefined,
+      page: 1,
+      pageSize: 5000,
+    });
+    const csvContent = exportCSV(allData.logs);
+    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `auditoria_${(currentEmpresa.name || 'gastro').toLowerCase().replace(/\s+/g, '_')}_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   const tenantId = currentEmpresa?.tenantId || '';
   const maskedTenant = tenantId ? `${tenantId.substring(0, 8)}...` : 'Não informado';
@@ -211,32 +248,139 @@ export const Security: React.FC = () => {
         </div>
       </div>
 
-      {/* Local Audit Log */}
+      {/* Local Audit Log with Filters and CSV Export */}
       <div className={`p-8 rounded-lg border space-y-6 ${isDark ? 'bg-[#1C1C1E] border-[#2C2C2E]' : 'bg-white border-gray-100 shadow-sm'}`}>
-        <div className="flex items-center gap-3">
-          <TerminalSquare className="w-5 h-5 text-slate-500" />
-          <h2 className="text-sm font-bold uppercase tracking-wide">Histórico de atividades neste dispositivo</h2>
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <TerminalSquare className="w-5 h-5 text-slate-500" />
+            <div>
+              <h2 className="text-sm font-bold uppercase tracking-wide">Trilha de Auditoria & Atividades</h2>
+              <p className="text-[10px] font-bold opacity-40 uppercase tracking-wide">Registros de segurança e eventos operacionais ({total} registros)</p>
+            </div>
+          </div>
+
+          <button
+            onClick={handleExportCSV}
+            disabled={total === 0}
+            className="px-4 h-10 rounded-lg bg-[#475569] text-white text-[10px] font-bold uppercase tracking-wider flex items-center justify-center gap-2 hover:opacity-90 active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            <Download className="w-4 h-4" />
+            Exportar CSV
+          </button>
         </div>
 
-        {recentLogs.length > 0 ? (
+        {/* Filtros */}
+        <div className={`p-4 rounded-xl border grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 ${isDark ? 'bg-black/20 border-white/5' : 'bg-gray-50 border-gray-100'}`}>
+          <div className="space-y-1">
+            <label className="text-[9px] font-bold uppercase tracking-wider opacity-50 flex items-center gap-1">
+              <Filter className="w-3 h-3" /> Tipo de Evento
+            </label>
+            <select
+              value={filterType}
+              onChange={e => { setFilterType(e.target.value); setPage(1); }}
+              className={`w-full h-10 px-3 rounded-lg border outline-none text-xs ${isDark ? 'bg-[#1C1C1E] border-[#2C2C2E]' : 'bg-white border-gray-200'}`}
+            >
+              <option value="all">Todos os eventos</option>
+              <option value="order_cancel">Cancelamento de Pedido</option>
+              <option value="product_add">Adição de Produto</option>
+              <option value="table_reset">Reset de Mesa</option>
+              <option value="comanda_transfer">Transferência de Comanda</option>
+              <option value="login">Entrada no Sistema</option>
+            </select>
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-[9px] font-bold uppercase tracking-wider opacity-50 flex items-center gap-1">
+              <Users className="w-3 h-3" /> Colaborador
+            </label>
+            <select
+              value={filterUser}
+              onChange={e => { setFilterUser(e.target.value); setPage(1); }}
+              className={`w-full h-10 px-3 rounded-lg border outline-none text-xs ${isDark ? 'bg-[#1C1C1E] border-[#2C2C2E]' : 'bg-white border-gray-200'}`}
+            >
+              <option value="all">Todos os colaboradores</option>
+              {collaborators?.map(c => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-[9px] font-bold uppercase tracking-wider opacity-50 flex items-center gap-1">
+              <Calendar className="w-3 h-3" /> Data Inicial
+            </label>
+            <input
+              type="date"
+              value={fromDate}
+              onChange={e => { setFromDate(e.target.value); setPage(1); }}
+              className={`w-full h-10 px-3 rounded-lg border outline-none text-xs ${isDark ? 'bg-[#1C1C1E] border-[#2C2C2E]' : 'bg-white border-gray-200'}`}
+            />
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-[9px] font-bold uppercase tracking-wider opacity-50 flex items-center gap-1">
+              <Calendar className="w-3 h-3" /> Data Final
+            </label>
+            <input
+              type="date"
+              value={toDate}
+              onChange={e => { setToDate(e.target.value); setPage(1); }}
+              className={`w-full h-10 px-3 rounded-lg border outline-none text-xs ${isDark ? 'bg-[#1C1C1E] border-[#2C2C2E]' : 'bg-white border-gray-200'}`}
+            />
+          </div>
+        </div>
+
+        {/* Lista de Logs */}
+        {logs.length > 0 ? (
           <div className="space-y-3">
-            {recentLogs.map((log) => (
-              <div key={log.id} className="flex flex-col md:flex-row md:items-center justify-between gap-2 p-3 rounded bg-current/5">
+            {logs.map((log) => (
+              <div key={log.id} className={`flex flex-col md:flex-row md:items-center justify-between gap-3 p-4 rounded-xl border ${isDark ? 'bg-white/5 border-white/5' : 'bg-gray-50 border-gray-100'}`}>
                 <div className="flex items-center gap-3">
-                  <span className="text-[10px] font-bold opacity-50 uppercase">{new Date(log.timestamp).toLocaleString('pt-BR')}</span>
-                  <span className="text-[11px] font-bold">{getLogTypeDisplayName(log.type)}</span>
+                  <span className="text-[10px] font-bold opacity-50 uppercase font-mono">{new Date(log.timestamp).toLocaleString('pt-BR')}</span>
+                  <span className={`px-2.5 py-1 rounded text-[10px] font-bold uppercase tracking-wide ${
+                    log.type === 'order_cancel' ? 'bg-rose-500/10 text-rose-500 border border-rose-500/20' :
+                    log.type === 'table_reset' ? 'bg-amber-500/10 text-amber-500 border border-amber-500/20' :
+                    'bg-blue-500/10 text-blue-500 border border-blue-500/20'
+                  }`}>
+                    {getLogTypeDisplayName(log.type)}
+                  </span>
                 </div>
-                <div className="flex flex-col md:flex-row md:items-center gap-2">
-                  <span className="text-[10px] opacity-70 truncate max-w-xs">{log.detail}</span>
-                  <span className="px-2 py-0.5 rounded bg-current/10 text-[9px] font-bold uppercase">{log.userName || 'Sistema'}</span>
+                <div className="flex flex-col md:flex-row md:items-center gap-3">
+                  <span className="text-xs font-semibold opacity-80 max-w-md">{log.detail}</span>
+                  <span className="px-2.5 py-1 rounded bg-current/10 text-[10px] font-bold uppercase tracking-wider">{log.userName || 'Sistema'}</span>
                 </div>
               </div>
             ))}
+
+            {/* Paginação */}
+            {pages > 1 && (
+              <div className="flex items-center justify-between pt-4 border-t border-dashed border-current/10">
+                <span className="text-xs font-bold opacity-50 uppercase tracking-wide">
+                  Página {page} de {pages} ({total} eventos)
+                </span>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setPage(p => Math.max(1, p - 1))}
+                    disabled={page === 1}
+                    className="p-2 rounded-lg border disabled:opacity-30 disabled:cursor-not-allowed hover:bg-current/5"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => setPage(p => Math.min(pages, p + 1))}
+                    disabled={page === pages}
+                    className="p-2 rounded-lg border disabled:opacity-30 disabled:cursor-not-allowed hover:bg-current/5"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         ) : (
           <div className="p-8 rounded-lg border border-dashed text-center space-y-2">
             <Database className="w-8 h-8 opacity-20 mx-auto" />
-            <p className="text-xs font-bold uppercase tracking-wide opacity-50">Nenhuma atividade registrada neste dispositivo</p>
+            <p className="text-xs font-bold uppercase tracking-wide opacity-50">Nenhuma atividade encontrada com os filtros selecionados</p>
           </div>
         )}
       </div>

@@ -43,16 +43,17 @@ O objetivo é transformar a tela de suporte, que hoje é estática, em uma ferra
 
 ## 3. Módulo de Segurança (`Security.tsx`)
 
-Este módulo dará ao proprietário/administrador visão total do que acontece de crítico na operação, evitando fraudes e enganos.
+A central de segurança deve ir além de dados estáticos e fornecer um ambiente auditável para o proprietário/gerente do restaurante.
 
 ### Ações de Melhoria:
-- [ ] **Trilha de Auditoria (Logs Críticos):**
-  - Registrar cancelamento de pedidos no PDV.
-  - Registrar exclusão ou desconto manual forçado.
-  - Registrar alteração de status de mesas (ex: forçar liberação de mesa ocupada).
-  - Registrar acessos com horários e IPs (se disponível).
-- [ ] **Tabela de Auditoria com Filtros:**
-  - Criar uma interface para o Administrador buscar logs por data, usuário ou tipo de evento.
+- [x] **Trilha de Auditoria (Logs Críticos):**
+  - Registrar cancelamento de pedidos no PDV (`order_cancel`).
+  - Registrar adicões de produtos (`product_add`).
+  - Registrar alteração/reset de status de mesas (`table_reset`, `comanda_transfer`, `table_merge`).
+- [x] **Tabela de Auditoria com Filtros:**
+  - Interface avançada para o Administrador buscar logs por tipo de evento, colaborador ou período de datas.
+  - Paginação automática dos resultados.
+  - Botão de **Exportar CSV** para download direto do histórico do restaurante em planilha.
 - [ ] **Revogação de Dispositivos (Sessões):**
   - Permitir deslogar forçadamente outras sessões ativas caso o garçom perca o celular ou haja troca de equipe.
 

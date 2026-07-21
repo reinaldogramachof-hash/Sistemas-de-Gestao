@@ -19,6 +19,11 @@ export type View =
   | 'evolucao';
 
 export function useNavigation() {
-  const [currentView, setCurrentView] = useState<View>('dashboard');
+  const [currentView, setCurrentView] = useState<View>(() => {
+    const role = localStorage.getItem('gestao_gastro_user_role') || sessionStorage.getItem('gestao_gastro_user_role');
+    if (role === 'cashier') return 'pdv';
+    if (role === 'waiter') return 'mesas';
+    return 'dashboard';
+  });
   return { currentView, setCurrentView };
 }

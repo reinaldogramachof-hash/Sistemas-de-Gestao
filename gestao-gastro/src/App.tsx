@@ -27,14 +27,14 @@ import { OfflineStatusBanner } from './components/OfflineStatusBanner';
 
 const AppContent = () => {
   const { currentView, setCurrentView } = useNavigation();
-  const { checkAccess } = useModules();
+  const { checkAccess, currentRole } = useModules();
 
   React.useEffect(() => {
     (window as any).setCurrentGastroView = setCurrentView;
   }, [setCurrentView]);
 
   React.useEffect(() => {
-    const storedRole = sessionStorage.getItem('gestao_gastro_user_role');
+    const storedRole = localStorage.getItem('gestao_gastro_user_role') || sessionStorage.getItem('gestao_gastro_user_role');
     if (storedRole === 'waiter') {
       const clientRoute = getClientRouteFromPath(window.location.pathname);
       const targetPath = clientRoute?.comandaPath ?? '/comanda';
@@ -43,6 +43,22 @@ const AppContent = () => {
       }
     }
   }, []);
+
+  React.useEffect(() => {
+    if (!checkAccess(currentView as AppModule)) {
+      if (currentRole === 'cashier' && checkAccess('pdv')) {
+        setCurrentView('pdv');
+      } else if (currentRole === 'waiter' && checkAccess('mesas')) {
+        setCurrentView('mesas');
+      } else {
+        const fallbackModules: AppModule[] = ['pdv', 'mesas', 'cozinha', 'caixa', 'manual', 'suporte', 'evolucao'];
+        const allowed = fallbackModules.find(m => checkAccess(m));
+        if (allowed) {
+          setCurrentView(allowed as View);
+        }
+      }
+    }
+  }, [currentRole, currentView, checkAccess, setCurrentView]);
 
   const renderContent = () => {
     if (!checkAccess(currentView as AppModule)) {

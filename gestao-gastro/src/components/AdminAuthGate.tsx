@@ -146,6 +146,8 @@ export const AdminAuthGate: React.FC<AdminAuthGateProps> = ({ children }) => {
 
       sessionStorage.setItem('gestao_gastro_user_role', member.role);
       sessionStorage.setItem('gestao_gastro_user_name', userName);
+      localStorage.setItem('gestao_gastro_user_role', member.role);
+      localStorage.setItem('gestao_gastro_user_name', userName);
 
       setCurrentUser({
         id: member.user_id,

@@ -152,17 +152,17 @@ function getSaasCatalog()
                 'basic' => [
                     'name' => 'Básico',
                     'license_type' => 'monthly',
-                    'modules' => ['pdv', 'mesas_garcom_mobile', 'caixa', 'dashboard', 'cardapio', 'financeiro', 'estoque', 'manual', 'configuracao', 'suporte']
+                    'modules' => ['pdv', 'mesas_garcom_mobile', 'caixa', 'dashboard', 'cardapio', 'financeiro', 'estoque', 'manual', 'configuracao', 'suporte', 'seguranca', 'evolucao']
                 ],
                 'premium' => [
                     'name' => 'Premium',
                     'license_type' => 'monthly',
-                    'modules' => ['pdv', 'mesas_garcom_mobile', 'caixa', 'dashboard', 'cardapio', 'financeiro', 'estoque', 'manual', 'configuracao', 'suporte', 'kds', 'relatorios_avancados']
+                    'modules' => ['pdv', 'mesas_garcom_mobile', 'caixa', 'dashboard', 'cardapio', 'financeiro', 'estoque', 'manual', 'configuracao', 'suporte', 'kds', 'relatorios_avancados', 'seguranca', 'evolucao']
                 ],
                 'trial' => [
                     'name' => 'Trial',
                     'license_type' => 'trial',
-                    'modules' => ['pdv', 'mesas_garcom_mobile', 'caixa', 'dashboard', 'cardapio', 'financeiro', 'estoque', 'manual', 'configuracao', 'suporte']
+                    'modules' => ['pdv', 'mesas_garcom_mobile', 'caixa', 'dashboard', 'cardapio', 'financeiro', 'estoque', 'manual', 'configuracao', 'suporte', 'seguranca', 'evolucao']
                 ]
             ]
         ],
@@ -600,7 +600,7 @@ if ($action === 'saas_clients') {
         exit;
     }
 
-    $endpoint = '/rest/v1/tenants?select=id,name,slug,status,created_at,systems(slug,name,metadata),customers(name,email),licenses(license_key,status,license_type,payment_model,expires_at,created_at,plans(code,name)),tenant_modules(module_key,enabled)&order=created_at.desc&limit=100';
+    $endpoint = '/rest/v1/tenants?select=id,name,slug,status,created_at,systems(slug,name,metadata),customers(name,email),licenses(license_key,status,license_type,payment_model,expires_at,created_at,device_id,plans(code,name)),tenant_modules(module_key,enabled)&order=created_at.desc&limit=100';
     $res = supabase_request('GET', $endpoint);
 
     if ($res['code'] >= 400 || !empty($res['error'])) {
@@ -644,6 +644,7 @@ if ($action === 'saas_clients') {
             'license_key' => $licenseKey,
             'license_status' => $licenseStatus,
             'license_type' => $license['license_type'] ?? '',
+            'device_id' => $license['device_id'] ?? '',
             'created_at' => $tenant['created_at'] ?? '',
             'modules_count' => count(array_filter($modules, fn($module) => !empty($module['enabled']))),
             'public_link' => ($publicPath && $slug) ? rtrim($PUBLIC_BASE_URL, '/') . '/' . trim($publicPath, '/') . '/' . $slug : ''

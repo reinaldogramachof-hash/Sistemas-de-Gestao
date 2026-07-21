@@ -2970,6 +2970,9 @@
             if (res && res.success) {
                 alert('Dispositivo desvinculado!');
                 loadLicenses();
+                if (typeof loadProvisionedSaaSClients === 'function') {
+                    loadProvisionedSaaSClients();
+                }
             }
         }
 
@@ -3335,6 +3338,7 @@ Qualquer dúvida, estamos à disposição!`;
                     const systemName = client.system_name || client.system_slug || 'Sistema';
                     const planName = client.plan_name || client.plan_code || 'Sem plano';
                     const license = client.license_key || '';
+                    const deviceId = client.device_id || '';
                     const modulesCount = client.modules_count || 0;
                     const status = client.status || client.license_status || 'active';
                     const hasActiveLicense = license && status === 'active';
@@ -3357,6 +3361,13 @@ Qualquer dúvida, estamos à disposição!`;
                             </td>
                             <td class="px-5 py-4">
                                 <code class="text-xs bg-slate-100 border border-slate-200 text-slate-700 px-2 py-1 rounded">${escapeHtml(license || 'N/A')}</code>
+                                ${deviceId ? `
+                                    <div class="mt-1 flex items-center gap-1">
+                                        <span class="text-[9px] bg-amber-50 text-amber-700 border border-amber-200 rounded px-1.5 py-0.5 font-mono" title="Dispositivo Vinculado: ${escapeHtml(deviceId)}">
+                                            ID: ${escapeHtml(deviceId.substring(0, 15))}${deviceId.length > 15 ? '...' : ''}
+                                        </span>
+                                    </div>
+                                ` : ''}
                             </td>
                             <td class="px-5 py-4 text-center font-bold text-slate-700">${modulesCount}</td>
                             <td class="px-5 py-4 text-center">
@@ -3367,6 +3378,7 @@ Qualquer dúvida, estamos à disposição!`;
                                     ${publicLink ? `<a href="${escapeHtml(publicLink)}" target="_blank" class="p-2 text-slate-400 hover:text-blue-600 bg-white hover:bg-slate-100 border border-slate-200 rounded-lg" title="Abrir sistema"><i data-lucide="external-link" class="w-4 h-4"></i></a>` : ''}
                                     ${publicLink ? `<button type="button" onclick="copyToClip('${escapeHtml(publicLink)}', this)" class="p-2 text-slate-400 hover:text-blue-600 bg-white hover:bg-slate-100 border border-slate-200 rounded-lg" title="Copiar link"><i data-lucide="copy" class="w-4 h-4"></i></button>` : ''}
                                     ${license ? `<button type="button" onclick="copyToClip('${escapeHtml(license)}', this)" class="p-2 text-slate-400 hover:text-blue-600 bg-white hover:bg-slate-100 border border-slate-200 rounded-lg" title="Copiar licenca"><i data-lucide="key" class="w-4 h-4"></i></button>` : ''}
+                                    ${license && deviceId ? `<button type="button" onclick="resetDevice('${escapeHtml(license)}')" class="p-2 text-slate-400 hover:text-amber-600 bg-white hover:bg-amber-50 border border-slate-200 rounded-lg hover:border-amber-200" title="Resetar Dispositivo"><i data-lucide="refresh-cw" class="w-4 h-4"></i></button>` : ''}
                                 </div>
                             </td>
                         </tr>

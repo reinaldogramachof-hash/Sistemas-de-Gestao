@@ -11,6 +11,7 @@ export type AppModule =
   | 'colaboradores'
   | 'fornecedores'
   | 'produtos'
+  | 'notificacoes'
   | 'suporte'
   | 'configuracoes'
   | 'seguranca'
@@ -36,6 +37,7 @@ export const planMatrix: Record<PlanType, PlanConfig> = {
       'relatorios',
       'estoque',
       'manual',
+      'notificacoes',
       'configuracoes',
       'suporte',
       'seguranca',
@@ -48,7 +50,7 @@ export const planMatrix: Record<PlanType, PlanConfig> = {
       'dashboard', 'pdv', 'mesas', 'cozinha', 'estoque', 'caixa', 
       'relatorios', 'manual', 'clientes', 'colaboradores', 
       'fornecedores', 'produtos', 'suporte', 'configuracoes', 
-      'seguranca', 'evolucao'
+      'notificacoes', 'seguranca', 'evolucao'
     ]
   },
   master: {
@@ -57,7 +59,7 @@ export const planMatrix: Record<PlanType, PlanConfig> = {
       'dashboard', 'pdv', 'mesas', 'cozinha', 'estoque', 'caixa', 
       'relatorios', 'manual', 'clientes', 'colaboradores', 
       'fornecedores', 'produtos', 'suporte', 'configuracoes', 
-      'seguranca', 'evolucao'
+      'notificacoes', 'seguranca', 'evolucao'
     ]
   }
 };
@@ -87,6 +89,7 @@ export const roleModuleMatrix: Record<UserRole, AppModule[]> = {
     'cozinha',
     'caixa',
     'manual',
+    'notificacoes',
     'suporte',
     'seguranca',
     'evolucao',

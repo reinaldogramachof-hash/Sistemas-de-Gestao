@@ -1206,7 +1206,7 @@
                         </div>
                     </div>
 
-                    <button onclick="createNotification()"
+                    <button id="notif-submit-btn" onclick="createNotification()"
                         class="w-full mt-auto bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-lg shadow-lg transition-all flex items-center justify-center gap-2">
                         <i data-lucide="check" class="w-5 h-5"></i>
                         Confirmar e Enviar
@@ -2656,6 +2656,27 @@
             }
         }
 
+        // ── Toast helper local (sem refatorar o painel inteiro) ─────────
+        function adminToast(msg, type) {
+            const colors = {
+                success: 'bg-green-600',
+                error:   'bg-red-600',
+                info:    'bg-blue-600',
+                warning: 'bg-amber-500'
+            };
+            const bg = colors[type] || colors.info;
+            const el = document.createElement('div');
+            el.className = `fixed bottom-6 right-6 z-[9999] ${bg} text-white text-sm font-semibold px-5 py-3 rounded-xl shadow-xl transition-opacity duration-300`;
+            el.style.opacity = '0';
+            el.textContent = msg;
+            document.body.appendChild(el);
+            requestAnimationFrame(() => { el.style.opacity = '1'; });
+            setTimeout(() => {
+                el.style.opacity = '0';
+                setTimeout(() => el.remove(), 350);
+            }, 3500);
+        }
+
         let loadedNotifications = [];
         let filteredNotifications = [];
 
@@ -2700,7 +2721,29 @@
 
         async function loadNotifications() {
             const response = await notifAdminCall('list');
-            const list = Array.isArray(response) ? response : (response?.notifications || []);
+
+            // Detectar erro explícito ou ausência de status:success
+            if (!response || response.error || response.status !== 'success') {
+                const errMsg = response?.error || 'Resposta inesperada da API de notificações.';
+                const container = document.getElementById('notifications-list');
+                if (container) {
+                    container.innerHTML = `
+                        <div class="bg-red-50 border border-red-200 rounded-xl p-5 flex items-start gap-3">
+                            <i data-lucide="alert-triangle" class="w-5 h-5 text-red-500 shrink-0 mt-0.5"></i>
+                            <div>
+                                <p class="font-bold text-red-700 text-sm">Não foi possível carregar as notificações.</p>
+                                <p class="text-red-600 text-xs mt-1">${escapeHtml(errMsg)}</p>
+                                ${errMsg.toLowerCase().includes('forbidden') || errMsg.toLowerCase().includes('403')
+                                    ? '<p class="text-red-500 text-xs mt-1">Sessão administrativa expirada. Saia e entre novamente.</p>' : ''}
+                            </div>
+                        </div>`;
+                    lucide.createIcons();
+                }
+                // Preservar loadedNotifications anterior — não zera em falha de carregamento
+                return;
+            }
+
+            const list = Array.isArray(response) ? response : (response.notifications || []);
 
             loadedNotifications = list.map(normalizeNotificationRecord)
                 .sort((a, b) => new Date(b.published || 0) - new Date(a.published || 0));
@@ -2810,9 +2853,19 @@
             if (!confirm('Deseja excluir esta notificação?')) return;
             const res = await notifAdminCall('delete', { id });
             if (res && res.ok) {
+                adminToast('Notificação excluída.', 'success');
                 loadNotifications();
             } else {
-                alert('Erro ao excluir notificação');
+                const errMsg = res?.error || 'Erro desconhecido ao excluir.';
+                const container = document.getElementById('notifications-list');
+                if (container) {
+                    const banner = document.createElement('div');
+                    banner.className = 'bg-red-50 border border-red-200 rounded-xl p-4 flex items-center gap-3 mb-4';
+                    banner.innerHTML = `<i data-lucide="alert-triangle" class="w-4 h-4 text-red-500 shrink-0"></i><span class="text-red-700 text-sm font-semibold">${escapeHtml(errMsg)}</span>`;
+                    container.prepend(banner);
+                    lucide.createIcons();
+                    setTimeout(() => banner.remove(), 5000);
+                }
             }
         }
 
@@ -2920,10 +2973,38 @@
         async function createNotification() {
             const title = document.getElementById('notif-title').value.trim();
             const body = document.getElementById('notif-body').value.trim();
-            if (!title || !body) return alert('Título e Corpo são obrigatórios.');
+            const submitBtn = document.getElementById('notif-submit-btn');
+
+            // Helper: mostrar erro dentro do modal (sem alert)
+            function showNotifFormError(msg) {
+                let errEl = document.getElementById('notif-form-error');
+                if (!errEl) {
+                    errEl = document.createElement('div');
+                    errEl.id = 'notif-form-error';
+                    errEl.className = 'bg-red-50 border border-red-200 rounded-lg p-3 flex items-start gap-2 mt-2';
+                    const footer = submitBtn?.parentElement;
+                    if (footer) footer.prepend(errEl);
+                }
+                errEl.innerHTML = `<i data-lucide="alert-triangle" class="w-4 h-4 text-red-500 shrink-0 mt-0.5"></i><span class="text-red-700 text-sm">${escapeHtml(msg)}</span>`;
+                lucide.createIcons();
+            }
+
+            function clearNotifFormError() {
+                document.getElementById('notif-form-error')?.remove();
+            }
+
+            clearNotifFormError();
+
+            if (!title || !body) {
+                showNotifFormError('Título e Corpo são obrigatórios.');
+                return;
+            }
 
             const targetVal = document.getElementById('notif-target-select').value;
-            if (!targetVal) return alert('Selecione um sistema alvo válido.');
+            if (!targetVal) {
+                showNotifFormError('Selecione um sistema alvo válido.');
+                return;
+            }
             const targets = [targetVal];
 
             const expires = document.getElementById('notif-expires').value;
@@ -2943,12 +3024,27 @@
                 target_license: targetLicense || null
             };
 
+            // Desabilitar botão para evitar duplo envio
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.textContent = 'Enviando...';
+            }
+
             const res = await notifAdminCall('create', payload);
+
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i data-lucide="check" class="w-5 h-5"></i> Confirmar e Enviar';
+                lucide.createIcons();
+            }
+
             if (res && res.ok) {
                 document.getElementById('notif-modal').classList.add('hidden');
+                clearNotifFormError();
+                adminToast('Notificação criada com sucesso!', 'success');
                 loadNotifications();
             } else {
-                alert('Erro ao criar notificação. Detalhes: ' + (res?.error || JSON.stringify(res)));
+                showNotifFormError('Erro ao criar notificação: ' + (res?.error || JSON.stringify(res)));
             }
         }
 

@@ -45,7 +45,7 @@ export const useModules = () => {
   }, [currentEmpresa.tenantId, supabaseOnline]);
 
   const checkAccess = (module: AppModule): boolean => {
-    const isSystemModule = ['manual', 'seguranca', 'configuracoes', 'suporte', 'evolucao'].includes(module);
+    const isSystemModule = ['manual', 'notificacoes', 'seguranca', 'configuracoes', 'suporte', 'evolucao'].includes(module);
     const requiresTenantContract = isSupabaseConfigured && supabaseOnline && Boolean(currentEmpresa.tenantId) && !isSystemModule;
     const allowedByTenant = requiresTenantContract ? tenantModules?.includes(module) === true : true;
     return isModuleAllowed(module, currentPlan, currentRole) && allowedByTenant;

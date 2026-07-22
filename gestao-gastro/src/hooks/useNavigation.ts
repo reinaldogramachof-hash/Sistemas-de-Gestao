@@ -9,6 +9,7 @@ export type View =
   | 'relatorios'
   | 'configuracoes'
   | 'manual'
+  | 'notificacoes'
   | 'clientes'
   | 'colaboradores'
   | 'fornecedores'

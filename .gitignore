@@ -36,6 +36,7 @@ api_data/*.json
 !api_data/sales_transactions.json
 !api_data/team_members.json
 notifications_data.json
+!deploy_packages/atualizar_root/notifications_data.json
 api_data/debug_log.txt
 
 # Artefatos de deploy/pacotes locais

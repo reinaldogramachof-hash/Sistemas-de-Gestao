@@ -18,12 +18,12 @@ Objetivo: atualizar o Painel Admin Central e os arquivos raiz necessarios para c
 - `.htaccess`
 - `env.example`
 - `api_data/.htaccess`
+- `notifications_data.json` (**baseline vazio** `[]` — ver nota abaixo)
 
 ## Itens que nao entram no pacote
 
 - `.env` real do servidor.
 - Arquivos JSON reais de `api_data/`, incluindo licencas, logs, vendas, cupons e historicos.
-- `notifications_data.json` local.
 - Arquivos de desenvolvimento, `.git`, `node_modules` ou fontes do frontend.
 
 ## Como subir no HostGator
@@ -68,3 +68,10 @@ As variaveis de Mercado Pago e SMTP podem ficar vazias durante homologacao se o 
 ## Cuidado importante
 
 Nao sobrescreva `api_data/database_licenses_secure.json` em producao. Esse arquivo guarda licencas reais. O pacote leva apenas a protecao `.htaccess` da pasta.
+
+## Nota sobre notifications_data.json
+
+O pacote inclui `notifications_data.json` com conteudo `[]` (baseline vazio). Isso e intencional:
+- Em servidor novo: o arquivo sera criado com array vazio e pronto para uso.
+- Em servidor existente com dados reais: **preserve o arquivo existente** — nao sobrescreva com o baseline.
+- O arquivo contem notificacoes de producao criadas via painel admin. Sobrescrever apagaria todas as notificacoes ativas.

@@ -10,6 +10,7 @@ import { Stock } from './components/Stock';
 import { Cashier } from './components/Cashier';
 import { Reports } from './components/Reports';
 import { UserManual } from './components/UserManual';
+import { Notifications } from './components/Notifications';
 import { Tables } from './components/Tables';
 import { Customers } from './components/Customers';
 import { Collaborators } from './components/Collaborators';
@@ -51,7 +52,7 @@ const AppContent = () => {
       } else if (currentRole === 'waiter' && checkAccess('mesas')) {
         setCurrentView('mesas');
       } else {
-        const fallbackModules: AppModule[] = ['pdv', 'mesas', 'cozinha', 'caixa', 'manual', 'suporte', 'evolucao'];
+        const fallbackModules: AppModule[] = ['pdv', 'mesas', 'cozinha', 'caixa', 'manual', 'notificacoes', 'suporte', 'evolucao'];
         const allowed = fallbackModules.find(m => checkAccess(m));
         if (allowed) {
           setCurrentView(allowed as View);
@@ -80,6 +81,7 @@ const AppContent = () => {
       case 'caixa': return <Cashier />;
       case 'relatorios': return <Reports />;
       case 'manual': return <UserManual />;
+      case 'notificacoes': return <Notifications />;
       case 'clientes': return <Customers />;
       case 'colaboradores': return <Collaborators />;
       case 'fornecedores': return <Suppliers />;

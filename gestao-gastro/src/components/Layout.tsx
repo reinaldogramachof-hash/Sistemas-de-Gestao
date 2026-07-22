@@ -10,6 +10,7 @@ import {
   Wallet,
   LineChart,
   Settings,
+  Bell,
   Moon,
   Sun,
   ChevronLeft,
@@ -27,6 +28,7 @@ import {
   LogOut
 } from 'lucide-react';
 import { isSupabaseConfigured, supabase } from '../lib/supabase';
+import { useSystemNotifications } from '../hooks/useSystemNotifications';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface LayoutProps {
@@ -58,6 +60,7 @@ const DateTimeDisplay = () => {
 export const Layout: React.FC<LayoutProps> = ({ currentView, setCurrentView, children }) => {
   const { theme, setTheme, cashierSession, currentUser, draftOrder, clearDraftOrder, supabaseOnline, requestConfirm } = useApp();
   const { checkAccess } = useModules();
+  const { unreadCount } = useSystemNotifications();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [showInstallBtn, setShowInstallBtn] = useState(false);
@@ -152,6 +155,7 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setCurrentView, chi
       title: 'Sistema',
       items: [
         { id: 'manual',        icon: HelpCircle,      label: 'Manual de Uso' },
+        { id: 'notificacoes',  icon: Bell,            label: 'Notificações'  },
         { id: 'seguranca',     icon: Shield,          label: 'Segurança'    },
         { id: 'configuracoes', icon: Settings,        label: 'Configurações'},
         { id: 'suporte',       icon: Headphones,      label: 'Suporte'      },
@@ -221,6 +225,11 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setCurrentView, chi
                         >
                           <div className="relative">
                             <Icon className={`w-4 h-4 flex-shrink-0 ${active ? 'opacity-100' : 'opacity-50 group-hover:opacity-80'}`} />
+                            {item.id === 'notificacoes' && unreadCount > 0 && (
+                              <span className="absolute -right-2 -top-2 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-red-500 px-0.5 text-[8px] font-black leading-none text-white">
+                                {unreadCount > 9 ? '9+' : unreadCount}
+                              </span>
+                            )}
                           </div>
                           {!isCollapsed && (
                             <div className="flex-1 flex items-center justify-between overflow-hidden">
@@ -303,6 +312,21 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setCurrentView, chi
                     className={`hidden sm:flex items-center gap-2 px-3 h-8 rounded-control bg-accent text-white text-[10px] font-bold uppercase tracking-wide transition-all`}
                   >
                     <Monitor className="w-3.5 h-3.5" /> Instalar
+                  </button>
+                )}
+                {checkAccess('notificacoes') && (
+                  <button
+                    onClick={() => setCurrentView('notificacoes')}
+                    className={`relative p-2 rounded-control transition-all ${currentView === 'notificacoes' ? 'bg-accent text-white' : isDark ? 'bg-white/5 text-white/70 hover:bg-white/10' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                    aria-label={unreadCount > 0 ? `Notificações: ${unreadCount} não lida(s)` : 'Notificações'}
+                    title="Notificações"
+                  >
+                    <Bell className="w-4 h-4" />
+                    {unreadCount > 0 && (
+                      <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-black leading-none text-white">
+                        {unreadCount > 9 ? '9+' : unreadCount}
+                      </span>
+                    )}
                   </button>
                 )}
                 <button

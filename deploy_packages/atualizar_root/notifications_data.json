@@ -1,1 +1,59 @@
-[]
+[
+    {
+        "id": "notif_20260404_y1rt",
+        "type": "update",
+        "priority": "normal",
+        "title": "Novo Canal Direto: Conheça sua Central de Notificações! 🚀",
+        "body": "Olá! Adicionamos este novo \"sininho\" no topo do seu sistema para melhorar nossa comunicação. A partir de hoje, você receberá dicas exclusivas, avisos de atualizações e lembretes importantes de segurança diretamente aqui.",
+        "details": "Como vai funcionar? Sempre que houver uma atualização no seu sistema, o lançamento de alguma funcionalidade inédita, ou avisos urgentes sobre backups e segurança tecnológica, uma bolinha avisará você neste sino.\n\nAs notificações ficam salvas aqui para você ler quando tiver tempo e, caso clique em \"Marcar como Lida\", ela ficará transparente demonstrando que você já está ciente. Obrigado pela parceria de sempre e bons negócios! ✅",
+        "published": "2026-04-04T00:18:43.852Z",
+        "expires": null,
+        "targets": [
+            "barbearia"
+        ],
+        "version": "7.2"
+    },
+    {
+        "id": "notif_20260405_10dv",
+        "type": "update",
+        "priority": "high",
+        "title": "NOVO MÓDULO - PDV",
+        "body": "Olá! Temos novidades que vocês mesmos pediram. 🎉\n\nEsta atualização foi construída a partir das sugestões enviadas diretamente por vocês, nossos clientes. Cada melhoria abaixo surgiu de um feedback real — obrigado pela confiança e por nos ajudar a evoluir o sistema.\n\nO que muda na versão 7.2 Pro\nPDV — Caixa Balcão (novo módulo)\nO módulo de venda direta ganhou recursos profissionais completos:\n\nAtribuição de profissional responsável pela venda — a comissão é calculada automaticamente pelo percentual individual de cada barbeiro\nAs comissões de vendas PDV agora aparecem unificadas com as de atendimentos no card do profissional. Um único clique em \"Pagar Comissão\" quita tudo\nSuporte a venda Fiado: o produto sai do estoque, a dívida fica registrada no cadastro do cliente e o caixa só é atualizado no momento da quitação\nAlerta automático de estoque mínimo ao finalizar cada venda — produtos esgotados ficam bloqueados na grade automaticamente\nMódulo Clientes — Gestão de Fiado\n\nO card do cliente agora exibe o saldo devedor em aberto com o botão Quitar Dívida\nAo quitar, o valor entra no caixa do dia e as comissões do profissional são liberadas instantaneamente\nO histórico do cliente distingue visualmente transações pagas de pendências em aberto\nFinanceiro\n\nTransações Fiado recebem destaque visual (badge vermelho) na lista — impossível confundir com receita efetiva do caixa\nManual do Usuário",
+        "details": "Nova seção dedicada ao PDV com fluxo passo a passo, explicação de Fiado e alertas de estoque\nFAQ expandido com as perguntas mais frequentes sobre comissões e PDV\nChecklist de rotina atualizado com tarefas de controle de estoque e gestão de fiados",
+        "published": "2026-04-05T20:21:13.479Z",
+        "expires": "2027-04-05T23:30:00.000Z",
+        "targets": [
+            "all"
+        ],
+        "version": "7.2"
+    },
+    {
+        "id": "notif_20260405_6ug4",
+        "type": "update",
+        "priority": "normal",
+        "title": "🚀 NOVIDADES NO SISTEMA: CONEXÃO CRM & NOVO DASHBOARD!",
+        "body": "O sistema acaba de ganhar superpoderes para facilitar sua gestão no balcão e no planejamento financeiro. Confira o que preparamos:\n\n✅ AGENDAMENTO ULTRA-RÁPIDO: Agora você pode agendar clientes diretamente da lista de Clientes! Basta um clique no novo ícone de calendário e o nome já vem preenchido.\n\n✅ FICHA CRM COMPLETA: Quer saber quem é fiel à sua barbearia? Ao ver os detalhes de um cliente, agora você tem o resumo financeiro dele: Total Gasto, Frequência de Visitas e Ticket Médio.\n\n✅ GESTÃO DE FIADO: Ficou muito mais fácil cobrar e receber! Filtre os clientes com dívidas e dê baixa em todas as pendências financeiras de uma só vez direto na ficha dele.\n\n✅ DASHBOARD \"TENDÊNCIA SEMANAL\": Nosso gráfico evoluiu! Acompanhe sua evolução semanal com um design moderno de barras. Passe o mouse para ver os valores cravados e identifique seus dias de maior pico em segundos.\n\n✅ CORREÇÃO DE DATA: Corrigimos o fuso horário para que seus agendamentos e faturamentos apareçam sempre na data corretinha, sem atrasos.\n\nAproveite essas melhorias para decolar o faturamento da sua barbearia! 💈✨",
+        "details": "",
+        "published": "2026-04-05T23:32:56.888Z",
+        "expires": null,
+        "targets": [
+            "barbearia"
+        ],
+        "version": "7.2"
+    },
+    {
+        "id": "notif_20260706_fllk",
+        "type": "update",
+        "priority": "normal",
+        "title": "NOVAS FUNCIONALIDADES",
+        "body": "tes teste",
+        "details": "",
+        "published": "2026-07-06T21:52:29.191Z",
+        "expires": null,
+        "targets": [
+            "beleza"
+        ],
+        "version": "",
+        "target_license": "MSTR-9B36-CFD1-1C1F"
+    }
+]

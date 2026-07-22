@@ -92,13 +92,7 @@ function normalizeTenantSlugValue($slug)
 
 function resolveKnownTenantId($slug)
 {
-    $normalized = normalizeTenantSlugValue($slug);
-    $knownTenants = [
-        'cantinhodaresenha' => 'cd8f21f4-73a1-4c87-a385-9b6deacaeae7',
-        'cantinho-da-resenha' => 'cd8f21f4-73a1-4c87-a385-9b6deacaeae7'
-    ];
-
-    return $knownTenants[$normalized] ?? null;
+    return null;
 }
 
 function getLicenseTenantId(array $license)
@@ -128,6 +122,9 @@ function supabaseLicenseRequest($method, $endpoint, $body = null)
         }
     } elseif ($method !== 'GET') {
         curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $method);
+        if ($body !== null) {
+            curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($body));
+        }
     }
 
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -151,11 +148,47 @@ function supabaseLicenseRequest($method, $endpoint, $body = null)
 function findSaasLicense($key, $requestEmail = '', $requestTenantId = '', $requestTenantSlug = '')
 {
     $safeKey = rawurlencode((string)$key);
-    $endpoint = '/rest/v1/licenses?select=license_key,status,expires_at,license_type,tenant_id,activation_email,metadata,plans(code),tenants(slug,name),customers(email,name)&license_key=eq.' . $safeKey . '&limit=1';
+    $endpoint = '/rest/v1/licenses?select=license_key,status,expires_at,license_type,tenant_id,activation_email,max_devices,device_id,activated_at,last_verified_at,metadata,plans(code),tenants(slug,name),customers(email,name)&license_key=eq.' . $safeKey . '&limit=1';
     $res = supabaseLicenseRequest('GET', $endpoint);
 
-    if ($res['code'] !== 200 || empty($res['data'][0])) {
-        return null;
+    // 1. Identificar se o erro é Upstream ou Configuração
+    if ($res['code'] !== 200) {
+        $code = $res['code'];
+        $err = (isset($res['error']) && trim((string)$res['error']) !== '') ? $res['error'] : ((isset($res['raw']) && trim((string)$res['raw']) !== '') ? $res['raw'] : '');
+
+        if ($code === 0 || $code >= 500) {
+            addLog("SaaS upstream_error: Indisponibilidade do Supabase. HTTP $code. Erro: $err", 'error');
+            return [
+                'result' => 'upstream_error',
+                'code' => $code,
+                'error' => $err
+            ];
+        } else {
+            addLog("SaaS configuration_error: Falha de requisicao/credencial. HTTP $code. Erro: $err", 'error');
+            return [
+                'result' => 'configuration_error',
+                'code' => $code,
+                'error' => $err
+            ];
+        }
+    }
+
+    // 1.1 Tratar caso de HTTP 200 com JSON inválido (resposta upstream inválida)
+    if ($res['data'] === null) {
+        $err = (isset($res['raw']) && trim((string)$res['raw']) !== '') ? $res['raw'] : 'Invalid JSON';
+        addLog("SaaS upstream_error: Resposta do Supabase nao e um JSON valido. Raw: " . trim($err), 'error');
+        return [
+            'result' => 'upstream_error',
+            'code' => 200,
+            'error' => 'Invalid JSON from Supabase'
+        ];
+    }
+
+    // 2. HTTP 200 com array vazio: licença realmente inexistente
+    if (empty($res['data'][0])) {
+        return [
+            'result' => 'not_found'
+        ];
     }
 
     $license = $res['data'][0];
@@ -168,33 +201,192 @@ function findSaasLicense($key, $requestEmail = '', $requestTenantId = '', $reque
     $tenant = $license['tenants'] ?? [];
     $tenantSlug = trim((string)($tenant['slug'] ?? ''));
 
-    if ($requestTenantId !== '' && !hash_equals(strtolower($tenantId), strtolower(trim((string)$requestTenantId)))) {
-        return null;
-    }
-
+    // 3. Divergência de Tenant
     if ($requestTenantSlug !== '' && !hash_equals(normalizeTenantSlugValue($tenantSlug), normalizeTenantSlugValue($requestTenantSlug))) {
-        return null;
+        return [
+            'result' => 'identity_mismatch',
+            'detail' => 'Tenant slug mismatch'
+        ];
     }
 
+    if ($requestTenantSlug === '' && $requestTenantId !== '' && !hash_equals(strtolower($tenantId), strtolower(trim((string)$requestTenantId)))) {
+        return [
+            'result' => 'identity_mismatch',
+            'detail' => 'Tenant ID mismatch'
+        ];
+    }
+
+    // 4. Divergência de E-mail
     $customer = $license['customers'] ?? [];
     $licenseEmail = strtolower(trim((string)($license['activation_email'] ?? $customer['email'] ?? '')));
     $requestEmailNormalized = strtolower(trim((string)$requestEmail));
     if ($requestEmailNormalized !== '' && $licenseEmail !== '' && !hash_equals($licenseEmail, $requestEmailNormalized)) {
-        return null;
+        return [
+            'result' => 'identity_mismatch',
+            'detail' => 'Email mismatch'
+        ];
     }
 
     $plan = $license['plans'] ?? [];
     $metadata = is_array($license['metadata'] ?? null) ? $license['metadata'] : [];
 
+    // 5. Sucesso (Found)
     return [
+        'result' => 'found',
         'status' => $status,
+        'license_key' => $license['license_key'] ?? $key,
         'client' => $tenant['name'] ?? $customer['name'] ?? 'Gestao Gastro',
         'tenant_id' => $tenantId,
         'tenant_slug' => $tenantSlug,
         'plan' => $plan['code'] ?? $metadata['plan_slug'] ?? 'base',
         'is_trial' => (($license['license_type'] ?? '') === 'trial'),
         'expiration_date' => $license['expires_at'] ?? null,
+        'max_devices' => $license['max_devices'] ?? null,
+        'device_id' => $license['device_id'] ?? '',
+        'activated_at' => $license['activated_at'] ?? null,
+        'last_verified_at' => $license['last_verified_at'] ?? null,
+        'metadata' => $metadata,
     ];
+}
+
+function normalizeDeviceId($device)
+{
+    return substr(preg_replace('/[^a-zA-Z0-9_.:-]/', '', trim((string)$device)), 0, 120);
+}
+
+function saasLicensePatch($licenseKey, array $payload)
+{
+    $safeKey = rawurlencode((string)$licenseKey);
+    return supabaseLicenseRequest('PATCH', '/rest/v1/licenses?license_key=eq.' . $safeKey, $payload);
+}
+
+function buildSaasDeviceMetadata(array $license, $device, $isInitialActivation = false)
+{
+    $metadata = is_array($license['metadata'] ?? null) ? $license['metadata'] : [];
+    $metadata['last_device_id'] = $device;
+    $metadata['last_ip'] = $_SERVER['REMOTE_ADDR'] ?? '';
+    $metadata['last_user_agent'] = substr($_SERVER['HTTP_USER_AGENT'] ?? '', 0, 255);
+    if ($isInitialActivation || empty($metadata['device_registered_at'])) {
+        $metadata['device_registered_at'] = gmdate('c');
+    }
+    return $metadata;
+}
+
+function registerSaasLicenseDevice(array $license, $device)
+{
+    $device = normalizeDeviceId($device);
+    if ($device === '') {
+        return ['ok' => false, 'status' => 'error', 'message' => 'Identificador do dispositivo ausente.'];
+    }
+
+    $existingDevice = normalizeDeviceId($license['device_id'] ?? '');
+    $maxDevices = (int)($license['max_devices'] ?? 1);
+    if ($maxDevices <= 0) {
+        $maxDevices = 1;
+    }
+
+    if ($existingDevice !== '' && $existingDevice !== $device) {
+        return [
+            'ok' => false,
+            'status' => 'error',
+            'message' => 'Licenca ja usada em outro aparelho. Solicite reset do dispositivo.',
+        ];
+    }
+
+    $now = gmdate('c');
+    $isInitialActivation = $existingDevice === '';
+    $payload = [
+        'device_id' => $device,
+        'last_verified_at' => $now,
+        'metadata' => buildSaasDeviceMetadata($license, $device, $isInitialActivation),
+    ];
+    if ($isInitialActivation || empty($license['activated_at'])) {
+        $payload['activated_at'] = $now;
+    }
+
+    $res = saasLicensePatch($license['license_key'], $payload);
+    if ($res['code'] < 200 || $res['code'] >= 300) {
+        addLog("Falha ao registrar dispositivo SaaS para chave {$license['license_key']}: HTTP {$res['code']}", 'error');
+        return ['ok' => false, 'status' => 'error', 'message' => 'Erro ao registrar dispositivo da licenca.'];
+    }
+
+    $license['device_id'] = $device;
+    $license['last_verified_at'] = $now;
+    $license['metadata'] = $payload['metadata'];
+    if (isset($payload['activated_at'])) {
+        $license['activated_at'] = $payload['activated_at'];
+    }
+
+    return ['ok' => true, 'license' => $license];
+}
+
+function touchSaasLicenseVerification(array $license, $device = '')
+{
+    $device = normalizeDeviceId($device);
+    $existingDevice = normalizeDeviceId($license['device_id'] ?? '');
+
+    if ($existingDevice !== '' && $device !== '' && $existingDevice !== $device) {
+        return [
+            'ok' => false,
+            'status' => 'success',
+            'license_status' => 'blocked',
+            'message' => 'Licenca ja usada em outro aparelho. Solicite reset do dispositivo.',
+        ];
+    }
+
+    if ($existingDevice === '' && $device !== '') {
+        return registerSaasLicenseDevice($license, $device);
+    }
+
+    $payload = [
+        'last_verified_at' => gmdate('c'),
+    ];
+    if ($device !== '') {
+        $payload['metadata'] = buildSaasDeviceMetadata($license, $device, false);
+    }
+
+    $res = saasLicensePatch($license['license_key'], $payload);
+    if ($res['code'] < 200 || $res['code'] >= 300) {
+        addLog("Falha ao atualizar verificacao SaaS para chave {$license['license_key']}: HTTP {$res['code']}", 'warning');
+    }
+
+    return ['ok' => true];
+}
+
+function resetSaasLicenseDevice($licenseKey)
+{
+    $saasLicense = findSaasLicense($licenseKey);
+
+    if (!$saasLicense || $saasLicense['result'] !== 'found') {
+        $errType = $saasLicense['result'] ?? 'not_found';
+        $msg = 'Chave não encontrada no banco central.';
+        if ($errType === 'upstream_error') {
+            $msg = 'Erro ao conectar ao servidor de licenças (indisponível).';
+        } elseif ($errType === 'configuration_error') {
+            $msg = 'Erro de configuração no servidor de licenças.';
+        }
+        return [
+            'ok' => false,
+            'result' => $errType,
+            'message' => $msg
+        ];
+    }
+
+    $res = saasLicensePatch($licenseKey, [
+        'device_id' => null,
+        'activated_at' => null,
+        'last_verified_at' => null,
+    ]);
+
+    if ($res['code'] < 200 || $res['code'] >= 300) {
+        return [
+            'ok' => false,
+            'result' => 'upstream_error',
+            'message' => 'Erro ao atualizar o banco central.'
+        ];
+    }
+
+    return ['ok' => true, 'result' => 'found'];
 }
 
 function buildSaasLicenseResponse(array $license, $forVerify = false)
@@ -599,6 +791,8 @@ if ($action === 'customers_summary') {
             $sysPath = 'gestao-barbearia';
         } elseif (str_contains($sysSlug, 'beleza')) {
             $sysPath = 'gestao-beleza';
+        } elseif (str_contains($sysSlug, 'assistencia')) {
+            $sysPath = 'gestao-assistencia';
         } else {
             $sysPath = $sysSlug;
         }
@@ -754,6 +948,21 @@ if ($action === 'update_status') {
         saveDB($fileLicenses, $db);
         echo json_encode(['status' => 'success', 'success' => true]);
     } else {
+        if ($status === 'reset_device') {
+            $resetResult = resetSaasLicenseDevice($key);
+            if ($resetResult['ok']) {
+                addLog("Dispositivo SaaS resetado para chave $key", 'warning');
+                echo json_encode(['status' => 'success', 'success' => true]);
+            } else {
+                if ($resetResult['result'] === 'upstream_error') {
+                    http_response_code(503);
+                } elseif ($resetResult['result'] === 'configuration_error') {
+                    http_response_code(500);
+                }
+                echo json_encode(['status' => 'error', 'message' => $resetResult['message']]);
+            }
+            exit;
+        }
         echo json_encode(['status' => 'error', 'message' => 'Chave não encontrada']);
     }
     exit;
@@ -785,6 +994,181 @@ if ($action === 'convert_trial') {
         echo json_encode(['status' => 'success', 'success' => true]);
     } else {
         echo json_encode(['status' => 'error', 'message' => 'Chave não encontrada']);
+    }
+    exit;
+}
+
+if ($action === 'register_evolution_lead') {
+    $license_key = isset($jsonData['license_key']) ? trim($jsonData['license_key']) : '';
+    $email = isset($jsonData['email']) ? trim($jsonData['email']) : '';
+    $system_id = isset($jsonData['system_id']) ? trim($jsonData['system_id']) : '';
+    $feature_key = isset($jsonData['feature_key']) ? trim($jsonData['feature_key']) : '';
+    $feature_title = isset($jsonData['feature_title']) ? trim($jsonData['feature_title']) : '';
+    $source = isset($jsonData['source']) ? trim($jsonData['source']) : 'evolution_module';
+
+    if (empty($system_id) || empty($feature_key)) {
+        echo json_encode(['status' => 'error', 'message' => 'Campos obrigatórios ausentes']);
+        exit;
+    }
+
+    $allowed_systems = ['gestao-assistencia', 'gestao-barbearia', 'gestao-beleza'];
+    if (!in_array($system_id, $allowed_systems)) {
+        echo json_encode(['status' => 'error', 'message' => 'Sistema inválido']);
+        exit;
+    }
+
+    $fileEvolutionLeads = 'api_data/evolution_leads.json';
+    $leads = getDB($fileEvolutionLeads);
+
+    $found = false;
+    foreach ($leads as &$lead) {
+        $matchEmail = (!empty($email) && !empty($lead['email']) && strtolower($lead['email']) === strtolower($email));
+        $matchLicense = (!empty($license_key) && !empty($lead['license_key']) && strtolower($lead['license_key']) === strtolower($license_key));
+        if (($matchEmail || $matchLicense) && $lead['system_id'] === $system_id && $lead['feature_key'] === $feature_key) {
+            $found = true;
+            $lead['count'] = (isset($lead['count']) ? (int)$lead['count'] : 1) + 1;
+            $lead['last_interaction'] = date('Y-m-d H:i:s');
+            if (empty($lead['email']) && !empty($email)) $lead['email'] = $email;
+            if (empty($lead['license_key']) && !empty($license_key)) $lead['license_key'] = $license_key;
+            break;
+        }
+    }
+
+    if (!$found) {
+        $leads[] = [
+            'license_key' => $license_key,
+            'email' => $email,
+            'system_id' => $system_id,
+            'feature_key' => $feature_key,
+            'feature_title' => $feature_title,
+            'source' => $source,
+            'created_at' => date('Y-m-d H:i:s'),
+            'last_interaction' => date('Y-m-d H:i:s'),
+            'count' => 1,
+            'status' => 'novo'
+        ];
+    }
+
+    saveDB($fileEvolutionLeads, $leads);
+
+    if (empty($license_key) && empty($email)) {
+        echo json_encode(['status' => 'success', 'message' => 'Interesse registrado (sem identificação local)']);
+    } else {
+        echo json_encode(['status' => 'success', 'message' => 'Interesse registrado com sucesso']);
+    }
+    exit;
+}
+
+if ($action === 'list_evolution_leads') {
+    if (!validateSecret($jsonData, $ADMIN_SECRET)) {
+        http_response_code(403);
+        exit;
+    }
+    $fileEvolutionLeads = 'api_data/evolution_leads.json';
+    $leads = getDB($fileEvolutionLeads);
+
+    usort($leads, function($a, $b) {
+        return strcmp($b['last_interaction'] ?? '', $a['last_interaction'] ?? '');
+    });
+
+    echo json_encode(['status' => 'success', 'leads' => $leads]);
+    exit;
+}
+
+if ($action === 'update_evolution_lead_status') {
+    if (!validateSecret($jsonData, $ADMIN_SECRET)) {
+        http_response_code(403);
+        exit;
+    }
+    $email = isset($jsonData['email']) ? trim($jsonData['email']) : '';
+    $license_key = isset($jsonData['license_key']) ? trim($jsonData['license_key']) : '';
+    $system_id = isset($jsonData['system_id']) ? trim($jsonData['system_id']) : '';
+    $feature_key = isset($jsonData['feature_key']) ? trim($jsonData['feature_key']) : '';
+    $status = isset($jsonData['status']) ? trim($jsonData['status']) : '';
+
+    $allowedStatuses = ['novo', 'contatado', 'proposta_enviada', 'convertido', 'perdido', 'descartado'];
+    if (!in_array($status, $allowedStatuses)) {
+        echo json_encode(['status' => 'error', 'message' => 'Status inválido']);
+        exit;
+    }
+
+    $fileEvolutionLeads = 'api_data/evolution_leads.json';
+    $leads = getDB($fileEvolutionLeads);
+
+    $updated = false;
+    foreach ($leads as &$lead) {
+        $matchEmail = (!empty($email) && !empty($lead['email']) && strtolower($lead['email']) === strtolower($email));
+        $matchLicense = (!empty($license_key) && !empty($lead['license_key']) && strtolower($lead['license_key']) === strtolower($license_key));
+        if (($matchEmail || $matchLicense) && $lead['system_id'] === $system_id && $lead['feature_key'] === $feature_key) {
+            $lead['status'] = $status;
+            $lead['last_interaction'] = date('Y-m-d H:i:s');
+            $updated = true;
+            break;
+        }
+    }
+
+    if ($updated) {
+        saveDB($fileEvolutionLeads, $leads);
+        echo json_encode(['status' => 'success', 'success' => true]);
+    } else {
+        echo json_encode(['status' => 'error', 'message' => 'Lead de evolução não encontrado']);
+    }
+    exit;
+}
+
+if ($action === 'update_evolution_lead_fields') {
+    if (!validateSecret($jsonData, $ADMIN_SECRET)) {
+        http_response_code(403);
+        exit;
+    }
+    $email = isset($jsonData['email']) ? trim($jsonData['email']) : '';
+    $license_key = isset($jsonData['license_key']) ? trim($jsonData['license_key']) : '';
+    $system_id = isset($jsonData['system_id']) ? trim($jsonData['system_id']) : '';
+    $feature_key = isset($jsonData['feature_key']) ? trim($jsonData['feature_key']) : '';
+
+    if (isset($jsonData['status'])) {
+        $status = trim($jsonData['status']);
+        $allowedStatuses = ['novo', 'contatado', 'proposta_enviada', 'convertido', 'perdido', 'descartado'];
+        if (!in_array($status, $allowedStatuses)) {
+            echo json_encode(['status' => 'error', 'message' => 'Status inválido']);
+            exit;
+        }
+    }
+
+    $fileEvolutionLeads = 'api_data/evolution_leads.json';
+    $leads = getDB($fileEvolutionLeads);
+
+    $updated = false;
+    foreach ($leads as &$lead) {
+        $matchEmail = (!empty($email) && !empty($lead['email']) && strtolower($lead['email']) === strtolower($email));
+        $matchLicense = (!empty($license_key) && !empty($lead['license_key']) && strtolower($lead['license_key']) === strtolower($license_key));
+        if (($matchEmail || $matchLicense) && $lead['system_id'] === $system_id && $lead['feature_key'] === $feature_key) {
+            if (isset($jsonData['status'])) {
+                $lead['status'] = trim($jsonData['status']);
+            }
+            if (isset($jsonData['notes'])) {
+                $lead['notes'] = trim($jsonData['notes']);
+            }
+            if (isset($jsonData['next_contact_at'])) {
+                $lead['next_contact_at'] = trim($jsonData['next_contact_at']);
+            }
+            if (isset($jsonData['contact_channel'])) {
+                $lead['contact_channel'] = trim($jsonData['contact_channel']);
+            }
+            if (isset($jsonData['owner'])) {
+                $lead['owner'] = trim($jsonData['owner']);
+            }
+            $lead['last_interaction'] = date('Y-m-d H:i:s');
+            $updated = true;
+            break;
+        }
+    }
+
+    if ($updated) {
+        saveDB($fileEvolutionLeads, $leads);
+        echo json_encode(['status' => 'success', 'success' => true]);
+    } else {
+        echo json_encode(['status' => 'error', 'message' => 'Lead de evolução não encontrado']);
     }
     exit;
 }
@@ -1007,10 +1391,38 @@ if ($action === 'activate') {
             $jsonData['tenant_slug'] ?? ''
         );
 
-        if ($saasLicense && $saasLicense['status'] === 'active') {
-            addLog("Sucesso: Chave SaaS $key validada para tenant " . $saasLicense['tenant_id'], 'info');
+        if ($saasLicense && $saasLicense['result'] === 'upstream_error') {
+            http_response_code(503);
+            echo json_encode(['status' => 'error', 'message' => 'Servico de licenças temporariamente indisponível.']);
+            exit;
+        }
+
+        if ($saasLicense && $saasLicense['result'] === 'configuration_error') {
+            http_response_code(500);
+            echo json_encode(['status' => 'error', 'message' => 'Erro interno de configuração de licenças.']);
+            exit;
+        }
+
+        if ($saasLicense && $saasLicense['result'] === 'identity_mismatch') {
+            echo json_encode(['status' => 'error', 'message' => 'Licenca nao pertence a este restaurante ou e-mail incorreto.']);
+            exit;
+        }
+
+        if ($saasLicense && $saasLicense['result'] === 'found' && $saasLicense['status'] === 'active') {
+            $deviceRegistration = registerSaasLicenseDevice($saasLicense, $device);
+            if (!$deviceRegistration['ok']) {
+                addLog("Falha: Chave SaaS $key tentou ativar dispositivo invalido ou divergente", 'warning');
+                echo json_encode([
+                    'status' => $deviceRegistration['status'],
+                    'message' => $deviceRegistration['message']
+                ]);
+                exit;
+            }
+
+            $saasLicense = $deviceRegistration['license'];
+            addLog("Sucesso: Chave SaaS $key validada para tenant " . $saasLicense['tenant_id'] . " no device $device", 'info');
             echo json_encode(buildSaasLicenseResponse($saasLicense, false));
-        } elseif ($saasLicense && $saasLicense['status'] === 'expired') {
+        } elseif ($saasLicense && $saasLicense['result'] === 'found' && $saasLicense['status'] === 'expired') {
             echo json_encode(['status' => 'expired', 'message' => 'Periodo de teste expirado.']);
         } else {
             addLog("Falha: Tentativa de ativacao com chave invalida $key", 'error');
@@ -1057,7 +1469,36 @@ if ($action === 'verify') {
             $jsonData['tenant_slug'] ?? ''
         );
 
-        if ($saasLicense) {
+        if ($saasLicense && $saasLicense['result'] === 'upstream_error') {
+            http_response_code(503);
+            echo json_encode(['status' => 'error', 'message' => 'Servico de licenças temporariamente indisponível.']);
+            exit;
+        }
+
+        if ($saasLicense && $saasLicense['result'] === 'configuration_error') {
+            http_response_code(500);
+            echo json_encode(['status' => 'error', 'message' => 'Erro interno de configuração de licenças.']);
+            exit;
+        }
+
+        if ($saasLicense && $saasLicense['result'] === 'identity_mismatch') {
+            echo json_encode(['status' => 'error', 'message' => 'Licenca nao pertence a este restaurante ou e-mail incorreto.']);
+            exit;
+        }
+
+        if ($saasLicense && $saasLicense['result'] === 'found') {
+            if ($saasLicense['status'] === 'active') {
+                $verification = touchSaasLicenseVerification($saasLicense, $device);
+                if (!$verification['ok']) {
+                    echo json_encode([
+                        'status' => $verification['status'],
+                        'license_status' => $verification['license_status'],
+                        'message' => $verification['message']
+                    ]);
+                    exit;
+                }
+            }
+
             echo json_encode(buildSaasLicenseResponse($saasLicense, true));
         } else {
             echo json_encode(['status' => 'error', 'message' => 'Licenca nao encontrada']);

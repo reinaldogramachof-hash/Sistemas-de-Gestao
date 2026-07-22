@@ -135,15 +135,10 @@ function supabase_admin_request($method, $endpoint, $body = null)
 
     $headers = [
         "apikey: $SUPABASE_KEY",
+        "Authorization: Bearer $SUPABASE_KEY",
         'Content-Type: application/json'
     ];
-
-    // Chaves sb_secret atuais nao sao JWTs: elas devem seguir apenas no apikey.
-    // A chave service_role legada continua exigindo Authorization para bypass de RLS.
-    if (!str_starts_with($SUPABASE_KEY, 'sb_secret_')) {
-        $headers[] = "Authorization: Bearer $SUPABASE_KEY";
-    }
-    if (in_array($method, ['POST', 'PATCH'], true)) {
+    if (in_array($method, ['POST', 'PATCH', 'PUT'], true)) {
         $headers[] = 'Prefer: return=representation';
     }
 
@@ -154,6 +149,62 @@ function supabase_admin_request($method, $endpoint, $body = null)
         'error' => $result['error'],
         'raw' => $result['raw']
     ];
+}
+
+function sanitize_audit_metadata($metadata)
+{
+    if (!is_array($metadata)) return [];
+
+    $safe = [];
+    $blocked = '/password|token|secret|license|email|phone|name|description|observation|customer|item|address/i';
+    foreach (array_slice($metadata, 0, 20, true) as $key => $value) {
+        $key = substr(preg_replace('/[^a-z0-9_.-]/i', '_', (string)$key), 0, 48);
+        if ($key === '' || preg_match($blocked, $key)) continue;
+        if (is_bool($value) || is_int($value) || is_float($value)) {
+            $safe[$key] = $value;
+        } elseif (is_string($value)) {
+            $safe[$key] = substr($value, 0, 120);
+        }
+    }
+    return $safe;
+}
+
+function write_saas_audit($actorUserId, $tenantId, $action, array $payload = [])
+{
+    $safeAction = preg_replace('/[^a-z0-9_.-]/i', '_', substr((string)$action, 0, 80));
+    $correlationId = trim((string)($payload['correlation_id'] ?? ''));
+    $safePayload = [
+        'correlation_id' => substr($correlationId !== '' ? $correlationId : bin2hex(random_bytes(8)), 0, 64),
+        'metadata' => sanitize_audit_metadata($payload['metadata'] ?? []),
+    ];
+    $tenant = supabase_admin_request('GET', '/rest/v1/tenants?select=customer_id,system_id&id=eq.' . urlencode($tenantId) . '&limit=1');
+    $tenantRow = ($tenant['code'] === 200 && !empty($tenant['data'][0])) ? $tenant['data'][0] : [];
+    return supabase_admin_request('POST', '/rest/v1/saas_audit_logs', [
+        'actor_user_id' => $actorUserId,
+        'action' => $safeAction,
+        'customer_id' => $tenantRow['customer_id'] ?? null,
+        'tenant_id' => $tenantId,
+        'system_id' => $tenantRow['system_id'] ?? null,
+        'payload' => $safePayload,
+    ]);
+}
+
+function is_valid_private_lan_origin($origin)
+{
+    if ($origin === '') return true;
+    $parts = parse_url($origin);
+    if (!is_array($parts)) return false;
+    if (!in_array($parts['scheme'] ?? '', ['http', 'https'], true)) return false;
+    if (!isset($parts['host'], $parts['port']) || isset($parts['user']) || isset($parts['pass'])) return false;
+    if (($parts['path'] ?? '') !== '' || isset($parts['query']) || isset($parts['fragment'])) return false;
+
+    $host = (string)$parts['host'];
+    $port = (int)$parts['port'];
+    if ($port < 1 || $port > 65535 || filter_var($host, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4) === false) return false;
+
+    return preg_match('/^10\./', $host) === 1
+        || preg_match('/^192\.168\./', $host) === 1
+        || preg_match('/^172\.(1[6-9]|2\d|3[01])\./', $host) === 1;
 }
 
 // VALIDA TOKEN JWT DO USUÁRIO LOGADO
@@ -191,7 +242,7 @@ function get_member_role($userId, $tenantId) {
 function count_active_owners($tenantId) {
     if (!$tenantId) return 0;
 
-    $endpoint = '/rest/v1/tenant_members?tenant_id=eq.' . urlencode($tenantId) . '&role=eq.owner&active=eq.true&select=user_id';
+    $endpoint = '/rest/v1/tenant_members?tenant_id=eq.' . urlencode($tenantId) . '&role=eq.owner&active=eq.true&select=user_id,display_name';
     $res = supabase_admin_request('GET', $endpoint);
 
     if ($res['code'] === 200 && !empty($res['data'])) {
@@ -201,6 +252,24 @@ function count_active_owners($tenantId) {
 }
 
 // VALIDA PROVA DE LICENÇA ATIVA
+function get_auth_admin_user($userId) {
+    if (!$userId) return null;
+
+    $res = supabase_admin_request('GET', '/auth/v1/admin/users/' . urlencode($userId));
+    if ($res['code'] === 200 && !empty($res['data'])) {
+        return $res['data'];
+    }
+    return null;
+}
+
+function owner_requires_first_access($userId) {
+    $authUser = get_auth_admin_user($userId);
+    if (!$authUser) return false;
+
+    $appMetadata = is_array($authUser['app_metadata'] ?? null) ? $authUser['app_metadata'] : [];
+    return !empty($appMetadata['must_change_password']);
+}
+
 function normalizeTenantSlugValue($slug)
 {
     return preg_replace('/[^a-z0-9-]/', '', strtolower(trim((string)$slug)));
@@ -208,13 +277,7 @@ function normalizeTenantSlugValue($slug)
 
 function resolveKnownTenantId($slug)
 {
-    $normalized = normalizeTenantSlugValue($slug);
-    $knownTenants = [
-        'cantinhodaresenha' => 'cd8f21f4-73a1-4c87-a385-9b6deacaeae7',
-        'cantinho-da-resenha' => 'cd8f21f4-73a1-4c87-a385-9b6deacaeae7'
-    ];
-
-    return $knownTenants[$normalized] ?? null;
+    return null;
 }
 
 function getLicenseTenantId(array $license)
@@ -314,7 +377,7 @@ if ($action === 'get_owner_status') {
         exit;
     }
 
-    $endpoint = '/rest/v1/tenant_members?tenant_id=eq.' . urlencode($tenantId) . '&role=eq.owner&active=eq.true&select=user_id';
+    $endpoint = '/rest/v1/tenant_members?tenant_id=eq.' . urlencode($tenantId) . '&role=eq.owner&active=eq.true&select=user_id,display_name';
     $res = supabase_admin_request('GET', $endpoint);
 
     if ($res['code'] !== 200) {
@@ -323,8 +386,20 @@ if ($action === 'get_owner_status') {
         exit;
     }
 
-    $hasOwner = !empty($res['data']);
-    echo json_encode(['status' => 'success', 'has_owner' => $hasOwner]);
+    $owner = $res['data'][0] ?? null;
+    $hasOwner = !empty($owner);
+    $setupRequired = $hasOwner && owner_requires_first_access($owner['user_id'] ?? '');
+    $response = [
+        'status' => 'success',
+        'has_owner' => $hasOwner && !$setupRequired
+    ];
+    if ($setupRequired) {
+        $response['setup_required'] = true;
+    }
+    if (!empty($owner['display_name'])) {
+        $response['owner_name'] = $owner['display_name'];
+    }
+    echo json_encode($response);
     exit;
 }
 
@@ -350,9 +425,45 @@ if ($action === 'create_owner') {
     }
 
     // 1. Verifica se já existe owner ativo no tenant
-    $endpoint = '/rest/v1/tenant_members?tenant_id=eq.' . urlencode($tenantId) . '&role=eq.owner&active=eq.true&select=user_id';
+    $endpoint = '/rest/v1/tenant_members?tenant_id=eq.' . urlencode($tenantId) . '&role=eq.owner&active=eq.true&select=user_id,display_name';
     $checkOwner = supabase_admin_request('GET', $endpoint);
     if (!empty($checkOwner['data'])) {
+        $existingOwner = $checkOwner['data'][0];
+        $existingOwnerId = $existingOwner['user_id'] ?? '';
+
+        if (owner_requires_first_access($existingOwnerId)) {
+            $authUser = get_auth_admin_user($existingOwnerId);
+            $existingAppMetadata = is_array($authUser['app_metadata'] ?? null) ? $authUser['app_metadata'] : [];
+            $existingUserMetadata = is_array($authUser['user_metadata'] ?? null) ? $authUser['user_metadata'] : [];
+            $existingAppMetadata['must_change_password'] = false;
+            $existingUserMetadata['display_name'] = $name;
+
+            $updateUserRes = supabase_admin_request('PUT', '/auth/v1/admin/users/' . urlencode($existingOwnerId), [
+                'email' => $email,
+                'password' => $password,
+                'email_confirm' => true,
+                'app_metadata' => $existingAppMetadata,
+                'user_metadata' => $existingUserMetadata
+            ]);
+
+            if ($updateUserRes['code'] >= 400) {
+                http_response_code(500);
+                echo json_encode(['status' => 'error', 'message' => 'Erro ao atualizar senha do primeiro acesso.']);
+                exit;
+            }
+
+            $memberUpdateEndpoint = '/rest/v1/tenant_members?tenant_id=eq.' . urlencode($tenantId) . '&user_id=eq.' . urlencode($existingOwnerId);
+            $memberUpdateRes = supabase_admin_request('PATCH', $memberUpdateEndpoint, ['display_name' => $name]);
+            if ($memberUpdateRes['code'] >= 400) {
+                http_response_code(500);
+                echo json_encode(['status' => 'error', 'message' => 'Senha criada, mas nao foi possivel atualizar o nome administrativo.']);
+                exit;
+            }
+
+            echo json_encode(['status' => 'success', 'message' => 'Primeiro acesso configurado com sucesso!']);
+            exit;
+        }
+
         http_response_code(409);
         echo json_encode(['status' => 'error', 'message' => 'Este restaurante já possui um proprietário ativo cadastrado.']);
         exit;
@@ -435,6 +546,179 @@ if (!$authUser) {
     exit;
 }
 $adminUserId = $authUser['id'];
+
+if ($action === 'validate_member_access') {
+    $tenantId = trim($jsonData['tenant_id'] ?? '');
+    $requiredRole = trim($jsonData['required_role'] ?? '');
+
+    if (empty($tenantId)) {
+        http_response_code(400);
+        echo json_encode(['status' => 'error', 'message' => 'Tenant ID e obrigatorio.']);
+        exit;
+    }
+
+    $member = get_member_role($adminUserId, $tenantId);
+    if (!$member) {
+        http_response_code(403);
+        echo json_encode(['status' => 'error', 'message' => 'Usuario nao esta ativo neste restaurante.']);
+        exit;
+    }
+
+    if ($member['active'] !== true) {
+        write_saas_audit($adminUserId, $tenantId, 'comanda_access_denied', ['metadata' => ['reason' => 'inactive_member']]);
+        http_response_code(403);
+        echo json_encode(['status' => 'error', 'message' => 'Usuario nao esta ativo neste restaurante.']);
+        exit;
+    }
+
+    $allowedRoles = ['owner', 'admin', 'cashier', 'waiter'];
+    if (!in_array($member['role'] ?? '', $allowedRoles, true)) {
+        write_saas_audit($adminUserId, $tenantId, 'comanda_access_denied', ['metadata' => ['reason' => 'role_mismatch']]);
+        http_response_code(403);
+        echo json_encode(['status' => 'error', 'message' => 'Usuario nao possui cargo valido neste restaurante.']);
+        exit;
+    }
+
+    if ($requiredRole !== '' && $requiredRole !== 'team' && ($member['role'] ?? '') !== $requiredRole) {
+        write_saas_audit($adminUserId, $tenantId, 'comanda_access_denied', ['metadata' => ['reason' => 'role_mismatch_specific']]);
+        http_response_code(403);
+        echo json_encode(['status' => 'error', 'message' => 'Usuario nao possui o cargo especifico requerido.']);
+        exit;
+    }
+
+    echo json_encode([
+        'status' => 'success',
+        'member' => [
+            'user_id' => $adminUserId,
+            'tenant_id' => $tenantId,
+            'role' => $member['role'] ?? '',
+            'active' => (bool)($member['active'] ?? false),
+            'display_name' => $member['display_name'] ?? ''
+        ]
+    ]);
+    exit;
+}
+
+if ($action === 'get_waiter_access_settings') {
+    $tenantId = trim($jsonData['tenant_id'] ?? '');
+    $member = get_member_role($adminUserId, $tenantId);
+    if (!$tenantId || !$member || ($member['active'] ?? false) !== true) {
+        http_response_code(403);
+        echo json_encode(['status' => 'error', 'message' => 'Permissao negada.']);
+        exit;
+    }
+    $res = supabase_admin_request('GET', '/rest/v1/tenants?select=metadata&id=eq.' . urlencode($tenantId) . '&limit=1');
+    if ($res['code'] !== 200) {
+        http_response_code(503);
+        echo json_encode(['status' => 'error', 'message' => 'Configuracao temporariamente indisponivel.']);
+        exit;
+    }
+    $metadata = ($res['code'] === 200 && !empty($res['data'][0]['metadata']) && is_array($res['data'][0]['metadata'])) ? $res['data'][0]['metadata'] : [];
+    echo json_encode(['status' => 'success', 'settings' => $metadata['waiter_access'] ?? []]);
+    exit;
+}
+
+if ($action === 'save_waiter_access_settings') {
+    $tenantId = trim($jsonData['tenant_id'] ?? '');
+    $member = get_member_role($adminUserId, $tenantId);
+    if (!$tenantId || !$member || ($member['active'] ?? false) !== true || !in_array($member['role'] ?? '', ['owner', 'admin'], true)) {
+        http_response_code(403);
+        echo json_encode(['status' => 'error', 'message' => 'Apenas proprietario ou administrador pode alterar o acesso dos garçons.']);
+        exit;
+    }
+    $input = is_array($jsonData['settings'] ?? null) ? $jsonData['settings'] : [];
+    $mode = ($input['waiterAccessMode'] ?? 'local') === 'external' ? 'external' : 'local';
+    $origin = trim((string)($input['waiterLocalOrigin'] ?? ''));
+    if (strlen($origin) > 180 || !is_valid_private_lan_origin($origin)) {
+        http_response_code(400);
+        echo json_encode(['status' => 'error', 'message' => 'Endereco de rede local invalido.']);
+        exit;
+    }
+    $updated = supabase_admin_request('POST', '/rest/v1/rpc/set_tenant_waiter_access_settings', [
+        'p_tenant_id' => $tenantId,
+        'p_settings' => ['waiterAccessMode' => $mode, 'waiterLocalOrigin' => $origin],
+    ]);
+    if ($updated['code'] >= 400) {
+        http_response_code(503);
+        echo json_encode(['status' => 'error', 'message' => 'Falha ao salvar configuracao de acesso.']);
+        exit;
+    }
+    if (($updated['data'] ?? false) !== true) {
+        http_response_code(404);
+        echo json_encode(['status' => 'error', 'message' => 'Restaurante nao encontrado.']);
+        exit;
+    }
+    write_saas_audit($adminUserId, $tenantId, 'waiter_access_configuration_updated', ['metadata' => ['mode' => $mode, 'has_lan_origin' => $origin !== '']]);
+    echo json_encode(['status' => 'success']);
+    exit;
+}
+
+if ($action === 'write_audit_event') {
+    $tenantId = trim($jsonData['tenant_id'] ?? '');
+    $member = get_member_role($adminUserId, $tenantId);
+    if (!$tenantId || !$member || ($member['active'] ?? false) !== true) {
+        http_response_code(403);
+        echo json_encode(['status' => 'error', 'message' => 'Permissao negada.']);
+        exit;
+    }
+    $event = is_array($jsonData['event'] ?? null) ? $jsonData['event'] : [];
+    $actionName = 'client.' . trim((string)($event['action'] ?? 'operational_event'));
+    $metadata = is_array($event['metadata'] ?? null) ? $event['metadata'] : [];
+    write_saas_audit($adminUserId, $tenantId, $actionName, ['correlation_id' => $event['correlation_id'] ?? '', 'metadata' => $metadata]);
+    echo json_encode(['status' => 'success']);
+    exit;
+}
+
+if ($action === 'update_my_profile') {
+    $tenantId = trim($jsonData['tenant_id'] ?? '');
+    $name = trim($jsonData['name'] ?? '');
+    $phone = trim($jsonData['phone'] ?? '');
+
+    if (empty($tenantId) || empty($name)) {
+        http_response_code(400);
+        echo json_encode(['status' => 'error', 'message' => 'Tenant ID e nome sao obrigatorios.']);
+        exit;
+    }
+
+    $requester = get_member_role($adminUserId, $tenantId);
+    if (!$requester || $requester['active'] !== true) {
+        http_response_code(403);
+        echo json_encode(['status' => 'error', 'message' => 'Permissao negada.']);
+        exit;
+    }
+
+    $currentMetadata = is_array($authUser['user_metadata'] ?? null) ? $authUser['user_metadata'] : [];
+    $currentMetadata['display_name'] = $name;
+    $currentMetadata['phone'] = $phone;
+
+    $userUpdateRes = supabase_admin_request('PUT', '/auth/v1/admin/users/' . urlencode($adminUserId), [
+        'user_metadata' => $currentMetadata
+    ]);
+
+    if ($userUpdateRes['code'] >= 400) {
+        http_response_code(500);
+        echo json_encode(['status' => 'error', 'message' => 'Erro ao atualizar dados do administrador.']);
+        exit;
+    }
+
+    $memberEndpoint = '/rest/v1/tenant_members?tenant_id=eq.' . urlencode($tenantId) . '&user_id=eq.' . urlencode($adminUserId);
+    $memberUpdateRes = supabase_admin_request('PATCH', $memberEndpoint, ['display_name' => $name]);
+    if ($memberUpdateRes['code'] >= 400) {
+        http_response_code(500);
+        echo json_encode(['status' => 'error', 'message' => 'Dados do Auth atualizados, mas falha ao atualizar o vinculo administrativo.']);
+        exit;
+    }
+
+    echo json_encode([
+        'status' => 'success',
+        'message' => 'Dados do administrador atualizados com sucesso.',
+        'profile' => [
+            'name' => $name,
+            'phone' => $phone
+        ]
+    ]);
+    exit;
+}
 
 // ACTION 3: CRIA MEMBRO DA EQUIPE (RESTRITO POR CARGO)
 if ($action === 'create_member') {
@@ -549,7 +833,21 @@ if ($action === 'create_member') {
                     exit;
                 }
             }
-            // Se não tem vínculo, prossegue para criar o vínculo abaixo
+            // Se nao tem vinculo, atualiza a senha informada e prossegue para criar o vinculo abaixo.
+            $existingMetadata = is_array($existingUser['user_metadata'] ?? null) ? $existingUser['user_metadata'] : [];
+            $existingMetadata['display_name'] = $name;
+            $existingUpdateRes = supabase_admin_request('PUT', '/auth/v1/admin/users/' . urlencode($newUserId), [
+                'email' => $email,
+                'password' => $password,
+                'email_confirm' => true,
+                'user_metadata' => $existingMetadata
+            ]);
+
+            if ($existingUpdateRes['code'] >= 400) {
+                http_response_code(500);
+                echo json_encode(['status' => 'error', 'message' => 'O e-mail ja existia, mas nao foi possivel atualizar a senha de acesso.']);
+                exit;
+            }
         } else {
             // Outro erro de criação no Auth
             http_response_code($userRes['code']);
@@ -681,6 +979,164 @@ if ($action === 'toggle_member_status') {
     }
 
     echo json_encode(['status' => 'success', 'message' => 'Status do colaborador atualizado com sucesso!']);
+    exit;
+}
+
+// ACTION 5: EDITA DADOS DE ACESSO DE UM MEMBRO DE EQUIPE (RESTRITO POR CARGO)
+if ($action === 'update_member') {
+    $tenantId = trim($jsonData['tenant_id'] ?? '');
+    $targetUserId = trim($jsonData['user_id'] ?? '');
+    $name = trim($jsonData['name'] ?? '');
+    $role = trim($jsonData['role'] ?? '');
+    $active = (bool)($jsonData['active'] ?? true);
+    $password = trim($jsonData['password'] ?? '');
+
+    $allowedRoles = ['waiter', 'cashier', 'admin'];
+    if (empty($tenantId) || empty($targetUserId) || empty($name) || !in_array($role, $allowedRoles, true)) {
+        http_response_code(400);
+        echo json_encode(['status' => 'error', 'message' => 'Informe nome, funcao, tenant e colaborador validos.']);
+        exit;
+    }
+
+    if ($password !== '' && strlen($password) < 6) {
+        http_response_code(400);
+        echo json_encode(['status' => 'error', 'message' => 'A nova senha deve ter pelo menos 6 caracteres.']);
+        exit;
+    }
+
+    $requester = get_member_role($adminUserId, $tenantId);
+    if (!$requester || $requester['active'] !== true || !in_array($requester['role'], ['owner', 'admin'], true)) {
+        log_denied_attempt("Acesso negado: usuario $adminUserId tentou editar membro sem permissao ativa no tenant $tenantId.");
+        http_response_code(403);
+        echo json_encode(['status' => 'error', 'message' => 'Permissao negada para gerenciar equipe.']);
+        exit;
+    }
+
+    $target = get_member_role($targetUserId, $tenantId);
+    if (!$target) {
+        log_denied_attempt("Acesso negado: usuario $adminUserId tentou editar usuario $targetUserId fora do tenant $tenantId.");
+        http_response_code(403);
+        echo json_encode(['status' => 'error', 'message' => 'Colaborador nao encontrado neste restaurante.']);
+        exit;
+    }
+
+    if ($requester['role'] === 'admin' && in_array($target['role'], ['owner', 'admin'], true)) {
+        log_denied_attempt("Acesso negado: admin $adminUserId tentou editar {$target['role']} $targetUserId no tenant $tenantId.");
+        http_response_code(403);
+        echo json_encode(['status' => 'error', 'message' => 'Administradores nao podem editar outros administradores ou proprietarios.']);
+        exit;
+    }
+
+    if ($requester['role'] === 'admin' && $role === 'admin') {
+        log_denied_attempt("Acesso negado: admin $adminUserId tentou promover $targetUserId a admin no tenant $tenantId.");
+        http_response_code(403);
+        echo json_encode(['status' => 'error', 'message' => 'Somente proprietarios podem conceder acesso de administrador.']);
+        exit;
+    }
+
+    if ($target['role'] === 'owner' && ($role !== 'admin' || !$active) && count_active_owners($tenantId) <= 1) {
+        log_denied_attempt("Acesso negado: usuario $adminUserId tentou remover ou desativar o unico owner ativo $targetUserId no tenant $tenantId.");
+        http_response_code(400);
+        echo json_encode(['status' => 'error', 'message' => 'Nao e permitido remover ou desativar o ultimo proprietario ativo.']);
+        exit;
+    }
+
+    $authUser = get_auth_admin_user($targetUserId);
+    if (!$authUser) {
+        http_response_code(404);
+        echo json_encode(['status' => 'error', 'message' => 'Usuario de autenticacao nao encontrado.']);
+        exit;
+    }
+
+    $metadata = $authUser['user_metadata'] ?? [];
+    $metadata['display_name'] = $name;
+    $authPayload = ['user_metadata' => $metadata];
+    if ($password !== '') {
+        $authPayload['password'] = $password;
+        $authPayload['email_confirm'] = true;
+    }
+
+    $authUpdateRes = supabase_admin_request('PUT', '/auth/v1/admin/users/' . urlencode($targetUserId), $authPayload);
+    if ($authUpdateRes['code'] >= 400) {
+        http_response_code(500);
+        echo json_encode(['status' => 'error', 'message' => 'Erro ao atualizar dados de acesso do colaborador.']);
+        exit;
+    }
+
+    $memberEndpoint = '/rest/v1/tenant_members?tenant_id=eq.' . urlencode($tenantId) . '&user_id=eq.' . urlencode($targetUserId);
+    $memberPayload = [
+        'display_name' => $name,
+        'role' => $role,
+        'active' => $active
+    ];
+    $memberUpdateRes = supabase_admin_request('PATCH', $memberEndpoint, $memberPayload);
+    if ($memberUpdateRes['code'] >= 400) {
+        http_response_code(500);
+        echo json_encode(['status' => 'error', 'message' => 'Erro ao atualizar vinculo do colaborador.']);
+        exit;
+    }
+
+    echo json_encode(['status' => 'success', 'message' => 'Colaborador atualizado com sucesso!']);
+    exit;
+}
+
+// ACTION: EXCLUI MEMBRO DA EQUIPE DEFINITIVAMENTE
+if ($action === 'delete_member') {
+    $tenantId = trim($jsonData['tenant_id'] ?? '');
+    $targetUserId = trim($jsonData['user_id'] ?? '');
+
+    if (empty($tenantId) || empty($targetUserId)) {
+        http_response_code(400);
+        echo json_encode(['status' => 'error', 'message' => 'Tenant ID e User ID sao obrigatorios.']);
+        exit;
+    }
+
+    if ($adminUserId === $targetUserId) {
+        http_response_code(400);
+        echo json_encode(['status' => 'error', 'message' => 'Nao e permitido excluir a propria conta por esta via.']);
+        exit;
+    }
+
+    $requester = get_member_role($adminUserId, $tenantId);
+    if (!$requester || $requester['active'] !== true || !in_array($requester['role'], ['owner', 'admin'], true)) {
+        log_denied_attempt("Acesso negado: usuario $adminUserId tentou excluir membro sem permissao ativa no tenant $tenantId.");
+        http_response_code(403);
+        echo json_encode(['status' => 'error', 'message' => 'Permissao negada para gerenciar equipe.']);
+        exit;
+    }
+
+    $target = get_member_role($targetUserId, $tenantId);
+    if (!$target) {
+        log_denied_attempt("Acesso negado: usuario $adminUserId tentou excluir usuario $targetUserId fora do tenant $tenantId.");
+        http_response_code(403);
+        echo json_encode(['status' => 'error', 'message' => 'Colaborador nao encontrado neste restaurante.']);
+        exit;
+    }
+
+    if ($target['role'] === 'owner') {
+        log_denied_attempt("Acesso negado: usuario $adminUserId tentou excluir owner $targetUserId no tenant $tenantId.");
+        http_response_code(403);
+        echo json_encode(['status' => 'error', 'message' => 'Nao e permitido excluir o proprietario do restaurante.']);
+        exit;
+    }
+
+    if ($requester['role'] === 'admin' && $target['role'] === 'admin') {
+        log_denied_attempt("Acesso negado: admin $adminUserId tentou excluir admin $targetUserId no tenant $tenantId.");
+        http_response_code(403);
+        echo json_encode(['status' => 'error', 'message' => 'Administradores nao podem excluir outros administradores.']);
+        exit;
+    }
+
+    // Exclui do Auth. O CASCADE vai limpar de tenant_members.
+    $authDelRes = supabase_admin_request('DELETE', '/auth/v1/admin/users/' . urlencode($targetUserId));
+    if ($authDelRes['code'] >= 400) {
+        http_response_code(500);
+        echo json_encode(['status' => 'error', 'message' => 'Erro ao excluir colaborador do sistema.']);
+        exit;
+    }
+
+    write_saas_audit($adminUserId, $tenantId, 'member_deleted', ['metadata' => ['deleted_user_id' => $targetUserId, 'role' => $target['role']]]);
+    echo json_encode(['status' => 'success', 'message' => 'Colaborador excluido com sucesso.']);
     exit;
 }
 

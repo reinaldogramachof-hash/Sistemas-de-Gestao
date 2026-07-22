@@ -167,6 +167,13 @@
                     <span class="nav-text truncate">Histórico Vendas</span>
                 </button>
 
+                <button onclick="switchTab('leads')"
+                    class="nav-btn w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-400 hover:text-white hover:bg-slate-800 transition-all group"
+                    data-tab="leads" title="Leads Evolução">
+                    <i data-lucide="trending-up" class="w-5 h-5 group-hover:scale-110 transition-transform shrink-0"></i>
+                    <span class="nav-text truncate">Leads Evolução</span>
+                </button>
+
                 <div class="pt-6 pb-2 category-header">
                     <p class="px-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">Auditoria</p>
                 </div>
@@ -486,6 +493,7 @@
                                             <option value="gestao-gastro">Gestão Gastro</option>
                                             <option value="gestao-barbearia">Gestão Barbearia</option>
                                             <option value="gestao-beleza">Gestão Beleza</option>
+                                            <option value="gestao-assistencia">Gestão Assistência</option>
                                             <option value="gestao-pizzaria">Gestão Pizzaria</option>
                                             <option value="gestao-hamburgueria">Gestão Hamburgueria</option>
                                             <option value="gestao-delivery">Gestão Delivery</option>
@@ -772,6 +780,107 @@
                                     </tr>
                                 </thead>
                                 <tbody id="receipts-table" class="divide-y divide-slate-100">
+                                    <!-- Dynamic -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- LEADS TAB -->
+                <div id="tab-leads" class="tab-content hidden fade-in max-w-7xl mx-auto">
+                    <div class="flex justify-between items-center mb-6">
+                        <div>
+                            <div class="flex items-center">
+                                <h2 class="text-2xl font-bold">Leads de Evolução</h2>
+                                <span id="leads-total-count" class="bg-blue-100 text-blue-800 text-xs font-bold px-2.5 py-0.5 rounded ml-3">0</span>
+                            </div>
+                            <p class="text-slate-500 text-sm">Interesses comerciais registrados a partir do módulo Evolução nos sistemas locais.</p>
+                        </div>
+                        <div class="flex gap-2">
+                            <button onclick="loadEvolutionLeads()"
+                                class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-blue-700 flex items-center gap-2">
+                                <i data-lucide="refresh-cw" class="w-4 h-4"></i> Atualizar
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Summary Stats -->
+                    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
+                        <div class="card p-4 bg-slate-900 border border-slate-800 rounded-2xl">
+                            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Novos</p>
+                            <h3 class="text-xl font-black text-amber-500" id="leads-new-count">0</h3>
+                        </div>
+                        <div class="card p-4 bg-slate-900 border border-slate-800 rounded-2xl">
+                            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Contatados</p>
+                            <h3 class="text-xl font-black text-blue-500" id="leads-contacted-count">0</h3>
+                        </div>
+                        <div class="card p-4 bg-slate-900 border border-slate-800 rounded-2xl">
+                            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Proposta Enviada</p>
+                            <h3 class="text-xl font-black text-violet-500" id="leads-proposta-count">0</h3>
+                        </div>
+                        <div class="card p-4 bg-slate-900 border border-slate-800 rounded-2xl">
+                            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Convertidos</p>
+                            <h3 class="text-xl font-black text-emerald-500" id="leads-converted-count">0</h3>
+                        </div>
+                        <div class="card p-4 bg-slate-900 border border-slate-800 rounded-2xl">
+                            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Perdidos</p>
+                            <h3 class="text-xl font-black text-rose-500" id="leads-lost-count">0</h3>
+                        </div>
+                        <div class="card p-4 bg-slate-900 border border-slate-800 rounded-2xl">
+                            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Descartados</p>
+                            <h3 class="text-xl font-black text-slate-500" id="leads-discarded-count">0</h3>
+                        </div>
+                    </div>
+
+                    <!-- Table -->
+                    <div class="bg-white rounded-2xl border shadow-sm overflow-hidden">
+                        <div class="p-6 border-b border-slate-100 flex flex-col md:flex-row gap-4 items-center justify-between">
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-3 w-full md:w-auto flex-1">
+                                <div class="relative">
+                                    <i data-lucide="search" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                                    <input id="leads-search" type="text"
+                                        placeholder="Buscar por e-mail, licença ou recurso..."
+                                        class="w-full border border-slate-200 rounded-lg pl-10 pr-4 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500">
+                                </div>
+                                <select id="leads-system-filter"
+                                    class="border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                                    <option value="">Todos os sistemas</option>
+                                    <option value="gestao-assistencia">Gestão Assistência</option>
+                                    <option value="gestao-barbearia">Gestão Barbearia</option>
+                                    <option value="gestao-beleza">Gestão Beleza</option>
+                                </select>
+                                <select id="leads-status-filter"
+                                    class="border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                                    <option value="">Todos os status</option>
+                                    <option value="novo">Novo</option>
+                                    <option value="contatado">Contatado</option>
+                                    <option value="proposta_enviada">Proposta Enviada</option>
+                                    <option value="convertido">Convertido</option>
+                                    <option value="perdido">Perdido</option>
+                                    <option value="descartado">Descartado</option>
+                                </select>
+                            </div>
+                            <button id="leads-export-csv"
+                                class="bg-white border border-slate-200 text-slate-700 px-4 py-2 rounded-lg text-sm font-bold hover:bg-slate-50 flex items-center gap-2 w-full md:w-auto justify-center">
+                                <i data-lucide="download" class="w-4 h-4"></i> Exportar CSV
+                            </button>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left border-collapse text-sm">
+                                <thead>
+                                    <tr class="bg-slate-50 text-slate-500 font-bold border-b">
+                                        <th class="px-4 py-4 text-xs uppercase tracking-wider">Última Interação</th>
+                                        <th class="px-4 py-4 text-xs uppercase tracking-wider">Origem</th>
+                                        <th class="px-4 py-4 text-xs uppercase tracking-wider">Recurso de Interesse</th>
+                                        <th class="px-4 py-4 text-xs uppercase tracking-wider">Status</th>
+                                        <th class="px-4 py-4 text-xs uppercase tracking-wider">Responsável</th>
+                                        <th class="px-4 py-4 text-xs uppercase tracking-wider">Canal</th>
+                                        <th class="px-4 py-4 text-xs uppercase tracking-wider">Próximo Contato</th>
+                                        <th class="px-4 py-4 text-xs uppercase tracking-wider">Observações</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="leads-table" class="divide-y divide-slate-100">
                                     <!-- Dynamic -->
                                 </tbody>
                             </table>
@@ -1206,7 +1315,7 @@
                         </div>
                     </div>
 
-                    <button onclick="createNotification()"
+                    <button id="notif-submit-btn" onclick="createNotification()"
                         class="w-full mt-auto bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-lg shadow-lg transition-all flex items-center justify-center gap-2">
                         <i data-lucide="check" class="w-5 h-5"></i>
                         Confirmar e Enviar
@@ -1532,9 +1641,10 @@
 
                 const systemsArray = Array.isArray(client.systems) ? client.systems : [client.systems || 'Sistema'];
                 const systemsHtml = systemsArray.map(sys => {
-                    const catalogKey = sys.toLowerCase().includes('gastro') ? 'gestao-gastro' :
-                        (sys.toLowerCase().includes('barbearia') ? 'gestao-barbearia' :
-                            (sys.toLowerCase().includes('beleza') ? 'gestao-beleza' : 'gestao-gastro'));
+                    const catalogKey = Object.keys(SAAS_CATALOG).find(key =>
+                        sys.toLowerCase().includes(key) ||
+                        (SAAS_CATALOG[key].title && sys.toLowerCase().includes(SAAS_CATALOG[key].title.toLowerCase()))
+                    ) || 'gestao-gastro';
                     const systemMeta = SAAS_CATALOG[catalogKey];
                     const icon = systemMeta?.icon || 'layers';
                     return `
@@ -1580,9 +1690,13 @@
 
                 let systemSlug = 'gestao-gastro';
                 const actSys = client.active_system || systemsArray[0] || '';
-                if (actSys.toLowerCase().includes('gastro')) systemSlug = 'gestao-gastro';
-                else if (actSys.toLowerCase().includes('barbearia')) systemSlug = 'gestao-barbearia';
-                else if (actSys.toLowerCase().includes('beleza')) systemSlug = 'gestao-beleza';
+                const resolvedKey = Object.keys(SAAS_CATALOG).find(key =>
+                    actSys.toLowerCase().includes(key) ||
+                    (SAAS_CATALOG[key].title && actSys.toLowerCase().includes(SAAS_CATALOG[key].title.toLowerCase()))
+                );
+                if (resolvedKey) {
+                    systemSlug = resolvedKey;
+                }
                 const systemOpenUrl = link || (clientSlug ? getClientAccessLink(systemSlug, clientSlug) : '');
 
                 return `
@@ -1615,7 +1729,7 @@
                         <td class="px-6 py-4 text-right">
                             <div class="flex justify-end gap-2">
                                 ${link ? `
-                                <button onclick="copyToClip('${escapeHtml(link)}')" class="p-2 text-slate-400 hover:text-blue-600 transition-colors bg-white rounded-lg hover:bg-slate-100 border border-transparent hover:border-slate-200" title="Copiar link público">
+                                <button onclick="copyToClip('${escapeHtml(link)}', this)" class="p-2 text-slate-400 hover:text-blue-600 transition-colors bg-white rounded-lg hover:bg-slate-100 border border-transparent hover:border-slate-200" title="Copiar link público">
                                     <i data-lucide="copy" class="w-4 h-4"></i>
                                 </button>
                                 ` : ''}
@@ -1625,7 +1739,7 @@
                                 </a>
                                 ` : ''}
                                 ${licenseKey ? `
-                                <button onclick="copyToClip('${escapeHtml(licenseKey)}')" class="p-2 text-slate-400 hover:text-blue-600 transition-colors bg-white rounded-lg hover:bg-slate-100 border border-transparent hover:border-slate-200" title="Copiar chave de licença">
+                                <button onclick="copyToClip('${escapeHtml(licenseKey)}', this)" class="p-2 text-slate-400 hover:text-blue-600 transition-colors bg-white rounded-lg hover:bg-slate-100 border border-transparent hover:border-slate-200" title="Copiar chave de licença">
                                     <i data-lucide="key" class="w-4 h-4"></i>
                                 </button>
                                 ` : ''}
@@ -1874,6 +1988,33 @@
         document.addEventListener('DOMContentLoaded', () => {
             lucide.createIcons();
             populateProvisionCatalog();
+
+            // Filtros de Leads de Evolução
+            const leadsSearch = document.getElementById('leads-search');
+            if (leadsSearch) {
+                leadsSearch.addEventListener('input', () => {
+                    renderEvolutionLeadsTable();
+                });
+            }
+            const leadsSysFilter = document.getElementById('leads-system-filter');
+            if (leadsSysFilter) {
+                leadsSysFilter.addEventListener('change', () => {
+                    renderEvolutionLeadsTable();
+                });
+            }
+            const leadsStFilter = document.getElementById('leads-status-filter');
+            if (leadsStFilter) {
+                leadsStFilter.addEventListener('change', () => {
+                    renderEvolutionLeadsTable();
+                });
+            }
+            const leadsExportBtn = document.getElementById('leads-export-csv');
+            if (leadsExportBtn) {
+                leadsExportBtn.addEventListener('click', () => {
+                    exportEvolutionLeadsCsv();
+                });
+            }
+
             const savedToken = sessionStorage.getItem('admin_token');
             if (savedToken) {
                 AUTH_SECRET = savedToken;
@@ -2052,6 +2193,7 @@
             if (tabId === 'systems') { if (typeof renderSaasSystems === 'function') renderSaasSystems(); }
             if (tabId === 'licenses') loadLicenses();
             if (tabId === 'receipts') { if (typeof loadReceipts === 'function') loadReceipts(); }
+            if (tabId === 'leads') { if (typeof loadEvolutionLeads === 'function') loadEvolutionLeads(); }
             if (tabId === 'logs') { if (typeof loadLogs === 'function') loadLogs(); }
             if (tabId === 'notifications') { if (typeof loadNotifications === 'function') loadNotifications(); }
             return true;
@@ -2350,7 +2492,7 @@
                     </td>
                     <td class="px-6 py-4">
                         <div class="flex gap-2">
-                            <button onclick="copyToClip('${l.key}')" class="p-2 bg-slate-100 text-slate-600 hover:bg-blue-600 hover:text-white rounded-lg transition-all shadow-sm" title="Copiar Chave">
+                            <button onclick="copyToClip('${l.key}', this)" class="p-2 bg-slate-100 text-slate-600 hover:bg-blue-600 hover:text-white rounded-lg transition-all shadow-sm" title="Copiar Chave">
                                 <i data-lucide="copy" class="w-4 h-4"></i>
                             </button>
                             ${showActions && (l.is_trial || l.type === 'trial') && l.status !== 'blocked' ?
@@ -2545,6 +2687,285 @@
             document.getElementById('logs-summary-info').innerText = summary?.info ?? loadedSystemLogs.filter(log => log.type === 'info').length;
         }
 
+        let loadedEvolutionLeads = [];
+
+        async function loadEvolutionLeads() {
+            const res = await apiCall('list_evolution_leads');
+            if (!res || res.status !== 'success') {
+                return;
+            }
+
+            loadedEvolutionLeads = Array.isArray(res.leads) ? res.leads : [];
+            renderEvolutionLeadsTable();
+        }
+
+        function updateLeadsCounters() {
+            const total = loadedEvolutionLeads.length;
+            const newCount = loadedEvolutionLeads.filter(l => l.status === 'novo').length;
+            const contactedCount = loadedEvolutionLeads.filter(l => l.status === 'contatado').length;
+            const propostaCount = loadedEvolutionLeads.filter(l => l.status === 'proposta_enviada').length;
+            const convertedCount = loadedEvolutionLeads.filter(l => l.status === 'convertido').length;
+            const lostCount = loadedEvolutionLeads.filter(l => l.status === 'perdido').length;
+            const discardedCount = loadedEvolutionLeads.filter(l => l.status === 'descartado').length;
+
+            const elTotal = document.getElementById('leads-total-count');
+            if (elTotal) elTotal.textContent = total;
+            const elNew = document.getElementById('leads-new-count');
+            if (elNew) elNew.textContent = newCount;
+            const elContacted = document.getElementById('leads-contacted-count');
+            if (elContacted) elContacted.textContent = contactedCount;
+            const elProposta = document.getElementById('leads-proposta-count');
+            if (elProposta) elProposta.textContent = propostaCount;
+            const elConverted = document.getElementById('leads-converted-count');
+            if (elConverted) elConverted.textContent = convertedCount;
+            const elLost = document.getElementById('leads-lost-count');
+            if (elLost) elLost.textContent = lostCount;
+            const elDiscarded = document.getElementById('leads-discarded-count');
+            if (elDiscarded) elDiscarded.textContent = discardedCount;
+        }
+
+        function getFilteredEvolutionLeads() {
+            const searchQuery = (document.getElementById('leads-search')?.value || '').toLowerCase().trim();
+            const systemFilter = document.getElementById('leads-system-filter')?.value || '';
+            const statusFilter = document.getElementById('leads-status-filter')?.value || '';
+
+            return loadedEvolutionLeads.filter(lead => {
+                const matchesSystem = !systemFilter || lead.system_id === systemFilter;
+                const matchesStatus = !statusFilter || lead.status === statusFilter;
+
+                const searchHaystack = [
+                    lead.email || '',
+                    lead.license_key || '',
+                    lead.feature_title || '',
+                    lead.feature_key || ''
+                ].join(' ').toLowerCase();
+
+                const matchesSearch = !searchQuery || searchHaystack.includes(searchQuery);
+
+                return matchesSystem && matchesStatus && matchesSearch;
+            });
+        }
+
+        function renderEvolutionLeadsTable() {
+            const tableBody = document.getElementById('leads-table');
+            if (!tableBody) return;
+
+            updateLeadsCounters();
+
+            const filteredLeads = getFilteredEvolutionLeads();
+
+            let html = '';
+            filteredLeads.forEach(lead => {
+                const systemNames = {
+                    'gestao-assistencia': 'Gestão Assistência',
+                    'gestao-barbearia': 'Gestão Barbearia',
+                    'gestao-beleza': 'Gestão Beleza'
+                };
+                const systemText = systemNames[lead.system_id] || lead.system_id;
+                const emailText = escapeHtml(lead.email || 'Não informado');
+                const licenseText = escapeHtml(lead.license_key || 'Não informada');
+                const featureText = escapeHtml(lead.feature_title || lead.feature_key);
+                const countVal = lead.count || 1;
+                const lastInt = lead.last_interaction || lead.created_at || '';
+                const createdAt = lead.created_at || '';
+
+                const statusOptions = ['novo', 'contatado', 'proposta_enviada', 'convertido', 'perdido', 'descartado'].map(st => {
+                    const selected = lead.status === st ? 'selected' : '';
+                    const labels = {
+                        'novo': 'Novo',
+                        'contatado': 'Contatado',
+                        'proposta_enviada': 'Proposta Enviada',
+                        'convertido': 'Convertido',
+                        'perdido': 'Perdido',
+                        'descartado': 'Descartado'
+                    };
+                    const label = labels[st] || st;
+                    return `<option value="${st}" ${selected}>${label}</option>`;
+                }).join('');
+
+                html += `
+                <tr class="hover:bg-slate-50 border-b border-slate-100 text-xs">
+                    <td class="px-4 py-3 text-slate-500 font-medium">
+                        <div>\${escapeHtml(lastInt)}</div>
+                        <div class="text-[10px] text-slate-400">Criado: \${escapeHtml(createdAt)}</div>
+                    </td>
+                    <td class="px-4 py-3">
+                        <span class="font-bold text-slate-800 block">\${escapeHtml(systemText)}</span>
+                        <span class="text-[11px] text-slate-500 block">\${emailText}</span>
+                        <span class="font-mono text-[10px] text-slate-400 block">\${licenseText}</span>
+                    </td>
+                    <td class="px-4 py-3 font-medium text-slate-700">
+                        <div>\${featureText}</div>
+                        <div class="text-[10px] text-slate-400">Origem: \${escapeHtml(lead.source || 'evolution_module')} · Cliques: <span class="font-bold">\${countVal}</span></div>
+                    </td>
+                    <td class="px-4 py-3">
+                        <select data-email="\${escapeHtml(lead.email || '')}" data-license="\${escapeHtml(lead.license_key || '')}" data-system="\${escapeHtml(lead.system_id || '')}" data-feature="\${escapeHtml(lead.feature_key || '')}"
+                            class="lead-status-select border rounded px-1.5 py-0.5 outline-none text-xs font-bold \${
+                                lead.status === 'novo' ? 'bg-amber-50 text-amber-700 border-amber-200' :
+                                lead.status === 'contatado' ? 'bg-blue-50 text-blue-700 border-blue-200' :
+                                lead.status === 'proposta_enviada' ? 'bg-violet-50 text-violet-700 border-violet-200' :
+                                lead.status === 'convertido' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                                lead.status === 'perdido' ? 'bg-rose-50 text-rose-700 border-rose-200' :
+                                'bg-slate-50 text-slate-700 border-slate-200'
+                            }">
+                            \${statusOptions}
+                        </select>
+                    </td>
+                    <td class="px-4 py-3">
+                        <input type="text" placeholder="Sem resp." value="\${escapeHtml(lead.owner || '')}"
+                            data-email="\${escapeHtml(lead.email || '')}" data-license="\${escapeHtml(lead.license_key || '')}" data-system="\${escapeHtml(lead.system_id || '')}" data-feature="\${escapeHtml(lead.feature_key || '')}"
+                            class="lead-owner-input border border-slate-200 rounded px-2 py-1 outline-none text-xs w-24 focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
+                    </td>
+                    <td class="px-4 py-3">
+                        <input type="text" placeholder="Ex: WhatsApp" value="\${escapeHtml(lead.contact_channel || '')}"
+                            data-email="\${escapeHtml(lead.email || '')}" data-license="\${escapeHtml(lead.license_key || '')}" data-system="\${escapeHtml(lead.system_id || '')}" data-feature="\${escapeHtml(lead.feature_key || '')}"
+                            class="lead-channel-input border border-slate-200 rounded px-2 py-1 outline-none text-xs w-24 focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
+                    </td>
+                    <td class="px-4 py-3">
+                        <input type="date" value="\${escapeHtml(lead.next_contact_at || '')}"
+                            data-email="\${escapeHtml(lead.email || '')}" data-license="\${escapeHtml(lead.license_key || '')}" data-system="\${escapeHtml(lead.system_id || '')}" data-feature="\${escapeHtml(lead.feature_key || '')}"
+                            class="lead-next-contact-input border border-slate-200 rounded px-1.5 py-1 outline-none text-xs focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
+                    </td>
+                    <td class="px-4 py-3">
+                        <input type="text" placeholder="Anotações comerciais..." value="\${escapeHtml(lead.notes || '')}"
+                            data-email="\${escapeHtml(lead.email || '')}" data-license="\${escapeHtml(lead.license_key || '')}" data-system="\${escapeHtml(lead.system_id || '')}" data-feature="\${escapeHtml(lead.feature_key || '')}"
+                            class="lead-notes-input border border-slate-200 rounded px-2 py-1 outline-none text-xs w-full focus:ring-1 focus:ring-blue-500 focus:border-blue-500 min-w-[150px]">
+                    </td>
+                </tr>`;
+            });
+
+            tableBody.innerHTML = html || `
+                <tr>
+                    <td colspan="8" class="px-6 py-12 text-center text-slate-400">
+                        Nenhum lead de evolução correspondente aos filtros.
+                    </td>
+                </tr>`;
+
+            // Attach event listeners dynamically to avoid inline handlers
+            tableBody.querySelectorAll('.lead-status-select').forEach(select => {
+                select.addEventListener('change', function() {
+                    const email = this.getAttribute('data-email') || '';
+                    const license = this.getAttribute('data-license') || '';
+                    const system = this.getAttribute('data-system') || '';
+                    const feature = this.getAttribute('data-feature') || '';
+                    updateEvolutionLeadFields(email, license, system, feature, { status: this.value });
+                });
+            });
+
+            const fieldsConfig = [
+                { selector: '.lead-owner-input', key: 'owner' },
+                { selector: '.lead-channel-input', key: 'contact_channel' },
+                { selector: '.lead-next-contact-input', key: 'next_contact_at' },
+                { selector: '.lead-notes-input', key: 'notes' }
+            ];
+
+            fieldsConfig.forEach(cfg => {
+                tableBody.querySelectorAll(cfg.selector).forEach(input => {
+                    input.addEventListener('blur', function() {
+                        const email = this.getAttribute('data-email') || '';
+                        const license = this.getAttribute('data-license') || '';
+                        const system = this.getAttribute('data-system') || '';
+                        const feature = this.getAttribute('data-feature') || '';
+                        const currentValue = this.value.trim();
+
+                        const lead = loadedEvolutionLeads.find(l =>
+                            (l.email === email || l.license_key === license) &&
+                            l.system_id === system &&
+                            l.feature_key === feature
+                        );
+
+                        if (lead && (lead[cfg.key] ?? '') !== currentValue) {
+                            updateEvolutionLeadFields(email, license, system, feature, { [cfg.key]: currentValue });
+                        }
+                    });
+
+                    input.addEventListener('keypress', function(e) {
+                        if (e.key === 'Enter') {
+                            this.blur();
+                        }
+                    });
+                });
+            });
+        }
+
+        async function updateEvolutionLeadFields(email, licenseKey, systemId, featureKey, fields) {
+            const res = await apiCall('update_evolution_lead_fields', {
+                email: email,
+                license_key: licenseKey,
+                system_id: systemId,
+                feature_key: featureKey,
+                ...fields
+            });
+
+            if (res && res.status === 'success') {
+                const lead = loadedEvolutionLeads.find(l =>
+                    (l.email === email || l.license_key === licenseKey) &&
+                    l.system_id === systemId &&
+                    l.feature_key === featureKey
+                );
+                if (lead) {
+                    Object.assign(lead, fields);
+                    lead.last_interaction = new Date().toISOString().replace('T', ' ').substring(0, 19);
+                }
+
+                if (fields.hasOwnProperty('status')) {
+                    renderEvolutionLeadsTable();
+                } else {
+                    updateLeadsCounters();
+                }
+            } else {
+                alert('Erro ao atualizar dados: ' + (res ? res.message : 'resposta vazia'));
+                loadEvolutionLeads();
+            }
+        }
+
+        async function updateEvolutionLeadStatus(email, licenseKey, systemId, featureKey, newStatus) {
+            return updateEvolutionLeadFields(email, licenseKey, systemId, featureKey, { status: newStatus });
+        }
+
+        function exportEvolutionLeadsCsv() {
+            const filteredLeads = getFilteredEvolutionLeads();
+
+            const header = [
+                'Data Criacao',
+                'Ultima Interacao',
+                'Sistema',
+                'E-mail',
+                'Licenca',
+                'Recurso',
+                'Cliques',
+                'Status',
+                'Responsavel',
+                'Canal',
+                'Proximo Contato',
+                'Observacoes'
+            ];
+
+            const csvRows = [header, ...filteredLeads.map(l => [
+                l.created_at || '',
+                l.last_interaction || '',
+                l.system_id || '',
+                l.email || '',
+                l.license_key || '',
+                l.feature_title || l.feature_key || '',
+                String(l.count || 1),
+                l.status || 'novo',
+                l.owner || '',
+                l.contact_channel || '',
+                l.next_contact_at || '',
+                l.notes || ''
+            ])];
+
+            const csv = csvRows.map(row => row.map(value => `"${String(value).replace(/"/g, '""')}"`).join(';')).join('\n');
+            const blob = new Blob([new Uint8Array([0xEF, 0xBB, 0xBF]), csv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = 'leads-evolucao.csv';
+            link.click();
+            URL.revokeObjectURL(url);
+        }
+
         async function loadLogs() {
             const res = await apiCall('read_logs');
             if (!res) return;
@@ -2656,6 +3077,27 @@
             }
         }
 
+        // ── Toast helper local (sem refatorar o painel inteiro) ─────────
+        function adminToast(msg, type) {
+            const colors = {
+                success: 'bg-green-600',
+                error:   'bg-red-600',
+                info:    'bg-blue-600',
+                warning: 'bg-amber-500'
+            };
+            const bg = colors[type] || colors.info;
+            const el = document.createElement('div');
+            el.className = `fixed bottom-6 right-6 z-[9999] ${bg} text-white text-sm font-semibold px-5 py-3 rounded-xl shadow-xl transition-opacity duration-300`;
+            el.style.opacity = '0';
+            el.textContent = msg;
+            document.body.appendChild(el);
+            requestAnimationFrame(() => { el.style.opacity = '1'; });
+            setTimeout(() => {
+                el.style.opacity = '0';
+                setTimeout(() => el.remove(), 350);
+            }, 3500);
+        }
+
         let loadedNotifications = [];
         let filteredNotifications = [];
 
@@ -2700,7 +3142,29 @@
 
         async function loadNotifications() {
             const response = await notifAdminCall('list');
-            const list = Array.isArray(response) ? response : (response?.notifications || []);
+
+            // Detectar erro explícito ou ausência de status:success
+            if (!response || response.error || response.status !== 'success') {
+                const errMsg = response?.error || 'Resposta inesperada da API de notificações.';
+                const container = document.getElementById('notifications-list');
+                if (container) {
+                    container.innerHTML = `
+                        <div class="bg-red-50 border border-red-200 rounded-xl p-5 flex items-start gap-3">
+                            <i data-lucide="alert-triangle" class="w-5 h-5 text-red-500 shrink-0 mt-0.5"></i>
+                            <div>
+                                <p class="font-bold text-red-700 text-sm">Não foi possível carregar as notificações.</p>
+                                <p class="text-red-600 text-xs mt-1">${escapeHtml(errMsg)}</p>
+                                ${errMsg.toLowerCase().includes('forbidden') || errMsg.toLowerCase().includes('403')
+                                    ? '<p class="text-red-500 text-xs mt-1">Sessão administrativa expirada. Saia e entre novamente.</p>' : ''}
+                            </div>
+                        </div>`;
+                    lucide.createIcons();
+                }
+                // Preservar loadedNotifications anterior — não zera em falha de carregamento
+                return;
+            }
+
+            const list = Array.isArray(response) ? response : (response.notifications || []);
 
             loadedNotifications = list.map(normalizeNotificationRecord)
                 .sort((a, b) => new Date(b.published || 0) - new Date(a.published || 0));
@@ -2810,9 +3274,19 @@
             if (!confirm('Deseja excluir esta notificação?')) return;
             const res = await notifAdminCall('delete', { id });
             if (res && res.ok) {
+                adminToast('Notificação excluída.', 'success');
                 loadNotifications();
             } else {
-                alert('Erro ao excluir notificação');
+                const errMsg = res?.error || 'Erro desconhecido ao excluir.';
+                const container = document.getElementById('notifications-list');
+                if (container) {
+                    const banner = document.createElement('div');
+                    banner.className = 'bg-red-50 border border-red-200 rounded-xl p-4 flex items-center gap-3 mb-4';
+                    banner.innerHTML = `<i data-lucide="alert-triangle" class="w-4 h-4 text-red-500 shrink-0"></i><span class="text-red-700 text-sm font-semibold">${escapeHtml(errMsg)}</span>`;
+                    container.prepend(banner);
+                    lucide.createIcons();
+                    setTimeout(() => banner.remove(), 5000);
+                }
             }
         }
 
@@ -2920,10 +3394,38 @@
         async function createNotification() {
             const title = document.getElementById('notif-title').value.trim();
             const body = document.getElementById('notif-body').value.trim();
-            if (!title || !body) return alert('Título e Corpo são obrigatórios.');
+            const submitBtn = document.getElementById('notif-submit-btn');
+
+            // Helper: mostrar erro dentro do modal (sem alert)
+            function showNotifFormError(msg) {
+                let errEl = document.getElementById('notif-form-error');
+                if (!errEl) {
+                    errEl = document.createElement('div');
+                    errEl.id = 'notif-form-error';
+                    errEl.className = 'bg-red-50 border border-red-200 rounded-lg p-3 flex items-start gap-2 mt-2';
+                    const footer = submitBtn?.parentElement;
+                    if (footer) footer.prepend(errEl);
+                }
+                errEl.innerHTML = `<i data-lucide="alert-triangle" class="w-4 h-4 text-red-500 shrink-0 mt-0.5"></i><span class="text-red-700 text-sm">${escapeHtml(msg)}</span>`;
+                lucide.createIcons();
+            }
+
+            function clearNotifFormError() {
+                document.getElementById('notif-form-error')?.remove();
+            }
+
+            clearNotifFormError();
+
+            if (!title || !body) {
+                showNotifFormError('Título e Corpo são obrigatórios.');
+                return;
+            }
 
             const targetVal = document.getElementById('notif-target-select').value;
-            if (!targetVal) return alert('Selecione um sistema alvo válido.');
+            if (!targetVal) {
+                showNotifFormError('Selecione um sistema alvo válido.');
+                return;
+            }
             const targets = [targetVal];
 
             const expires = document.getElementById('notif-expires').value;
@@ -2943,12 +3445,27 @@
                 target_license: targetLicense || null
             };
 
+            // Desabilitar botão para evitar duplo envio
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.textContent = 'Enviando...';
+            }
+
             const res = await notifAdminCall('create', payload);
+
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i data-lucide="check" class="w-5 h-5"></i> Confirmar e Enviar';
+                lucide.createIcons();
+            }
+
             if (res && res.ok) {
                 document.getElementById('notif-modal').classList.add('hidden');
+                clearNotifFormError();
+                adminToast('Notificação criada com sucesso!', 'success');
                 loadNotifications();
             } else {
-                alert('Erro ao criar notificação. Detalhes: ' + (res?.error || JSON.stringify(res)));
+                showNotifFormError('Erro ao criar notificação: ' + (res?.error || JSON.stringify(res)));
             }
         }
 
@@ -2970,6 +3487,9 @@
             if (res && res.success) {
                 alert('Dispositivo desvinculado!');
                 loadLicenses();
+                if (typeof loadProvisionedSaaSClients === 'function') {
+                    loadProvisionedSaaSClients();
+                }
             }
         }
 
@@ -3145,11 +3665,59 @@ Qualquer dúvida, estamos à disposição!`;
             }
         }
 
-        function copyDeliveryMessage() {
+        function fallbackCopyText(text) {
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            textarea.setAttribute('readonly', '');
+            textarea.style.position = 'fixed';
+            textarea.style.left = '-9999px';
+            document.body.appendChild(textarea);
+            textarea.select();
+            textarea.setSelectionRange(0, textarea.value.length);
+            const ok = document.execCommand('copy');
+            document.body.removeChild(textarea);
+            return ok;
+        }
+
+        async function copyTextToClipboard(text) {
+            const value = String(text || '').trim();
+            if (!value) return false;
+            try {
+                if (navigator.clipboard && window.isSecureContext) {
+                    await navigator.clipboard.writeText(value);
+                    return true;
+                }
+            } catch (error) {
+                console.warn('Clipboard API indisponivel, usando fallback.', error);
+            }
+            return fallbackCopyText(value);
+        }
+
+        function showCopyFeedback(button, label = 'Copiado!') {
+            if (!button) return;
+            const originalHTML = button.innerHTML;
+            const originalTitle = button.getAttribute('title') || '';
+            button.innerHTML = `<i data-lucide="check" class="w-4 h-4"></i><span class="sr-only">${label}</span>`;
+            button.setAttribute('title', label);
+            button.classList.add('text-green-600', 'border-green-200', 'bg-green-50');
+            lucide.createIcons();
+            setTimeout(() => {
+                button.innerHTML = originalHTML;
+                button.setAttribute('title', originalTitle);
+                button.classList.remove('text-green-600', 'border-green-200', 'bg-green-50');
+                lucide.createIcons();
+            }, 1600);
+        }
+
+        async function copyDeliveryMessage() {
             const copyText = document.getElementById("delivery-text");
             copyText.select();
             copyText.setSelectionRange(0, 99999);
-            navigator.clipboard.writeText(copyText.value);
+            const copied = await copyTextToClipboard(copyText.value);
+            if (!copied) {
+                alert('Nao foi possivel copiar automaticamente. Selecione o texto e copie manualmente.');
+                return;
+            }
 
             // Visual feedback
             const btn = document.querySelector('#delivery-modal button.bg-blue-600');
@@ -3169,9 +3737,13 @@ Qualquer dúvida, estamos à disposição!`;
             }
         }
 
-        function copyToClip(text) {
-            navigator.clipboard.writeText(text);
-            alert('Copiado!');
+        async function copyToClip(text, button) {
+            const copied = await copyTextToClipboard(text);
+            if (copied) {
+                showCopyFeedback(button || window.event?.currentTarget);
+            } else {
+                alert('Nao foi possivel copiar automaticamente. Tente selecionar e copiar manualmente.');
+            }
         }
 
         // --- SaaS Provisioning Functions ---
@@ -3237,15 +3809,19 @@ Qualquer dúvida, estamos à disposição!`;
             updatePlanPreview();
         }
 
-        function copyProvCredentials() {
+        async function copyProvCredentials() {
             const email = document.getElementById('res-email').innerText;
             const pass = document.getElementById('res-pass').innerText;
             const license = document.getElementById('res-license')?.innerText || '';
             const link = document.getElementById('res-link').href;
 
             const text = `Suas credenciais de acesso:\nLink: ${link}\nEmail: ${email}\nLicença: ${license}\nSenha temporária - troca obrigatória: ${pass}\n\nAltere a senha no primeiro acesso.`;
-            navigator.clipboard.writeText(text);
-            alert('Credenciais copiadas para a área de transferência!');
+            const copied = await copyTextToClipboard(text);
+            if (copied) {
+                showCopyFeedback(window.event?.currentTarget, 'Credenciais copiadas!');
+            } else {
+                alert('Nao foi possivel copiar automaticamente. Tente selecionar e copiar manualmente.');
+            }
         }
 
         async function loadProvisionedSaaSClients() {
@@ -3277,13 +3853,17 @@ Qualquer dúvida, estamos à disposição!`;
                     const slug = client.slug || '';
                     const email = client.email || 'Sem e-mail';
                     const systemName = client.system_name || client.system_slug || 'Sistema';
-                    const planName = client.plan_name || client.plan_code || 'Plano';
+                    const planName = client.plan_name || client.plan_code || 'Sem plano';
                     const license = client.license_key || '';
+                    const deviceId = client.device_id || '';
                     const modulesCount = client.modules_count || 0;
                     const status = client.status || client.license_status || 'active';
-                    const isActive = status === 'active';
+                    const hasActiveLicense = license && status === 'active';
                     const publicLink = client.public_link || '';
-                    const statusClass = isActive ? 'bg-green-100 text-green-700 border-green-200' : 'bg-amber-100 text-amber-700 border-amber-200';
+                    const statusLabel = !license ? 'sem licença' : status;
+                    const statusClass = hasActiveLicense
+                        ? 'bg-green-100 text-green-700 border-green-200'
+                        : (!license ? 'bg-red-100 text-red-700 border-red-200' : 'bg-amber-100 text-amber-700 border-amber-200');
 
                     return `
                         <tr class="hover:bg-slate-50/80 transition-colors">
@@ -3298,16 +3878,24 @@ Qualquer dúvida, estamos à disposição!`;
                             </td>
                             <td class="px-5 py-4">
                                 <code class="text-xs bg-slate-100 border border-slate-200 text-slate-700 px-2 py-1 rounded">${escapeHtml(license || 'N/A')}</code>
+                                ${deviceId ? `
+                                    <div class="mt-1 flex items-center gap-1">
+                                        <span class="text-[9px] bg-amber-50 text-amber-700 border border-amber-200 rounded px-1.5 py-0.5 font-mono" title="Dispositivo Vinculado: ${escapeHtml(deviceId)}">
+                                            ID: ${escapeHtml(deviceId.substring(0, 15))}${deviceId.length > 15 ? '...' : ''}
+                                        </span>
+                                    </div>
+                                ` : ''}
                             </td>
                             <td class="px-5 py-4 text-center font-bold text-slate-700">${modulesCount}</td>
                             <td class="px-5 py-4 text-center">
-                                <span class="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-black uppercase border ${statusClass}">${escapeHtml(status)}</span>
+                                <span class="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-black uppercase border ${statusClass}">${escapeHtml(statusLabel)}</span>
                             </td>
                             <td class="px-5 py-4">
                                 <div class="flex justify-end gap-2">
                                     ${publicLink ? `<a href="${escapeHtml(publicLink)}" target="_blank" class="p-2 text-slate-400 hover:text-blue-600 bg-white hover:bg-slate-100 border border-slate-200 rounded-lg" title="Abrir sistema"><i data-lucide="external-link" class="w-4 h-4"></i></a>` : ''}
-                                    ${publicLink ? `<button type="button" onclick="copyToClip('${escapeHtml(publicLink)}')" class="p-2 text-slate-400 hover:text-blue-600 bg-white hover:bg-slate-100 border border-slate-200 rounded-lg" title="Copiar link"><i data-lucide="copy" class="w-4 h-4"></i></button>` : ''}
-                                    ${license ? `<button type="button" onclick="copyToClip('${escapeHtml(license)}')" class="p-2 text-slate-400 hover:text-blue-600 bg-white hover:bg-slate-100 border border-slate-200 rounded-lg" title="Copiar licenca"><i data-lucide="key" class="w-4 h-4"></i></button>` : ''}
+                                    ${publicLink ? `<button type="button" onclick="copyToClip('${escapeHtml(publicLink)}', this)" class="p-2 text-slate-400 hover:text-blue-600 bg-white hover:bg-slate-100 border border-slate-200 rounded-lg" title="Copiar link"><i data-lucide="copy" class="w-4 h-4"></i></button>` : ''}
+                                    ${license ? `<button type="button" onclick="copyToClip('${escapeHtml(license)}', this)" class="p-2 text-slate-400 hover:text-blue-600 bg-white hover:bg-slate-100 border border-slate-200 rounded-lg" title="Copiar licenca"><i data-lucide="key" class="w-4 h-4"></i></button>` : ''}
+                                    ${license && deviceId ? `<button type="button" onclick="resetDevice('${escapeHtml(license)}')" class="p-2 text-slate-400 hover:text-amber-600 bg-white hover:bg-amber-50 border border-slate-200 rounded-lg hover:border-amber-200" title="Resetar Dispositivo"><i data-lucide="refresh-cw" class="w-4 h-4"></i></button>` : ''}
                                 </div>
                             </td>
                         </tr>

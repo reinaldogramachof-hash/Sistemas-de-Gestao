@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 // API V11.8 - PROFESSIONAL FULL (SECURE ENV + CORS DYNAMIC)
 require_once __DIR__ . '/env_loader.php';
 
@@ -791,6 +791,8 @@ if ($action === 'customers_summary') {
             $sysPath = 'gestao-barbearia';
         } elseif (str_contains($sysSlug, 'beleza')) {
             $sysPath = 'gestao-beleza';
+        } elseif (str_contains($sysSlug, 'assistencia')) {
+            $sysPath = 'gestao-assistencia';
         } else {
             $sysPath = $sysSlug;
         }
@@ -992,6 +994,123 @@ if ($action === 'convert_trial') {
         echo json_encode(['status' => 'success', 'success' => true]);
     } else {
         echo json_encode(['status' => 'error', 'message' => 'Chave não encontrada']);
+    }
+    exit;
+}
+
+if ($action === 'register_evolution_lead') {
+    $license_key = isset($jsonData['license_key']) ? trim($jsonData['license_key']) : '';
+    $email = isset($jsonData['email']) ? trim($jsonData['email']) : '';
+    $system_id = isset($jsonData['system_id']) ? trim($jsonData['system_id']) : '';
+    $feature_key = isset($jsonData['feature_key']) ? trim($jsonData['feature_key']) : '';
+    $feature_title = isset($jsonData['feature_title']) ? trim($jsonData['feature_title']) : '';
+    $source = isset($jsonData['source']) ? trim($jsonData['source']) : 'evolution_module';
+
+    if (empty($system_id) || empty($feature_key)) {
+        echo json_encode(['status' => 'error', 'message' => 'Campos obrigatórios ausentes']);
+        exit;
+    }
+
+    $allowed_systems = ['gestao-assistencia', 'gestao-barbearia', 'gestao-beleza'];
+    if (!in_array($system_id, $allowed_systems)) {
+        echo json_encode(['status' => 'error', 'message' => 'Sistema inválido']);
+        exit;
+    }
+
+    $fileEvolutionLeads = 'api_data/evolution_leads.json';
+    $leads = getDB($fileEvolutionLeads);
+
+    $found = false;
+    foreach ($leads as &$lead) {
+        $matchEmail = (!empty($email) && !empty($lead['email']) && strtolower($lead['email']) === strtolower($email));
+        $matchLicense = (!empty($license_key) && !empty($lead['license_key']) && strtolower($lead['license_key']) === strtolower($license_key));
+        if (($matchEmail || $matchLicense) && $lead['system_id'] === $system_id && $lead['feature_key'] === $feature_key) {
+            $found = true;
+            $lead['count'] = (isset($lead['count']) ? (int)$lead['count'] : 1) + 1;
+            $lead['last_interaction'] = date('Y-m-d H:i:s');
+            if (empty($lead['email']) && !empty($email)) $lead['email'] = $email;
+            if (empty($lead['license_key']) && !empty($license_key)) $lead['license_key'] = $license_key;
+            break;
+        }
+    }
+
+    if (!$found) {
+        $leads[] = [
+            'license_key' => $license_key,
+            'email' => $email,
+            'system_id' => $system_id,
+            'feature_key' => $feature_key,
+            'feature_title' => $feature_title,
+            'source' => $source,
+            'created_at' => date('Y-m-d H:i:s'),
+            'last_interaction' => date('Y-m-d H:i:s'),
+            'count' => 1,
+            'status' => 'novo'
+        ];
+    }
+
+    saveDB($fileEvolutionLeads, $leads);
+
+    if (empty($license_key) && empty($email)) {
+        echo json_encode(['status' => 'success', 'message' => 'Interesse registrado (sem identificação local)']);
+    } else {
+        echo json_encode(['status' => 'success', 'message' => 'Interesse registrado com sucesso']);
+    }
+    exit;
+}
+
+if ($action === 'list_evolution_leads') {
+    if (!validateSecret($jsonData, $ADMIN_SECRET)) {
+        http_response_code(403);
+        exit;
+    }
+    $fileEvolutionLeads = 'api_data/evolution_leads.json';
+    $leads = getDB($fileEvolutionLeads);
+
+    usort($leads, function($a, $b) {
+        return strcmp($b['last_interaction'] ?? '', $a['last_interaction'] ?? '');
+    });
+
+    echo json_encode(['status' => 'success', 'leads' => $leads]);
+    exit;
+}
+
+if ($action === 'update_evolution_lead_status') {
+    if (!validateSecret($jsonData, $ADMIN_SECRET)) {
+        http_response_code(403);
+        exit;
+    }
+    $email = isset($jsonData['email']) ? trim($jsonData['email']) : '';
+    $license_key = isset($jsonData['license_key']) ? trim($jsonData['license_key']) : '';
+    $system_id = isset($jsonData['system_id']) ? trim($jsonData['system_id']) : '';
+    $feature_key = isset($jsonData['feature_key']) ? trim($jsonData['feature_key']) : '';
+    $status = isset($jsonData['status']) ? trim($jsonData['status']) : '';
+
+    $allowedStatuses = ['novo', 'contatado', 'convertido', 'descartado'];
+    if (!in_array($status, $allowedStatuses)) {
+        echo json_encode(['status' => 'error', 'message' => 'Status inválido']);
+        exit;
+    }
+
+    $fileEvolutionLeads = 'api_data/evolution_leads.json';
+    $leads = getDB($fileEvolutionLeads);
+
+    $updated = false;
+    foreach ($leads as &$lead) {
+        $matchEmail = (!empty($email) && !empty($lead['email']) && strtolower($lead['email']) === strtolower($email));
+        $matchLicense = (!empty($license_key) && !empty($lead['license_key']) && strtolower($lead['license_key']) === strtolower($license_key));
+        if (($matchEmail || $matchLicense) && $lead['system_id'] === $system_id && $lead['feature_key'] === $feature_key) {
+            $lead['status'] = $status;
+            $updated = true;
+            break;
+        }
+    }
+
+    if ($updated) {
+        saveDB($fileEvolutionLeads, $leads);
+        echo json_encode(['status' => 'success', 'success' => true]);
+    } else {
+        echo json_encode(['status' => 'error', 'message' => 'Lead de evolução não encontrado']);
     }
     exit;
 }

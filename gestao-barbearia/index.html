@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="pt-BR" class="dark">
 
 <head>
@@ -3308,13 +3308,14 @@
             window.addEventListener('load', function () {
                 // Checagem extra anti-tela preta na inicialização
                 var checkAppLoaded = function () {
-                    var key = localStorage.getItem('plena_license');
+                    var key = localStorage.getItem('barbearia_license') || localStorage.getItem('plena_license');
                     var appMain = document.getElementById('app-main-content');
                     var viewLogin = document.getElementById('view-login');
 
                     if (key) {
                         // Auto-confirma recibo para consistência
-                        if (!localStorage.getItem('ml_receipt_confirmed')) {
+                        if (!localStorage.getItem('barbearia_receipt_confirmed') && !localStorage.getItem('ml_receipt_confirmed')) {
+                            localStorage.setItem('barbearia_receipt_confirmed', 'true');
                             localStorage.setItem('ml_receipt_confirmed', 'true');
                         }
                         if (viewLogin) {
@@ -3357,9 +3358,10 @@
                     // MASTER KEYS - bypass total, sem necessidade de API ou receipt
                     // Fluxo API normal para licencas reais
                     if (btn) { btn.disabled = true; btn.textContent = 'Verificando...'; }
-                    var deviceId = localStorage.getItem('device_id');
+                    var deviceId = localStorage.getItem('barbearia_device') || localStorage.getItem('device_id');
                     if (!deviceId) {
                         deviceId = 'dev_' + Math.random().toString(36).substr(2, 9);
+                        localStorage.setItem('barbearia_device', deviceId);
                         localStorage.setItem('device_id', deviceId);
                     }
 
@@ -3371,9 +3373,17 @@
                         return resp.json();
                     }).then(function (data) {
                         if (data.status === 'success' && data.valid === true) {
+                            // Salva no novo namespace
+                            localStorage.setItem('barbearia_license', key);
+                            localStorage.setItem('barbearia_email', email);
+                            localStorage.setItem('barbearia_receipt_confirmed', 'true');
+                            localStorage.setItem('barbearia_device', deviceId);
+
+                            // Duplica no legado para compatibilidade com versões antigas / outros componentes
                             localStorage.setItem('plena_license', key);
                             localStorage.setItem('ml_license_email', email);
                             localStorage.setItem('ml_receipt_confirmed', 'true');
+                            localStorage.setItem('device_id', deviceId);
 
                             // Destrava a UI (FIM DA TELA PRETA)
                             var viewLoginEl = document.getElementById('view-login');

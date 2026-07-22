@@ -1,4 +1,4 @@
-// ============================================================
+﻿// ============================================================
 // MÓDULO DE NOTIFICAÇÕES — Gestão Beleza Pro
 // Busca notificações em sistemasdegestao.tech/api_notificacoes.php
 // ============================================================
@@ -44,7 +44,7 @@ async function fetchNotifications(forceNetwork = false) {
     try {
         const ctrl = new AbortController();
         const timer = setTimeout(() => ctrl.abort(), 5000);
-        const licenseKey = localStorage.getItem('plena_license') || '';
+        const licenseKey = localStorage.getItem('beleza_license') || localStorage.getItem('plena_license') || '';
         // cache:'no-store' garante que o browser nunca retorne resposta em cache
         const res   = await fetch(`${NOTIF_API_URL}?target=${NOTIF_TARGET}&license=${licenseKey}&_t=${now}`, {
             signal: ctrl.signal,

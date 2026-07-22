@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="pt-BR">
 
 <head>
@@ -165,6 +165,13 @@
                     data-tab="receipts" title="Histórico Vendas">
                     <i data-lucide="receipt" class="w-5 h-5 group-hover:scale-110 transition-transform shrink-0"></i>
                     <span class="nav-text truncate">Histórico Vendas</span>
+                </button>
+
+                <button onclick="switchTab('leads')"
+                    class="nav-btn w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-400 hover:text-white hover:bg-slate-800 transition-all group"
+                    data-tab="leads" title="Leads Evolução">
+                    <i data-lucide="trending-up" class="w-5 h-5 group-hover:scale-110 transition-transform shrink-0"></i>
+                    <span class="nav-text truncate">Leads Evolução</span>
                 </button>
 
                 <div class="pt-6 pb-2 category-header">
@@ -486,6 +493,7 @@
                                             <option value="gestao-gastro">Gestão Gastro</option>
                                             <option value="gestao-barbearia">Gestão Barbearia</option>
                                             <option value="gestao-beleza">Gestão Beleza</option>
+                                            <option value="gestao-assistencia">Gestão Assistência</option>
                                             <option value="gestao-pizzaria">Gestão Pizzaria</option>
                                             <option value="gestao-hamburgueria">Gestão Hamburgueria</option>
                                             <option value="gestao-delivery">Gestão Delivery</option>
@@ -772,6 +780,64 @@
                                     </tr>
                                 </thead>
                                 <tbody id="receipts-table" class="divide-y divide-slate-100">
+                                    <!-- Dynamic -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- LEADS TAB -->
+                <div id="tab-leads" class="tab-content hidden fade-in max-w-7xl mx-auto">
+                    <div class="flex justify-between items-center mb-6">
+                        <div>
+                            <h2 class="text-2xl font-bold">Leads de Evolução</h2>
+                            <p class="text-slate-500 text-sm">Interesses comerciais registrados a partir do módulo Evolução nos sistemas locais.</p>
+                        </div>
+                        <div class="flex gap-2">
+                            <button onclick="loadEvolutionLeads()"
+                                class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-blue-700 flex items-center gap-2">
+                                <i data-lucide="refresh-cw" class="w-4 h-4"></i> Atualizar
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Summary Stats -->
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+                        <div class="card p-6 bg-slate-900 border border-slate-800 rounded-2xl">
+                            <p class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Total de Interesses</p>
+                            <h3 class="text-3xl font-black text-white" id="leads-total-count">0</h3>
+                        </div>
+                        <div class="card p-6 bg-slate-900 border border-slate-800 rounded-2xl">
+                            <p class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Leads Novos</p>
+                            <h3 class="text-3xl font-black text-amber-500" id="leads-new-count">0</h3>
+                        </div>
+                        <div class="card p-6 bg-slate-900 border border-slate-800 rounded-2xl">
+                            <p class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Leads Contatados</p>
+                            <h3 class="text-3xl font-black text-blue-500" id="leads-contacted-count">0</h3>
+                        </div>
+                        <div class="card p-6 bg-slate-900 border border-slate-800 rounded-2xl">
+                            <p class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Leads Convertidos</p>
+                            <h3 class="text-3xl font-black text-emerald-500" id="leads-converted-count">0</h3>
+                        </div>
+                    </div>
+
+                    <!-- Table -->
+                    <div class="bg-white rounded-2xl border shadow-sm overflow-hidden">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left border-collapse text-sm">
+                                <thead>
+                                    <tr class="bg-slate-50 text-slate-500 font-bold border-b">
+                                        <th class="px-6 py-4">Última Interação</th>
+                                        <th class="px-6 py-4">Sistema</th>
+                                        <th class="px-6 py-4">Cliente / E-mail</th>
+                                        <th class="px-6 py-4">Licença</th>
+                                        <th class="px-6 py-4">Recurso de Interesse</th>
+                                        <th class="px-6 py-4 text-center">Interações</th>
+                                        <th class="px-6 py-4">Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="leads-table" class="divide-y divide-slate-100">
                                     <!-- Dynamic -->
                                 </tbody>
                             </table>
@@ -1532,9 +1598,10 @@
 
                 const systemsArray = Array.isArray(client.systems) ? client.systems : [client.systems || 'Sistema'];
                 const systemsHtml = systemsArray.map(sys => {
-                    const catalogKey = sys.toLowerCase().includes('gastro') ? 'gestao-gastro' :
-                        (sys.toLowerCase().includes('barbearia') ? 'gestao-barbearia' :
-                            (sys.toLowerCase().includes('beleza') ? 'gestao-beleza' : 'gestao-gastro'));
+                    const catalogKey = Object.keys(SAAS_CATALOG).find(key =>
+                        sys.toLowerCase().includes(key) ||
+                        (SAAS_CATALOG[key].title && sys.toLowerCase().includes(SAAS_CATALOG[key].title.toLowerCase()))
+                    ) || 'gestao-gastro';
                     const systemMeta = SAAS_CATALOG[catalogKey];
                     const icon = systemMeta?.icon || 'layers';
                     return `
@@ -1580,9 +1647,13 @@
 
                 let systemSlug = 'gestao-gastro';
                 const actSys = client.active_system || systemsArray[0] || '';
-                if (actSys.toLowerCase().includes('gastro')) systemSlug = 'gestao-gastro';
-                else if (actSys.toLowerCase().includes('barbearia')) systemSlug = 'gestao-barbearia';
-                else if (actSys.toLowerCase().includes('beleza')) systemSlug = 'gestao-beleza';
+                const resolvedKey = Object.keys(SAAS_CATALOG).find(key =>
+                    actSys.toLowerCase().includes(key) ||
+                    (SAAS_CATALOG[key].title && actSys.toLowerCase().includes(SAAS_CATALOG[key].title.toLowerCase()))
+                );
+                if (resolvedKey) {
+                    systemSlug = resolvedKey;
+                }
                 const systemOpenUrl = link || (clientSlug ? getClientAccessLink(systemSlug, clientSlug) : '');
 
                 return `
@@ -2052,6 +2123,7 @@
             if (tabId === 'systems') { if (typeof renderSaasSystems === 'function') renderSaasSystems(); }
             if (tabId === 'licenses') loadLicenses();
             if (tabId === 'receipts') { if (typeof loadReceipts === 'function') loadReceipts(); }
+            if (tabId === 'leads') { if (typeof loadEvolutionLeads === 'function') loadEvolutionLeads(); }
             if (tabId === 'logs') { if (typeof loadLogs === 'function') loadLogs(); }
             if (tabId === 'notifications') { if (typeof loadNotifications === 'function') loadNotifications(); }
             return true;
@@ -2543,6 +2615,118 @@
             document.getElementById('logs-summary-errors').innerText = summary?.error ?? loadedSystemLogs.filter(log => log.type === 'error').length;
             document.getElementById('logs-summary-warnings').innerText = summary?.warning ?? loadedSystemLogs.filter(log => log.type === 'warning').length;
             document.getElementById('logs-summary-info').innerText = summary?.info ?? loadedSystemLogs.filter(log => log.type === 'info').length;
+        }
+
+        let loadedEvolutionLeads = [];
+
+        async function loadEvolutionLeads() {
+            const res = await apiCall('list_evolution_leads');
+            if (!res || res.status !== 'success') {
+                return;
+            }
+
+            loadedEvolutionLeads = Array.isArray(res.leads) ? res.leads : [];
+            renderEvolutionLeadsTable();
+        }
+
+        function renderEvolutionLeadsTable() {
+            const tableBody = document.getElementById('leads-table');
+            if (!tableBody) return;
+
+            const total = loadedEvolutionLeads.length;
+            const newCount = loadedEvolutionLeads.filter(l => l.status === 'novo').length;
+            const contactedCount = loadedEvolutionLeads.filter(l => l.status === 'contatado').length;
+            const convertedCount = loadedEvolutionLeads.filter(l => l.status === 'convertido').length;
+
+            document.getElementById('leads-total-count').textContent = total;
+            document.getElementById('leads-new-count').textContent = newCount;
+            document.getElementById('leads-contacted-count').textContent = contactedCount;
+            document.getElementById('leads-converted-count').textContent = convertedCount;
+
+            let html = '';
+            loadedEvolutionLeads.forEach(lead => {
+                const systemNames = {
+                    'gestao-assistencia': 'Gestão Assistência',
+                    'gestao-barbearia': 'Gestão Barbearia',
+                    'gestao-beleza': 'Gestão Beleza'
+                };
+                const systemText = systemNames[lead.system_id] || lead.system_id;
+                const emailText = escapeHtml(lead.email || 'Não informado');
+                const licenseText = escapeHtml(lead.license_key || 'Não informada');
+                const featureText = escapeHtml(lead.feature_title || lead.feature_key);
+                const countVal = lead.count || 1;
+                const lastInt = lead.last_interaction || lead.created_at || '';
+
+                const statusOptions = ['novo', 'contatado', 'convertido', 'descartado'].map(st => {
+                    const selected = lead.status === st ? 'selected' : '';
+                    const label = st.charAt(0).toUpperCase() + st.slice(1);
+                    return `<option value="${st}" ${selected}>${label}</option>`;
+                }).join('');
+
+                html += `
+                <tr class="hover:bg-slate-50 border-b border-slate-100">
+                    <td class="px-6 py-4 whitespace-nowrap text-slate-500 font-medium">\${escapeHtml(lastInt)}</td>
+                    <td class="px-6 py-4 whitespace-nowrap"><span class="font-bold text-slate-800">\${escapeHtml(systemText)}</span></td>
+                    <td class="px-6 py-4 whitespace-nowrap text-slate-700">\${emailText}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-slate-500 font-mono text-xs">\${licenseText}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-slate-700 font-medium">\${featureText}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-center text-slate-700 font-bold">\${countVal}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <select data-email="\${escapeHtml(lead.email || '')}" data-license="\${escapeHtml(lead.license_key || '')}" data-system="\${escapeHtml(lead.system_id || '')}" data-feature="\${escapeHtml(lead.feature_key || '')}"
+                            class="lead-status-select border rounded px-2 py-1 outline-none text-xs font-bold \${
+                                lead.status === 'novo' ? 'bg-amber-50 text-amber-700 border-amber-200' :
+                                lead.status === 'contatado' ? 'bg-blue-50 text-blue-700 border-blue-200' :
+                                lead.status === 'convertido' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                                'bg-slate-50 text-slate-700 border-slate-200'
+                            }">
+                            \${statusOptions}
+                        </select>
+                    </td>
+                </tr>`;
+            });
+
+            tableBody.innerHTML = html || `
+                <tr>
+                    <td colspan="7" class="px-6 py-12 text-center text-slate-400">
+                        Nenhum lead de evolução registrado até o momento.
+                    </td>
+                </tr>`;
+
+            // Attach event listeners to the selects dynamically to avoid inline onchange
+            tableBody.querySelectorAll('.lead-status-select').forEach(select => {
+                select.addEventListener('change', function() {
+                    const email = this.getAttribute('data-email') || '';
+                    const license = this.getAttribute('data-license') || '';
+                    const system = this.getAttribute('data-system') || '';
+                    const feature = this.getAttribute('data-feature') || '';
+                    updateEvolutionLeadStatus(email, license, system, feature, this.value);
+                });
+            });
+        }
+
+        async function updateEvolutionLeadStatus(email, licenseKey, systemId, featureKey, newStatus) {
+            const res = await apiCall('update_evolution_lead_status', {
+                email: email,
+                license_key: licenseKey,
+                system_id: systemId,
+                feature_key: featureKey,
+                status: newStatus
+            });
+
+            if (res && res.status === 'success') {
+                const lead = loadedEvolutionLeads.find(l =>
+                    (l.email === email || l.license_key === licenseKey) &&
+                    l.system_id === systemId &&
+                    l.feature_key === featureKey
+                );
+                if (lead) {
+                    lead.status = newStatus;
+                }
+                renderEvolutionLeadsTable();
+            } else {
+                alert('Erro ao atualizar status: ' + (res ? res.message : 'resposta vazia'));
+                loadEvolutionLeads();
+            }
         }
 
         async function loadLogs() {

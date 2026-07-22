@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 require_once __DIR__ . '/env_loader.php';
 
 ini_set('display_errors', 0);
@@ -182,6 +182,15 @@ function getSaasCatalog()
                 'basic' => ['name' => 'Básico', 'license_type' => 'monthly', 'modules' => ['agenda', 'caixa', 'clientes', 'servicos', 'estoque', 'suporte']],
                 'premium' => ['name' => 'Premium', 'license_type' => 'monthly', 'modules' => ['agenda', 'caixa', 'clientes', 'servicos', 'estoque', 'pacotes', 'relatorios', 'suporte']],
                 'trial' => ['name' => 'Trial', 'license_type' => 'trial', 'modules' => ['agenda', 'caixa', 'clientes', 'servicos', 'estoque', 'suporte']]
+            ]
+        ],
+        'gestao-assistencia' => [
+            'name' => 'Gestão Assistência',
+            'path' => 'gestao-assistencia',
+            'plans' => [
+                'basic' => ['name' => 'Básico', 'license_type' => 'monthly', 'modules' => ['dashboard', 'ordens_servico', 'clientes', 'pdv', 'estoque', 'financeiro', 'relatorios', 'configuracoes', 'manual', 'suporte']],
+                'premium' => ['name' => 'Premium', 'license_type' => 'monthly', 'modules' => ['dashboard', 'ordens_servico', 'clientes', 'pdv', 'estoque', 'financeiro', 'relatorios', 'configuracoes', 'manual', 'backup', 'suporte']],
+                'trial' => ['name' => 'Trial', 'license_type' => 'trial', 'modules' => ['dashboard', 'ordens_servico', 'clientes', 'pdv', 'estoque', 'financeiro', 'manual', 'suporte']]
             ]
         ]
     ];
@@ -567,9 +576,9 @@ if ($action === 'systems_catalog') {
         echo json_encode(['status' => 'error', 'message' => 'Supabase não configurado no servidor.']);
         exit;
     }
-    
+
     $res = supabase_request('GET', '/rest/v1/systems?select=*,plans(*,plan_modules(*))');
-    
+
     if ($res['code'] >= 400 || !empty($res['error'])) {
         http_response_code(500);
         echo json_encode([
@@ -579,7 +588,7 @@ if ($action === 'systems_catalog') {
         ]);
         exit;
     }
-    
+
     echo json_encode([
         'status' => 'success',
         'source' => 'supabase',

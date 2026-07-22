@@ -1,34 +1,13 @@
 ﻿(function () {
-    // V11.5 - SMART LOCK (Status Check with namespace migration)
-    let licenseKey = localStorage.getItem('barbearia_license');
-    let licenseEmail = localStorage.getItem('barbearia_email');
-    let deviceId = localStorage.getItem('barbearia_device');
+    // V11.4 - SMART LOCK (Status Check)
+    const licenseKey = localStorage.getItem('assistencia_license');
+    const licenseEmail = localStorage.getItem('assistencia_email');
 
-    // Migração transparente do legado
-    if (!licenseKey) {
-        const legacyKey = localStorage.getItem('plena_license');
-        const legacyEmail = localStorage.getItem('ml_license_email');
-        const legacyDevice = localStorage.getItem('device_id');
-        const legacyReceipt = localStorage.getItem('ml_receipt_confirmed');
-
-        if (legacyKey && legacyEmail) {
-            licenseKey = legacyKey;
-            licenseEmail = legacyEmail;
-            deviceId = legacyDevice || ('dev_' + Math.random().toString(36).substr(2, 9) + '_' + Date.now().toString(36));
-
-            localStorage.setItem('barbearia_license', licenseKey);
-            localStorage.setItem('barbearia_email', licenseEmail);
-            localStorage.setItem('barbearia_device', deviceId);
-            if (legacyReceipt) {
-                localStorage.setItem('barbearia_receipt_confirmed', legacyReceipt);
-            }
-        }
-    }
-
-    // Garante deviceId se logado
+    // Recupera ou gera o dispositivo único do cliente
+    let deviceId = localStorage.getItem('assistencia_device');
     if (!deviceId && (licenseKey || licenseEmail)) {
-        deviceId = localStorage.getItem('device_id') || ('dev_' + Math.random().toString(36).substr(2, 9) + '_' + Date.now().toString(36));
-        localStorage.setItem('barbearia_device', deviceId);
+        deviceId = 'dev_' + Math.random().toString(36).substr(2, 9) + '_' + Date.now().toString(36);
+        localStorage.setItem('assistencia_device', deviceId);
     }
 
     // 1. Verificação Básica de Existência
@@ -48,6 +27,7 @@
     // 2. Smart Lock: Verificação de Status Online (Silenciosa)
     // Se tiver internet, valida se a chave foi bloqueada/cancelada
     if (navigator.onLine) {
+        // Endpoint relativo, assume que lock.js está na raiz do app (ex: /gestao-assistencia/lock.js)
         const API_CHECK = '../api_licenca_ml.php?action=verify';
 
         fetch(API_CHECK, {
@@ -63,10 +43,8 @@
             .then(data => {
                 if (data.status === 'success' && data.license_status === 'blocked') {
                     console.warn('Licença BLOCKED pelo servidor.');
-                    localStorage.removeItem('barbearia_license'); // Mata a sessão
-                    localStorage.removeItem('barbearia_email');
-                    localStorage.removeItem('plena_license');
-                    localStorage.removeItem('ml_license_email');
+                    localStorage.removeItem('assistencia_license'); // Mata a sessão
+                    localStorage.removeItem('assistencia_email');
                     window.location.href = 'access_denied.html'; // Chuta para página de bloqueio
                 }
             })

@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+﻿import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
@@ -215,6 +215,7 @@ test('master licenses are server-issued, owner-bound, and never bypassed in clie
   const bootstrapSource = read('scripts/create_master_license.php');
   const barbeariaSource = read('gestao-barbearia/index.html');
   const belezaSource = read('gestao-beleza/index.html');
+  const assistenciaSource = read('gestao-assistencia/index.html');
 
   assert.match(apiSource, /\$masterOwnerEmail/);
   assert.match(apiSource, /hash_equals\(\$masterOwnerEmail, \$requestEmail\)/);
@@ -224,4 +225,46 @@ test('master licenses are server-issued, owner-bound, and never bypassed in clie
   assert.match(bootstrapSource, /is_master/);
   assert.equal(barbeariaSource.includes('MASTER123'), false);
   assert.equal(belezaSource.includes('MASTER123'), false);
+  assert.equal(assistenciaSource.includes('MASTER123'), false);
+  assert.equal(assistenciaSource.includes('ADMIN_ML'), false);
+  assert.equal(assistenciaSource.includes('TESTE2026'), false);
+  assert.equal(assistenciaSource.includes('BYPASS PARA VALIDAÇÃO VISUAL'), false);
+  assert.equal(assistenciaSource.includes('Modo Demonstração (SaaS)'), false);
+  assert.equal(assistenciaSource.includes('Dados Fictícios Locais'), false);
+  assert.equal(assistenciaSource.includes('document.body.style.paddingTop'), false);
+  assert.match(assistenciaSource, /localStorage\.getItem\('assistencia_license'\)/);
+  assert.match(assistenciaSource, /localStorage\.getItem\('assistencia_email'\)/);
+  assert.match(assistenciaSource, /localStorage\.getItem\('assistencia_device'\)/);
+  assert.match(assistenciaSource, /device_id: deviceId/);
+});
+
+test('Fase 1: lock.js of all three systems sends device_id and has namespace isolation/migration', () => {
+  const assistenciaLock = read('gestao-assistencia/lock.js');
+  const barbeariaLock = read('gestao-barbearia/lock.js');
+  const belezaLock = read('gestao-beleza/lock.js');
+
+  // 1. Verify device_id is sent in all lock.js files during verify action
+  assert.match(assistenciaLock, /device_id:\s*deviceId/);
+  assert.match(barbeariaLock, /device_id:\s*deviceId/);
+  assert.match(belezaLock, /device_id:\s*deviceId/);
+
+  // 2. Verify email is sent in all lock.js files during verify action
+  assert.match(assistenciaLock, /email:\s*licenseEmail/);
+  assert.match(barbeariaLock, /email:\s*licenseEmail/);
+  assert.match(belezaLock, /email:\s*email/);
+
+  // 3. Verify namespace isolation and migration exist in Barbearia and Beleza lock.js
+  assert.match(barbeariaLock, /barbearia_license/);
+  assert.match(barbeariaLock, /barbearia_email/);
+  assert.match(barbeariaLock, /barbearia_device/);
+  assert.match(barbeariaLock, /barbearia_receipt_confirmed/);
+  assert.match(barbeariaLock, /plena_license/);
+  assert.match(barbeariaLock, /ml_license_email/);
+
+  assert.match(belezaLock, /beleza_license/);
+  assert.match(belezaLock, /beleza_email/);
+  assert.match(belezaLock, /beleza_device/);
+  assert.match(belezaLock, /beleza_receipt_confirmed/);
+  assert.match(belezaLock, /plena_license/);
+  assert.match(belezaLock, /ml_license_email/);
 });

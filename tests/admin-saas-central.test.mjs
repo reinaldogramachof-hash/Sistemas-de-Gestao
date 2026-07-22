@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+﻿import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
@@ -12,6 +12,7 @@ test('admin SaaS console exposes canonical multi-system catalog', () => {
   assert.match(source, /'gestao-gastro'/);
   assert.match(source, /'gestao-barbearia'/);
   assert.match(source, /'gestao-beleza'/);
+  assert.match(source, /'gestao-assistencia'/);
   assert.match(source, /function renderSaasCustomers\(\)/);
   assert.match(source, /function renderSaasSystems\(\)/);
   assert.match(source, /function populateProvisionCatalog\(\)/);
@@ -117,9 +118,12 @@ test('admin license generation captures system segment modules and tenant contex
   assert.match(html, /max_users: context\.maxUsers/);
   assert.match(html, /max_devices: context\.maxDevices/);
   assert.match(html, /gestao-gastro[\s\S]*restaurante[\s\S]*bar[\s\S]*lanchonete/);
+  assert.match(html, /gestao-assistencia[\s\S]*assistencia/);
 
   assert.match(php, /\$allowedSystems = \[/);
+  assert.match(php, /gestao-assistencia/);
   assert.match(php, /\$allowedSegments = \[/);
+  assert.match(php, /assistencia/);
   assert.match(php, /\$systemId = \$jsonData\['system_id'\]/);
   assert.match(php, /\$segment = \$jsonData\['segment'\]/);
   assert.match(php, /\$planSlug = \$jsonData\['plan_slug'\]/);
@@ -179,7 +183,7 @@ test('dashboard stats calculates enriched metrics without needing list payload',
   assert.match(php, /'trial_expired'/);
   assert.match(php, /'revenue_total'/);
   assert.match(php, /'recurring_revenue'/);
-  
+
   assert.doesNotMatch(html, /const licenses = await apiCall\('list'\);/);
   assert.match(html, /apiCall\('dashboard_stats'\)/);
 });
@@ -310,4 +314,19 @@ test('systems catalog keeps Portuguese labels and has no mojibake markers', () =
   assert.match(html, /Gestão Beleza/);
   assert.match(html, /Salões, estética e pacotes/);
   assert.doesNotMatch(combined, /GestÃ|BÃ|mÃ|AÃ|nÃ|Ã§|Ã£|Ã¡|Ã©|Ãª|Ã³|Ãº|Ã­|â€|ðŸ|�/);
+});
+
+
+test('Fase 1: api_provisioning.php catalog contains gestao-assistencia and has 4 canonical systems', () => {
+  const php = read('api_provisioning.php');
+  const html = read('admin/index.html');
+
+  assert.match(php, /'gestao-assistencia'\s*=>\s*\[/);
+  assert.match(php, /'name'\s*=>\s*'Gestão Assistência'/);
+  assert.match(php, /'path'\s*=>\s*'gestao-assistencia'/);
+  assert.match(php, /'basic'\s*=>\s*\[/);
+  assert.match(php, /'premium'\s*=>\s*\[/);
+  assert.match(php, /'trial'\s*=>\s*\[/);
+
+  assert.match(html, /<option value=\"gestao-assistencia\">Gestão Assistência<\/option>/);
 });

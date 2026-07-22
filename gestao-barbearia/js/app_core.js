@@ -1,4 +1,4 @@
-
+﻿
 // ESTADO GLOBAL
 const DB_KEY = 'brand_barber_pro_v2';
 const defaultDB = {
@@ -232,7 +232,7 @@ async function init() {
 // LÓGICA DE SEGURANÇA E ATIVAÇÃO
 // ==========================================
 async function checkAirlock() {
-    const key = localStorage.getItem('plena_license');
+    const key = localStorage.getItem('barbearia_license') || localStorage.getItem('plena_license');
 
     const viewLogin = document.getElementById('view-login');
     const appMain = document.getElementById('app-main-content');
@@ -247,7 +247,8 @@ async function checkAirlock() {
 
     // 2. Com licença -> Desbloqueia direto
     // Auto-confirma recibo para garantir consistência
-    if (!localStorage.getItem('ml_receipt_confirmed')) {
+    if (!localStorage.getItem('barbearia_receipt_confirmed') && !localStorage.getItem('ml_receipt_confirmed')) {
+        localStorage.setItem('barbearia_receipt_confirmed', 'true');
         localStorage.setItem('ml_receipt_confirmed', 'true');
     }
     unlockSystem();
@@ -274,7 +275,7 @@ async function confirmReceipt() {
         btn.disabled = true;
     }
 
-    const key = localStorage.getItem('plena_license'); // Pega a chave salva no login
+    const key = localStorage.getItem('barbearia_license') || localStorage.getItem('plena_license'); // Pega a chave salva no login
 
     try {
         // Envia JSON, igual ao activate
@@ -290,6 +291,7 @@ async function confirmReceipt() {
         const data = await response.json();
 
         if (data.status === 'success') {
+            localStorage.setItem('barbearia_receipt_confirmed', 'true');
             localStorage.setItem('ml_receipt_confirmed', 'true');
             const modal = document.getElementById('welcome-receipt-modal');
             if (modal) modal.classList.add('hidden');
@@ -560,15 +562,56 @@ function renderEvolutionCenter() {
 }
 
 function showEvolutionToast(featureKey) {
-    let msg = "Este recurso fará parte das próximas evoluções premium.";
-    if (featureKey && EVOLUTION_FEATURES[featureKey]) {
-        msg = EVOLUTION_FEATURES[featureKey].message || msg;
-    }
+    const feature = EVOLUTION_FEATURES[featureKey] || {};
+    const featureTitle = feature.title || featureKey;
+    const notify = (msg, type) => {
+        if (typeof showNotification === 'function') {
+            showNotification(msg, type);
+        } else {
+            const el = document.createElement('div');
+            el.className = `fixed top-4 right-4 text-white px-6 py-3 rounded-xl shadow-2xl z-[100] transform transition-all duration-300 font-bold border border-white/10 ${
+                type === 'success' ? 'bg-emerald-600' : type === 'error' ? 'bg-rose-600' : 'bg-blue-600'
+            }`;
+            el.innerText = msg;
+            document.body.appendChild(el);
+            setTimeout(() => el.remove(), 4000);
+        }
+    };
 
-    if (typeof showNotification === 'function') {
-        showNotification(msg, "info");
-    } else {
-        alert(msg);
+    notify(`Registrando interesse no recurso premium: ${featureTitle}...`, 'info');
+
+    // Registro comercial assíncrono (Fase 2)
+    try {
+        const licenseKey = localStorage.getItem('barbearia_license') || localStorage.getItem('plena_license') || '';
+        const email = localStorage.getItem('barbearia_email') || localStorage.getItem('ml_license_email') || '';
+
+        fetch('../api_licenca_ml.php?action=register_evolution_lead', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                license_key: licenseKey,
+                email: email,
+                system_id: 'gestao-barbearia',
+                feature_key: featureKey,
+                feature_title: featureTitle,
+                source: 'evolution_module'
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data && data.status === 'success') {
+                notify(`Interesse registrado! O recurso "${featureTitle}" estará disponível na evolução online.`, 'success');
+            } else {
+                notify(`Interesse registrado localmente. Não foi possível enviar agora.`, 'warning');
+            }
+        })
+        .catch(err => {
+            console.warn('Erro ao registrar interesse (offline):', err);
+            notify(`Não foi possível registrar no momento devido à falta de conexão.`, 'error');
+        });
+    } catch (e) {
+        console.error('Falha ao processar registro comercial:', e);
+        notify(`Não foi possível registrar no momento.`, 'error');
     }
 }
 function toggleSidebar() {
@@ -2601,7 +2644,7 @@ document.addEventListener('DOMContentLoaded', () => {
     loadChecklistState();
 
     // Auto-check receipt status
-    const confirmed = localStorage.getItem('ml_receipt_confirmed');
+    const confirmed = localStorage.getItem('barbearia_receipt_confirmed') || localStorage.getItem('ml_receipt_confirmed');
     if (confirmed === 'true') {
         const btn = document.getElementById('btn-confirm-terms');
         const badge = document.getElementById('terms-accepted-badge');
@@ -3131,5 +3174,3 @@ function submitStockMovement(e) {
         }, 2000);
     }
 }
-
-

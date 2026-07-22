@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="pt-BR" class="dark">
 
 <head>
@@ -2105,9 +2105,10 @@
                 if (output) output.classList.add('hidden');
 
                 // Gerar device_id único se não existir
-                let deviceId = localStorage.getItem('device_id');
+                let deviceId = localStorage.getItem('beleza_device') || localStorage.getItem('device_id');
                 if (!deviceId) {
                     deviceId = 'dev_' + Math.random().toString(36).substr(2, 9) + '_' + Date.now().toString(36);
+                    localStorage.setItem('beleza_device', deviceId);
                     localStorage.setItem('device_id', deviceId);
                 }
 
@@ -2124,12 +2125,20 @@
                 const data = await response.json();
 
                 if (data.status === 'success') {
-                    // ✅ Salva credenciais localmente
+                    // ✅ Salva credenciais localmente (Namespace Beleza)
+                    localStorage.setItem('beleza_license', key);
+                    localStorage.setItem('beleza_email', email);
+                    localStorage.setItem('beleza_device', deviceId);
+                    localStorage.setItem('beleza_receipt_confirmed', 'true');
+
+                    // ✅ Salva credenciais localmente (Legado)
                     localStorage.setItem('plena_license', key);
                     localStorage.setItem('ml_license_email', email);
+                    localStorage.setItem('device_id', deviceId);
+                    localStorage.setItem('ml_receipt_confirmed', 'true');
 
                     // Exibe modal de recibo ANTES de liberar o app
-                    if (!localStorage.getItem('ml_receipt_confirmed')) {
+                    if (!localStorage.getItem('beleza_receipt_confirmed') && !localStorage.getItem('ml_receipt_confirmed')) {
                         const loginView = document.getElementById('view-login');
                         if (loginView) {
                             loginView.classList.add('hide');
@@ -2173,8 +2182,8 @@
                 btn.disabled = true;
             }
 
-            const key = localStorage.getItem('plena_license');
-            const email = localStorage.getItem('ml_license_email') || '';
+            const key = localStorage.getItem('beleza_license') || localStorage.getItem('plena_license');
+            const email = localStorage.getItem('beleza_email') || localStorage.getItem('ml_license_email') || '';
 
             try {
                 const response = await fetch('../api_licenca_ml.php?action=confirm_receipt', {
@@ -2190,6 +2199,7 @@
                 const data = await response.json();
 
                 if (data.status === 'success') {
+                    localStorage.setItem('beleza_receipt_confirmed', 'true');
                     localStorage.setItem('ml_receipt_confirmed', 'true');
                     const modal = document.getElementById('welcome-receipt-modal');
                     if (modal) modal.classList.add('hidden');

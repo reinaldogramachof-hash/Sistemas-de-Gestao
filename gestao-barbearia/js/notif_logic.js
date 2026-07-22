@@ -1,4 +1,4 @@
-// ============================================================
+﻿// ============================================================
 // MÓDULO DE NOTIFICAÇÕES — Gestão Barbearia Pro v4.2
 // Busca notificações em sistemasdegestao.tech/api_notificacoes.php
 // ============================================================
@@ -44,7 +44,7 @@ async function fetchNotifications(forceNetwork = false) {
     try {
         const ctrl = new AbortController();
         const timer = setTimeout(() => ctrl.abort(), 5000);
-        const licenseKey = localStorage.getItem('plena_license') || '';
+        const licenseKey = localStorage.getItem('barbearia_license') || localStorage.getItem('plena_license') || '';
         // cache:'no-store' garante que o browser nunca retorne resposta em cache
         const res   = await fetch(`${NOTIF_API_URL}?target=${NOTIF_TARGET}&license=${licenseKey}&_t=${now}`, {
             signal: ctrl.signal,
@@ -53,12 +53,12 @@ async function fetchNotifications(forceNetwork = false) {
         clearTimeout(timer);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
-        
+
         // Verifica se os dados chegaram diferentes para re-renderizar
         const isDataChanged = !cached || JSON.stringify(cached.data) !== JSON.stringify(data);
-        
+
         localStorage.setItem(NOTIF_CACHE_KEY, JSON.stringify({ data, fetchedAt: now }));
-        
+
         if (isDataChanged || !forceNetwork) {
             processNotifications(data);
         }

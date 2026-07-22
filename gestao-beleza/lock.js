@@ -1,11 +1,43 @@
-/**
- * Lock.js - Guardião de Segurança V12.1 (Receipt + Trial + Email Capture)
+﻿/**
+ * Lock.js - Guardião de Segurança V12.1 (Receipt + Trial + Email Capture + Namespace Migration)
  * Padrão ML Factory - Confirm Receipt System
  */
 (function () {
-    const LICENSE_KEY = 'plena_license';
-    const EMAIL_KEY = 'ml_license_email';
+    const LICENSE_KEY = 'beleza_license';
+    const EMAIL_KEY = 'beleza_email';
+    const DEVICE_KEY = 'beleza_device';
+    const RECEIPT_KEY = 'beleza_receipt_confirmed';
     const API_URL = '../api_licenca_ml.php';
+
+    // Migração transparente do legado
+    let licenseKey = localStorage.getItem(LICENSE_KEY);
+    let licenseEmail = localStorage.getItem(EMAIL_KEY);
+    let deviceId = localStorage.getItem(DEVICE_KEY);
+
+    if (!licenseKey) {
+        const legacyKey = localStorage.getItem('plena_license');
+        const legacyEmail = localStorage.getItem('ml_license_email');
+        const legacyDevice = localStorage.getItem('device_id');
+        const legacyReceipt = localStorage.getItem('ml_receipt_confirmed');
+
+        if (legacyKey && legacyEmail) {
+            licenseKey = legacyKey;
+            licenseEmail = legacyEmail;
+            deviceId = legacyDevice || ('dev_' + Math.random().toString(36).substr(2, 9) + '_' + Date.now().toString(36));
+
+            localStorage.setItem(LICENSE_KEY, licenseKey);
+            localStorage.setItem(EMAIL_KEY, licenseEmail);
+            localStorage.setItem(DEVICE_KEY, deviceId);
+            if (legacyReceipt) {
+                localStorage.setItem(RECEIPT_KEY, legacyReceipt);
+            }
+        }
+    }
+
+    if (!deviceId && (licenseKey || licenseEmail)) {
+        deviceId = localStorage.getItem('device_id') || ('dev_' + Math.random().toString(36).substr(2, 9) + '_' + Date.now().toString(36));
+        localStorage.setItem(DEVICE_KEY, deviceId);
+    }
 
     function getLocalLicense() {
         return localStorage.getItem(LICENSE_KEY);
@@ -24,7 +56,11 @@
             const res = await fetch(API_URL + '?action=verify', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ license_key: key, email: email })
+                body: JSON.stringify({
+                    license_key: key,
+                    email: email,
+                    device_id: deviceId
+                })
             });
             const data = await res.json();
 
@@ -32,10 +68,15 @@
                 if (data.license_status === 'expired') {
                     blockSystem("Seu período de teste acabou.", "Adquira a versão vitalícia para continuar usando seus dados.");
                 } else if (data.license_status === 'blocked') {
+                    // Limpa sessões
+                    localStorage.removeItem(LICENSE_KEY);
+                    localStorage.removeItem(EMAIL_KEY);
+                    localStorage.removeItem('plena_license');
+                    localStorage.removeItem('ml_license_email');
                     blockSystem("Licença Bloqueada", "Entre em contato com o suporte.");
                 } else {
                     // ATIVO ou TRIAL VÁLIDO
-                    if (!localStorage.getItem('ml_receipt_confirmed')) {
+                    if (!localStorage.getItem(RECEIPT_KEY)) {
                         hideApp();
                         const login = document.getElementById('view-login');
                         if (login) login.style.display = 'none';
@@ -100,7 +141,8 @@
         if (header) header.style.display = 'none';
     }
 
-    function unlockSystem() {
+    // Mantém compatibilidade com elementos do DOM que usam unlockSystem
+    window.unlockSystem = function() {
         const login = document.getElementById('view-login');
         if (login) {
             login.classList.add('hide');
@@ -111,6 +153,10 @@
         if (sidebar) sidebar.style.display = '';
         if (main) main.style.display = '';
         if (header) header.style.display = '';
+    }
+
+    function unlockSystem() {
+        window.unlockSystem();
     }
 
     function showTrialBanner(expDate) {

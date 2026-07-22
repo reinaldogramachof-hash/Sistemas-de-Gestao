@@ -1,4 +1,4 @@
-﻿
+
 // ==========================================
 // MÓDULO ROUTES: Gerenciamento da SPA
 // ==========================================
@@ -83,6 +83,10 @@ function router(view) {
         case 'evolution':
             document.getElementById('page-title').textContent = 'Central de Evolução';
             if (typeof renderEvolutionCenter === 'function') renderEvolutionCenter();
+            break;
+        case 'notifications':
+            document.getElementById('page-title').textContent = 'Notificações & Atualizações';
+            if (typeof renderNotifications === 'function') renderNotifications();
             break;
     }
 }

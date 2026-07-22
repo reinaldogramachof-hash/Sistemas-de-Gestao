@@ -1,4 +1,4 @@
-﻿import { readFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
@@ -98,9 +98,56 @@ test('Fase 2.1: showEvolutionToast does not use alert() in all three systems', (
   assert.ok(bToast.length > 0, 'showEvolutionToast should exist in barbearia');
   assert.ok(lToast.length > 0, 'showEvolutionToast should exist in beleza');
   assert.ok(aToast.length > 0, 'showEvolutionToast should exist in assistencia');
-
   // NENHUMA delas deve conter chamada a alert()
   assert.equal(bToast.includes('alert('), false, 'barbearia should not use alert() in evolution flow');
   assert.equal(lToast.includes('alert('), false, 'beleza should not use alert() in evolution flow');
   assert.equal(aToast.includes('alert('), false, 'assistencia should not use alert() in evolution flow');
+});
+
+test('Fase 3: api_licenca_ml.php update_evolution_lead_status accepts 6 funnel statuses', () => {
+  const apiSource = read('api_licenca_ml.php');
+
+  // Verify $allowedStatuses contains all 6 statuses
+  assert.match(apiSource, /'novo',\s*'contatado',\s*'proposta_enviada',\s*'convertido',\s*'perdido',\s*'descartado'/);
+});
+
+test('Fase 3: api_licenca_ml.php has update_evolution_lead_fields protected by ADMIN_SECRET', () => {
+  const apiSource = read('api_licenca_ml.php');
+
+  // Verify update_evolution_lead_fields exists
+  assert.match(apiSource, /action === 'update_evolution_lead_fields'/);
+
+  // Find where update_evolution_lead_fields is defined and verify validateSecret is used
+  const startIdx = apiSource.indexOf("action === 'update_evolution_lead_fields'");
+  assert.ok(startIdx > -1);
+  const block = apiSource.slice(startIdx, startIdx + 500);
+  assert.match(block, /validateSecret\(\$jsonData,\s*\$ADMIN_SECRET\)/);
+});
+
+test('Fase 3: register_evolution_lead does not accept notes, owner, next_contact_at or contact_channel in payload', () => {
+  const apiSource = read('api_licenca_ml.php');
+
+  const startIdx = apiSource.indexOf("action === 'register_evolution_lead'");
+  const endIdx = apiSource.indexOf("action === 'list_evolution_leads'");
+  assert.ok(startIdx > -1);
+  assert.ok(endIdx > -1);
+
+  const block = apiSource.slice(startIdx, endIdx);
+
+  // It should NOT try to bind these fields from $jsonData
+  assert.equal(block.includes("['notes']"), false, 'register_evolution_lead must not parse notes');
+  assert.equal(block.includes("['owner']"), false, 'register_evolution_lead must not parse owner');
+  assert.equal(block.includes("['next_contact_at']"), false, 'register_evolution_lead must not parse next_contact_at');
+  assert.equal(block.includes("['contact_channel']"), false, 'register_evolution_lead must not parse contact_channel');
+});
+
+test('Fase 3.1: update_evolution_lead_fields rejects invalid status in payload', () => {
+  const apiSource = read('api_licenca_ml.php');
+
+  const startIdx = apiSource.indexOf("action === 'update_evolution_lead_fields'");
+  assert.ok(startIdx > -1);
+  const block = apiSource.slice(startIdx, startIdx + 1500);
+
+  // Deve validar status e retornar 'Status inválido'
+  assert.match(block, /'Status inválido'/);
 });

@@ -1,4 +1,4 @@
-﻿import { readFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
@@ -267,4 +267,37 @@ test('Fase 1: lock.js of all three systems sends device_id and has namespace iso
   assert.match(belezaLock, /beleza_receipt_confirmed/);
   assert.match(belezaLock, /plena_license/);
   assert.match(belezaLock, /ml_license_email/);
+});
+
+test('Fase 3: admin evolution leads UI has filters, export CSV and uses no inline event handlers', () => {
+  const source = read('admin/index.html');
+
+  // Verify filters elements exist in html source
+  assert.match(source, /id="leads-search"/);
+  assert.match(source, /id="leads-system-filter"/);
+  assert.match(source, /id="leads-status-filter"/);
+  assert.match(source, /id="leads-export-csv"/);
+
+  // Verify we do not use inline handlers on the new inputs/selects or export button
+  const startIdx = source.indexOf('function renderEvolutionLeadsTable()');
+  const endIdx = source.indexOf('async function updateEvolutionLeadFields');
+  assert.ok(startIdx > -1);
+  assert.ok(endIdx > -1);
+  const renderBlock = source.slice(startIdx, endIdx);
+
+  assert.equal(renderBlock.includes('onchange='), false, 'renderEvolutionLeadsTable must not output inline onchange');
+  assert.equal(renderBlock.includes('onblur='), false, 'renderEvolutionLeadsTable must not output inline onblur');
+  assert.equal(renderBlock.includes('onkeypress='), false, 'renderEvolutionLeadsTable must not output inline onkeypress');
+  assert.equal(source.includes('onclick="exportEvolutionLeadsCsv'), false, 'export CSV must not use inline onclick');
+
+  // Verify we bind them using event listeners
+  assert.match(source, /leadsSearch\.addEventListener\('input'/);
+  assert.match(source, /leadsSysFilter\.addEventListener\('change'/);
+  assert.match(source, /leadsStFilter\.addEventListener\('change'/);
+  assert.match(source, /leadsExportBtn\.addEventListener\('click'/);
+  assert.match(source, /selector:\s*'\.lead-owner-input'/);
+  assert.match(source, /selector:\s*'\.lead-channel-input'/);
+  assert.match(source, /selector:\s*'\.lead-next-contact-input'/);
+  assert.match(source, /selector:\s*'\.lead-notes-input'/);
+  assert.match(source, /querySelectorAll\(cfg\.selector\)/);
 });

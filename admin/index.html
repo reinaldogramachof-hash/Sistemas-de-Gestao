@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="pt-BR">
 
 <head>
@@ -791,7 +791,10 @@
                 <div id="tab-leads" class="tab-content hidden fade-in max-w-7xl mx-auto">
                     <div class="flex justify-between items-center mb-6">
                         <div>
-                            <h2 class="text-2xl font-bold">Leads de Evolução</h2>
+                            <div class="flex items-center">
+                                <h2 class="text-2xl font-bold">Leads de Evolução</h2>
+                                <span id="leads-total-count" class="bg-blue-100 text-blue-800 text-xs font-bold px-2.5 py-0.5 rounded ml-3">0</span>
+                            </div>
                             <p class="text-slate-500 text-sm">Interesses comerciais registrados a partir do módulo Evolução nos sistemas locais.</p>
                         </div>
                         <div class="flex gap-2">
@@ -803,38 +806,78 @@
                     </div>
 
                     <!-- Summary Stats -->
-                    <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
-                        <div class="card p-6 bg-slate-900 border border-slate-800 rounded-2xl">
-                            <p class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Total de Interesses</p>
-                            <h3 class="text-3xl font-black text-white" id="leads-total-count">0</h3>
+                    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
+                        <div class="card p-4 bg-slate-900 border border-slate-800 rounded-2xl">
+                            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Novos</p>
+                            <h3 class="text-xl font-black text-amber-500" id="leads-new-count">0</h3>
                         </div>
-                        <div class="card p-6 bg-slate-900 border border-slate-800 rounded-2xl">
-                            <p class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Leads Novos</p>
-                            <h3 class="text-3xl font-black text-amber-500" id="leads-new-count">0</h3>
+                        <div class="card p-4 bg-slate-900 border border-slate-800 rounded-2xl">
+                            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Contatados</p>
+                            <h3 class="text-xl font-black text-blue-500" id="leads-contacted-count">0</h3>
                         </div>
-                        <div class="card p-6 bg-slate-900 border border-slate-800 rounded-2xl">
-                            <p class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Leads Contatados</p>
-                            <h3 class="text-3xl font-black text-blue-500" id="leads-contacted-count">0</h3>
+                        <div class="card p-4 bg-slate-900 border border-slate-800 rounded-2xl">
+                            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Proposta Enviada</p>
+                            <h3 class="text-xl font-black text-violet-500" id="leads-proposta-count">0</h3>
                         </div>
-                        <div class="card p-6 bg-slate-900 border border-slate-800 rounded-2xl">
-                            <p class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Leads Convertidos</p>
-                            <h3 class="text-3xl font-black text-emerald-500" id="leads-converted-count">0</h3>
+                        <div class="card p-4 bg-slate-900 border border-slate-800 rounded-2xl">
+                            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Convertidos</p>
+                            <h3 class="text-xl font-black text-emerald-500" id="leads-converted-count">0</h3>
+                        </div>
+                        <div class="card p-4 bg-slate-900 border border-slate-800 rounded-2xl">
+                            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Perdidos</p>
+                            <h3 class="text-xl font-black text-rose-500" id="leads-lost-count">0</h3>
+                        </div>
+                        <div class="card p-4 bg-slate-900 border border-slate-800 rounded-2xl">
+                            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Descartados</p>
+                            <h3 class="text-xl font-black text-slate-500" id="leads-discarded-count">0</h3>
                         </div>
                     </div>
 
                     <!-- Table -->
                     <div class="bg-white rounded-2xl border shadow-sm overflow-hidden">
+                        <div class="p-6 border-b border-slate-100 flex flex-col md:flex-row gap-4 items-center justify-between">
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-3 w-full md:w-auto flex-1">
+                                <div class="relative">
+                                    <i data-lucide="search" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                                    <input id="leads-search" type="text"
+                                        placeholder="Buscar por e-mail, licença ou recurso..."
+                                        class="w-full border border-slate-200 rounded-lg pl-10 pr-4 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500">
+                                </div>
+                                <select id="leads-system-filter"
+                                    class="border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                                    <option value="">Todos os sistemas</option>
+                                    <option value="gestao-assistencia">Gestão Assistência</option>
+                                    <option value="gestao-barbearia">Gestão Barbearia</option>
+                                    <option value="gestao-beleza">Gestão Beleza</option>
+                                </select>
+                                <select id="leads-status-filter"
+                                    class="border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                                    <option value="">Todos os status</option>
+                                    <option value="novo">Novo</option>
+                                    <option value="contatado">Contatado</option>
+                                    <option value="proposta_enviada">Proposta Enviada</option>
+                                    <option value="convertido">Convertido</option>
+                                    <option value="perdido">Perdido</option>
+                                    <option value="descartado">Descartado</option>
+                                </select>
+                            </div>
+                            <button id="leads-export-csv"
+                                class="bg-white border border-slate-200 text-slate-700 px-4 py-2 rounded-lg text-sm font-bold hover:bg-slate-50 flex items-center gap-2 w-full md:w-auto justify-center">
+                                <i data-lucide="download" class="w-4 h-4"></i> Exportar CSV
+                            </button>
+                        </div>
                         <div class="overflow-x-auto">
                             <table class="w-full text-left border-collapse text-sm">
                                 <thead>
                                     <tr class="bg-slate-50 text-slate-500 font-bold border-b">
-                                        <th class="px-6 py-4">Última Interação</th>
-                                        <th class="px-6 py-4">Sistema</th>
-                                        <th class="px-6 py-4">Cliente / E-mail</th>
-                                        <th class="px-6 py-4">Licença</th>
-                                        <th class="px-6 py-4">Recurso de Interesse</th>
-                                        <th class="px-6 py-4 text-center">Interações</th>
-                                        <th class="px-6 py-4">Status</th>
+                                        <th class="px-4 py-4 text-xs uppercase tracking-wider">Última Interação</th>
+                                        <th class="px-4 py-4 text-xs uppercase tracking-wider">Origem</th>
+                                        <th class="px-4 py-4 text-xs uppercase tracking-wider">Recurso de Interesse</th>
+                                        <th class="px-4 py-4 text-xs uppercase tracking-wider">Status</th>
+                                        <th class="px-4 py-4 text-xs uppercase tracking-wider">Responsável</th>
+                                        <th class="px-4 py-4 text-xs uppercase tracking-wider">Canal</th>
+                                        <th class="px-4 py-4 text-xs uppercase tracking-wider">Próximo Contato</th>
+                                        <th class="px-4 py-4 text-xs uppercase tracking-wider">Observações</th>
                                     </tr>
                                 </thead>
                                 <tbody id="leads-table" class="divide-y divide-slate-100">
@@ -1945,6 +1988,33 @@
         document.addEventListener('DOMContentLoaded', () => {
             lucide.createIcons();
             populateProvisionCatalog();
+
+            // Filtros de Leads de Evolução
+            const leadsSearch = document.getElementById('leads-search');
+            if (leadsSearch) {
+                leadsSearch.addEventListener('input', () => {
+                    renderEvolutionLeadsTable();
+                });
+            }
+            const leadsSysFilter = document.getElementById('leads-system-filter');
+            if (leadsSysFilter) {
+                leadsSysFilter.addEventListener('change', () => {
+                    renderEvolutionLeadsTable();
+                });
+            }
+            const leadsStFilter = document.getElementById('leads-status-filter');
+            if (leadsStFilter) {
+                leadsStFilter.addEventListener('change', () => {
+                    renderEvolutionLeadsTable();
+                });
+            }
+            const leadsExportBtn = document.getElementById('leads-export-csv');
+            if (leadsExportBtn) {
+                leadsExportBtn.addEventListener('click', () => {
+                    exportEvolutionLeadsCsv();
+                });
+            }
+
             const savedToken = sessionStorage.getItem('admin_token');
             if (savedToken) {
                 AUTH_SECRET = savedToken;
@@ -2629,22 +2699,63 @@
             renderEvolutionLeadsTable();
         }
 
+        function updateLeadsCounters() {
+            const total = loadedEvolutionLeads.length;
+            const newCount = loadedEvolutionLeads.filter(l => l.status === 'novo').length;
+            const contactedCount = loadedEvolutionLeads.filter(l => l.status === 'contatado').length;
+            const propostaCount = loadedEvolutionLeads.filter(l => l.status === 'proposta_enviada').length;
+            const convertedCount = loadedEvolutionLeads.filter(l => l.status === 'convertido').length;
+            const lostCount = loadedEvolutionLeads.filter(l => l.status === 'perdido').length;
+            const discardedCount = loadedEvolutionLeads.filter(l => l.status === 'descartado').length;
+
+            const elTotal = document.getElementById('leads-total-count');
+            if (elTotal) elTotal.textContent = total;
+            const elNew = document.getElementById('leads-new-count');
+            if (elNew) elNew.textContent = newCount;
+            const elContacted = document.getElementById('leads-contacted-count');
+            if (elContacted) elContacted.textContent = contactedCount;
+            const elProposta = document.getElementById('leads-proposta-count');
+            if (elProposta) elProposta.textContent = propostaCount;
+            const elConverted = document.getElementById('leads-converted-count');
+            if (elConverted) elConverted.textContent = convertedCount;
+            const elLost = document.getElementById('leads-lost-count');
+            if (elLost) elLost.textContent = lostCount;
+            const elDiscarded = document.getElementById('leads-discarded-count');
+            if (elDiscarded) elDiscarded.textContent = discardedCount;
+        }
+
+        function getFilteredEvolutionLeads() {
+            const searchQuery = (document.getElementById('leads-search')?.value || '').toLowerCase().trim();
+            const systemFilter = document.getElementById('leads-system-filter')?.value || '';
+            const statusFilter = document.getElementById('leads-status-filter')?.value || '';
+
+            return loadedEvolutionLeads.filter(lead => {
+                const matchesSystem = !systemFilter || lead.system_id === systemFilter;
+                const matchesStatus = !statusFilter || lead.status === statusFilter;
+
+                const searchHaystack = [
+                    lead.email || '',
+                    lead.license_key || '',
+                    lead.feature_title || '',
+                    lead.feature_key || ''
+                ].join(' ').toLowerCase();
+
+                const matchesSearch = !searchQuery || searchHaystack.includes(searchQuery);
+
+                return matchesSystem && matchesStatus && matchesSearch;
+            });
+        }
+
         function renderEvolutionLeadsTable() {
             const tableBody = document.getElementById('leads-table');
             if (!tableBody) return;
 
-            const total = loadedEvolutionLeads.length;
-            const newCount = loadedEvolutionLeads.filter(l => l.status === 'novo').length;
-            const contactedCount = loadedEvolutionLeads.filter(l => l.status === 'contatado').length;
-            const convertedCount = loadedEvolutionLeads.filter(l => l.status === 'convertido').length;
+            updateLeadsCounters();
 
-            document.getElementById('leads-total-count').textContent = total;
-            document.getElementById('leads-new-count').textContent = newCount;
-            document.getElementById('leads-contacted-count').textContent = contactedCount;
-            document.getElementById('leads-converted-count').textContent = convertedCount;
+            const filteredLeads = getFilteredEvolutionLeads();
 
             let html = '';
-            loadedEvolutionLeads.forEach(lead => {
+            filteredLeads.forEach(lead => {
                 const systemNames = {
                     'gestao-assistencia': 'Gestão Assistência',
                     'gestao-barbearia': 'Gestão Barbearia',
@@ -2656,61 +2767,134 @@
                 const featureText = escapeHtml(lead.feature_title || lead.feature_key);
                 const countVal = lead.count || 1;
                 const lastInt = lead.last_interaction || lead.created_at || '';
+                const createdAt = lead.created_at || '';
 
-                const statusOptions = ['novo', 'contatado', 'convertido', 'descartado'].map(st => {
+                const statusOptions = ['novo', 'contatado', 'proposta_enviada', 'convertido', 'perdido', 'descartado'].map(st => {
                     const selected = lead.status === st ? 'selected' : '';
-                    const label = st.charAt(0).toUpperCase() + st.slice(1);
+                    const labels = {
+                        'novo': 'Novo',
+                        'contatado': 'Contatado',
+                        'proposta_enviada': 'Proposta Enviada',
+                        'convertido': 'Convertido',
+                        'perdido': 'Perdido',
+                        'descartado': 'Descartado'
+                    };
+                    const label = labels[st] || st;
                     return `<option value="${st}" ${selected}>${label}</option>`;
                 }).join('');
 
                 html += `
-                <tr class="hover:bg-slate-50 border-b border-slate-100">
-                    <td class="px-6 py-4 whitespace-nowrap text-slate-500 font-medium">\${escapeHtml(lastInt)}</td>
-                    <td class="px-6 py-4 whitespace-nowrap"><span class="font-bold text-slate-800">\${escapeHtml(systemText)}</span></td>
-                    <td class="px-6 py-4 whitespace-nowrap text-slate-700">\${emailText}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-slate-500 font-mono text-xs">\${licenseText}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-slate-700 font-medium">\${featureText}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-center text-slate-700 font-bold">\${countVal}</td>
-                    <td class="px-6 py-4 whitespace-nowrap">
+                <tr class="hover:bg-slate-50 border-b border-slate-100 text-xs">
+                    <td class="px-4 py-3 text-slate-500 font-medium">
+                        <div>\${escapeHtml(lastInt)}</div>
+                        <div class="text-[10px] text-slate-400">Criado: \${escapeHtml(createdAt)}</div>
+                    </td>
+                    <td class="px-4 py-3">
+                        <span class="font-bold text-slate-800 block">\${escapeHtml(systemText)}</span>
+                        <span class="text-[11px] text-slate-500 block">\${emailText}</span>
+                        <span class="font-mono text-[10px] text-slate-400 block">\${licenseText}</span>
+                    </td>
+                    <td class="px-4 py-3 font-medium text-slate-700">
+                        <div>\${featureText}</div>
+                        <div class="text-[10px] text-slate-400">Origem: \${escapeHtml(lead.source || 'evolution_module')} · Cliques: <span class="font-bold">\${countVal}</span></div>
+                    </td>
+                    <td class="px-4 py-3">
                         <select data-email="\${escapeHtml(lead.email || '')}" data-license="\${escapeHtml(lead.license_key || '')}" data-system="\${escapeHtml(lead.system_id || '')}" data-feature="\${escapeHtml(lead.feature_key || '')}"
-                            class="lead-status-select border rounded px-2 py-1 outline-none text-xs font-bold \${
+                            class="lead-status-select border rounded px-1.5 py-0.5 outline-none text-xs font-bold \${
                                 lead.status === 'novo' ? 'bg-amber-50 text-amber-700 border-amber-200' :
                                 lead.status === 'contatado' ? 'bg-blue-50 text-blue-700 border-blue-200' :
+                                lead.status === 'proposta_enviada' ? 'bg-violet-50 text-violet-700 border-violet-200' :
                                 lead.status === 'convertido' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                                lead.status === 'perdido' ? 'bg-rose-50 text-rose-700 border-rose-200' :
                                 'bg-slate-50 text-slate-700 border-slate-200'
                             }">
                             \${statusOptions}
                         </select>
+                    </td>
+                    <td class="px-4 py-3">
+                        <input type="text" placeholder="Sem resp." value="\${escapeHtml(lead.owner || '')}"
+                            data-email="\${escapeHtml(lead.email || '')}" data-license="\${escapeHtml(lead.license_key || '')}" data-system="\${escapeHtml(lead.system_id || '')}" data-feature="\${escapeHtml(lead.feature_key || '')}"
+                            class="lead-owner-input border border-slate-200 rounded px-2 py-1 outline-none text-xs w-24 focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
+                    </td>
+                    <td class="px-4 py-3">
+                        <input type="text" placeholder="Ex: WhatsApp" value="\${escapeHtml(lead.contact_channel || '')}"
+                            data-email="\${escapeHtml(lead.email || '')}" data-license="\${escapeHtml(lead.license_key || '')}" data-system="\${escapeHtml(lead.system_id || '')}" data-feature="\${escapeHtml(lead.feature_key || '')}"
+                            class="lead-channel-input border border-slate-200 rounded px-2 py-1 outline-none text-xs w-24 focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
+                    </td>
+                    <td class="px-4 py-3">
+                        <input type="date" value="\${escapeHtml(lead.next_contact_at || '')}"
+                            data-email="\${escapeHtml(lead.email || '')}" data-license="\${escapeHtml(lead.license_key || '')}" data-system="\${escapeHtml(lead.system_id || '')}" data-feature="\${escapeHtml(lead.feature_key || '')}"
+                            class="lead-next-contact-input border border-slate-200 rounded px-1.5 py-1 outline-none text-xs focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
+                    </td>
+                    <td class="px-4 py-3">
+                        <input type="text" placeholder="Anotações comerciais..." value="\${escapeHtml(lead.notes || '')}"
+                            data-email="\${escapeHtml(lead.email || '')}" data-license="\${escapeHtml(lead.license_key || '')}" data-system="\${escapeHtml(lead.system_id || '')}" data-feature="\${escapeHtml(lead.feature_key || '')}"
+                            class="lead-notes-input border border-slate-200 rounded px-2 py-1 outline-none text-xs w-full focus:ring-1 focus:ring-blue-500 focus:border-blue-500 min-w-[150px]">
                     </td>
                 </tr>`;
             });
 
             tableBody.innerHTML = html || `
                 <tr>
-                    <td colspan="7" class="px-6 py-12 text-center text-slate-400">
-                        Nenhum lead de evolução registrado até o momento.
+                    <td colspan="8" class="px-6 py-12 text-center text-slate-400">
+                        Nenhum lead de evolução correspondente aos filtros.
                     </td>
                 </tr>`;
 
-            // Attach event listeners to the selects dynamically to avoid inline onchange
+            // Attach event listeners dynamically to avoid inline handlers
             tableBody.querySelectorAll('.lead-status-select').forEach(select => {
                 select.addEventListener('change', function() {
                     const email = this.getAttribute('data-email') || '';
                     const license = this.getAttribute('data-license') || '';
                     const system = this.getAttribute('data-system') || '';
                     const feature = this.getAttribute('data-feature') || '';
-                    updateEvolutionLeadStatus(email, license, system, feature, this.value);
+                    updateEvolutionLeadFields(email, license, system, feature, { status: this.value });
+                });
+            });
+
+            const fieldsConfig = [
+                { selector: '.lead-owner-input', key: 'owner' },
+                { selector: '.lead-channel-input', key: 'contact_channel' },
+                { selector: '.lead-next-contact-input', key: 'next_contact_at' },
+                { selector: '.lead-notes-input', key: 'notes' }
+            ];
+
+            fieldsConfig.forEach(cfg => {
+                tableBody.querySelectorAll(cfg.selector).forEach(input => {
+                    input.addEventListener('blur', function() {
+                        const email = this.getAttribute('data-email') || '';
+                        const license = this.getAttribute('data-license') || '';
+                        const system = this.getAttribute('data-system') || '';
+                        const feature = this.getAttribute('data-feature') || '';
+                        const currentValue = this.value.trim();
+
+                        const lead = loadedEvolutionLeads.find(l =>
+                            (l.email === email || l.license_key === license) &&
+                            l.system_id === system &&
+                            l.feature_key === feature
+                        );
+
+                        if (lead && (lead[cfg.key] ?? '') !== currentValue) {
+                            updateEvolutionLeadFields(email, license, system, feature, { [cfg.key]: currentValue });
+                        }
+                    });
+
+                    input.addEventListener('keypress', function(e) {
+                        if (e.key === 'Enter') {
+                            this.blur();
+                        }
+                    });
                 });
             });
         }
 
-        async function updateEvolutionLeadStatus(email, licenseKey, systemId, featureKey, newStatus) {
-            const res = await apiCall('update_evolution_lead_status', {
+        async function updateEvolutionLeadFields(email, licenseKey, systemId, featureKey, fields) {
+            const res = await apiCall('update_evolution_lead_fields', {
                 email: email,
                 license_key: licenseKey,
                 system_id: systemId,
                 feature_key: featureKey,
-                status: newStatus
+                ...fields
             });
 
             if (res && res.status === 'success') {
@@ -2720,13 +2904,66 @@
                     l.feature_key === featureKey
                 );
                 if (lead) {
-                    lead.status = newStatus;
+                    Object.assign(lead, fields);
+                    lead.last_interaction = new Date().toISOString().replace('T', ' ').substring(0, 19);
                 }
-                renderEvolutionLeadsTable();
+
+                if (fields.hasOwnProperty('status')) {
+                    renderEvolutionLeadsTable();
+                } else {
+                    updateLeadsCounters();
+                }
             } else {
-                alert('Erro ao atualizar status: ' + (res ? res.message : 'resposta vazia'));
+                alert('Erro ao atualizar dados: ' + (res ? res.message : 'resposta vazia'));
                 loadEvolutionLeads();
             }
+        }
+
+        async function updateEvolutionLeadStatus(email, licenseKey, systemId, featureKey, newStatus) {
+            return updateEvolutionLeadFields(email, licenseKey, systemId, featureKey, { status: newStatus });
+        }
+
+        function exportEvolutionLeadsCsv() {
+            const filteredLeads = getFilteredEvolutionLeads();
+
+            const header = [
+                'Data Criacao',
+                'Ultima Interacao',
+                'Sistema',
+                'E-mail',
+                'Licenca',
+                'Recurso',
+                'Cliques',
+                'Status',
+                'Responsavel',
+                'Canal',
+                'Proximo Contato',
+                'Observacoes'
+            ];
+
+            const csvRows = [header, ...filteredLeads.map(l => [
+                l.created_at || '',
+                l.last_interaction || '',
+                l.system_id || '',
+                l.email || '',
+                l.license_key || '',
+                l.feature_title || l.feature_key || '',
+                String(l.count || 1),
+                l.status || 'novo',
+                l.owner || '',
+                l.contact_channel || '',
+                l.next_contact_at || '',
+                l.notes || ''
+            ])];
+
+            const csv = csvRows.map(row => row.map(value => `"${String(value).replace(/"/g, '""')}"`).join(';')).join('\n');
+            const blob = new Blob([new Uint8Array([0xEF, 0xBB, 0xBF]), csv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = 'leads-evolucao.csv';
+            link.click();
+            URL.revokeObjectURL(url);
         }
 
         async function loadLogs() {

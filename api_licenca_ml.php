@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 // API V11.8 - PROFESSIONAL FULL (SECURE ENV + CORS DYNAMIC)
 require_once __DIR__ . '/env_loader.php';
 
@@ -1086,7 +1086,7 @@ if ($action === 'update_evolution_lead_status') {
     $feature_key = isset($jsonData['feature_key']) ? trim($jsonData['feature_key']) : '';
     $status = isset($jsonData['status']) ? trim($jsonData['status']) : '';
 
-    $allowedStatuses = ['novo', 'contatado', 'convertido', 'descartado'];
+    $allowedStatuses = ['novo', 'contatado', 'proposta_enviada', 'convertido', 'perdido', 'descartado'];
     if (!in_array($status, $allowedStatuses)) {
         echo json_encode(['status' => 'error', 'message' => 'Status inválido']);
         exit;
@@ -1101,6 +1101,64 @@ if ($action === 'update_evolution_lead_status') {
         $matchLicense = (!empty($license_key) && !empty($lead['license_key']) && strtolower($lead['license_key']) === strtolower($license_key));
         if (($matchEmail || $matchLicense) && $lead['system_id'] === $system_id && $lead['feature_key'] === $feature_key) {
             $lead['status'] = $status;
+            $lead['last_interaction'] = date('Y-m-d H:i:s');
+            $updated = true;
+            break;
+        }
+    }
+
+    if ($updated) {
+        saveDB($fileEvolutionLeads, $leads);
+        echo json_encode(['status' => 'success', 'success' => true]);
+    } else {
+        echo json_encode(['status' => 'error', 'message' => 'Lead de evolução não encontrado']);
+    }
+    exit;
+}
+
+if ($action === 'update_evolution_lead_fields') {
+    if (!validateSecret($jsonData, $ADMIN_SECRET)) {
+        http_response_code(403);
+        exit;
+    }
+    $email = isset($jsonData['email']) ? trim($jsonData['email']) : '';
+    $license_key = isset($jsonData['license_key']) ? trim($jsonData['license_key']) : '';
+    $system_id = isset($jsonData['system_id']) ? trim($jsonData['system_id']) : '';
+    $feature_key = isset($jsonData['feature_key']) ? trim($jsonData['feature_key']) : '';
+
+    if (isset($jsonData['status'])) {
+        $status = trim($jsonData['status']);
+        $allowedStatuses = ['novo', 'contatado', 'proposta_enviada', 'convertido', 'perdido', 'descartado'];
+        if (!in_array($status, $allowedStatuses)) {
+            echo json_encode(['status' => 'error', 'message' => 'Status inválido']);
+            exit;
+        }
+    }
+
+    $fileEvolutionLeads = 'api_data/evolution_leads.json';
+    $leads = getDB($fileEvolutionLeads);
+
+    $updated = false;
+    foreach ($leads as &$lead) {
+        $matchEmail = (!empty($email) && !empty($lead['email']) && strtolower($lead['email']) === strtolower($email));
+        $matchLicense = (!empty($license_key) && !empty($lead['license_key']) && strtolower($lead['license_key']) === strtolower($license_key));
+        if (($matchEmail || $matchLicense) && $lead['system_id'] === $system_id && $lead['feature_key'] === $feature_key) {
+            if (isset($jsonData['status'])) {
+                $lead['status'] = trim($jsonData['status']);
+            }
+            if (isset($jsonData['notes'])) {
+                $lead['notes'] = trim($jsonData['notes']);
+            }
+            if (isset($jsonData['next_contact_at'])) {
+                $lead['next_contact_at'] = trim($jsonData['next_contact_at']);
+            }
+            if (isset($jsonData['contact_channel'])) {
+                $lead['contact_channel'] = trim($jsonData['contact_channel']);
+            }
+            if (isset($jsonData['owner'])) {
+                $lead['owner'] = trim($jsonData['owner']);
+            }
+            $lead['last_interaction'] = date('Y-m-d H:i:s');
             $updated = true;
             break;
         }

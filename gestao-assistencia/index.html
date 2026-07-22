@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="pt-BR">
 
 <head>
@@ -147,6 +147,13 @@
                 <i data-lucide="book-open" class="w-5 h-5 mr-3 text-white/60 group-hover:text-white"></i>
                 <span class="font-medium sidebar-label">Manual de Uso</span>
             </button>
+            <button onclick="router('notifications')"
+                class="nav-item w-full flex items-center px-4 py-2.5 rounded-xl hover:bg-white/10 transition-all group mb-1"
+                id="nav-notifications">
+                <i data-lucide="bell" class="w-5 h-5 mr-3 text-white/60 group-hover:text-white"></i>
+                <span class="font-medium sidebar-label">Notificações</span>
+                <span class="notif-badge hidden ml-auto text-[10px] font-extrabold bg-rose-500 text-white px-2 py-0.5 rounded-full">0</span>
+            </button>
                         <div class="px-4 mb-2 mt-4 sidebar-section-divider">
                 <span class="text-[10px] font-bold text-amber-500/70 uppercase tracking-wider">Evolução</span>
             </div>
@@ -190,6 +197,12 @@
             </div>
 
             <div class="flex items-center gap-2 sm:gap-3">
+                <!-- Botão de Notificações -->
+                <button onclick="router('notifications')" class="relative p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl text-slate-600 dark:text-slate-300 transition-colors mr-1" title="Notificações">
+                    <i data-lucide="bell" class="w-5 h-5"></i>
+                    <span class="notif-badge hidden absolute top-1 right-1 min-w-[18px] h-[18px] text-[10px] font-extrabold bg-rose-500 text-white flex items-center justify-center rounded-full px-1">0</span>
+                </button>
+
                 <!-- Botão Instalar App (PWA) -->
                 <button id="install-app-btn" onclick="installPWA()"
                     class="hidden items-center px-4 py-2.5 bg-amber-500 text-white rounded-lg text-sm font-bold hover:bg-amber-600 transition-all shadow-lg shadow-amber-200 active:scale-95 animate-bounce">
@@ -1986,6 +1999,24 @@
                 </div>
             </section>
 
+            <!-- Notifications View -->
+            <section id="view-notifications" class="view-section hide fade-in">
+                <div class="max-w-6xl mx-auto pb-12">
+                    <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
+                        <div>
+                            <h2 class="text-2xl lg:text-3xl font-extrabold text-slate-800 dark:text-white tracking-tight">Notificações & Atualizações</h2>
+                            <p class="text-slate-500 dark:text-slate-400 text-sm mt-1">Acompanhe novidades, melhorias de sistema e comunicados oficiais</p>
+                        </div>
+                        <button onclick="markAllAsRead()" class="text-xs font-bold bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-200 px-4 py-2.5 rounded-xl transition-all shadow-sm flex items-center gap-2">
+                            <i data-lucide="check-check" class="w-4 h-4 text-blue-500"></i> Marcar todas como lidas
+                        </button>
+                    </div>
+                    <div id="notif-list" class="space-y-4">
+                        <!-- Notificações injetadas dinamicamente via notif_logic.js -->
+                    </div>
+                </div>
+            </section>
+
         </div>
     </main>
 
@@ -3120,6 +3151,7 @@
     <script src="assets/js/modules/pdv.js"></script>
     <script src="assets/js/modules/reports.js"></script>
     <script src="assets/js/modules/evolution.js"></script>
+    <script src="assets/js/notif_logic.js"></script>
     <script src="assets/js/app.js"></script>
 
     <!-- MODAL DE CONFIRMAÇÃO DE ENTREGA (RECIBO DIGITAL - ML COMPRA GARANTIDA) -->
@@ -3383,11 +3415,11 @@
             // ==========================================
 
             const MANUAL_SECTIONS = ['instalacao', 'controle-estoque', 'ordens-servico', 'pdv-manual', 'clientes-manual', 'financeiro-manual', 'backup'];
-            const STORAGE_KEY = 'manual_progress';
+            const STORAGE_KEY = 'assistencia_manual_progress';
 
             function loadProgress() {
                 try {
-                    const saved = localStorage.getItem(STORAGE_KEY);
+                    const saved = localStorage.getItem(STORAGE_KEY) || localStorage.getItem('manual_progress');
                     return saved ? JSON.parse(saved) : {};
                 } catch {
                     return {};

@@ -426,3 +426,118 @@ test('Fase C.1: Dashboard Operacional Híbrido has honest labels, Evolution Lead
   assert.match(php, /getDB\(\$fileEvolutionLeads\)/);
   assert.match(php, /'novos_hoje' => 0/);
 });
+
+test('Fase C.2: Clientes CRM consolidation returns enriched Customer 360 payload', () => {
+  const php = read('api_licenca_ml.php');
+
+  // 1. customers_summary existe e está protegido
+  assert.match(php, /action === 'customers_summary'/);
+  assert.match(php, /validateSecret\(\$jsonData,\s*\$ADMIN_SECRET\)/);
+
+  // 2. Lê licenças locais e leads de evolução
+  assert.match(php, /getDB\(\$fileLicenses\)/);
+  assert.match(php, /getDB\(\$fileEvolutionLeads\)/);
+
+  // 3. Cria novos campos de Customer 360
+  assert.match(php, /'customer_key'/);
+  assert.match(php, /'sources'/);
+  assert.match(php, /'leads_count'/);
+  assert.match(php, /'open_leads_count'/);
+  assert.match(php, /'customer_whatsapp'/);
+  assert.match(php, /'relationship_stage'/);
+  assert.match(php, /'data_completeness'/);
+
+  // 4. Une por e-mail e faz fallback por licença
+  assert.match(php, /isset\(\$customers\[\$leadEmail\]\)/);
+  assert.match(php, /\$c\['license_key'\]\s*===\s*\$leadLicense/);
+
+  // 5. Calcula estágio de relacionamento (lead, trial, customer_local, customer_saas, mixed)
+  assert.match(php, /'lead'/);
+  assert.match(php, /'trial'/);
+  assert.match(php, /'customer_local'/);
+  assert.match(php, /'customer_saas'/);
+  assert.match(php, /'mixed'/);
+
+  // 6. Calcula completude (complete, partial, license_only, lead_only)
+  assert.match(php, /'complete'/);
+  assert.match(php, /'partial'/);
+  assert.match(php, /'license_only'/);
+  assert.match(php, /'lead_only'/);
+
+  // 7. Não expõe senhas ou dados sensíveis do administrador
+  assert.doesNotMatch(php, /'admin_password'/);
+  assert.doesNotMatch(php, /'admin_token'/);
+});
+
+test('Fase C.3: Clientes SaaS operational transparency, catalog warnings and descriptive status mappings', () => {
+  const html = read('admin/index.html');
+
+  // 1. CRM vs SaaS Differentiator Text
+  assert.match(html, /<b>Clientes \(CRM\):<\/b> Carteira Unificada/);
+  assert.match(html, /<b>Clientes SaaS:<\/b> Gestão de Tenants Técnicos Online/);
+
+  // 2. Catalog source warning banner/box in the HTML
+  assert.match(html, /id="provision-catalog-status"/);
+
+  // 3. Dynamic assignment of catalog when loaded from Supabase
+  assert.match(html, /Object\.assign\(SAAS_CATALOG,\s*catalog\)/);
+
+  // 4. Warning/Connection status update logic
+  assert.match(html, /provStatusBox\.innerHTML = '⚡ <b>Catálogo Conectado:<\/b>/);
+  assert.match(html, /provStatusBox\.innerHTML = '⚠️ <b>Catálogo Fallback\/Local em uso:<\/b>/);
+
+  // 5. Descriptive status mappings
+  assert.match(html, /displayStatus = 'TENANT ÓRFÃO \/ SEM LICENÇA'/);
+  assert.match(html, /displayStatus = 'TRIAL ATIVO'/);
+  assert.match(html, /displayStatus = 'TRIAL EXPIRADO'/);
+
+  // 6. Modules count presentation explanation
+  assert.match(html, /Módulos \(Qtd\.\)/);
+  assert.match(html, /title="Quantidade de módulos habilitados/);
+});
+
+test('Fase C.4: Licenças Vitalícias UI operational clarity, Gastro notices and device binding details', () => {
+  const html = read('admin/index.html');
+  const php = read('api_licenca_ml.php');
+
+  // 1. Backend matches actual JSON filenames
+  assert.match(php, /database_licenses_secure\.json/);
+  assert.match(php, /database_licenses_archived\.json/);
+  assert.match(php, /receipts_log\.json/);
+
+  // 2. Gastro SaaS notice in generate modal
+  assert.match(html, /id="gen-gastro-warning-box"/);
+  assert.match(html, /Gestão Gastro \(SaaS Recomendado\)/);
+  assert.match(html, /Gestão Gastro \(Nuvem\/SaaS\)/);
+
+  // 3. Descriptive status and device binding notes
+  assert.match(html, /displaySubtext = l\.device_id \? 'Dispositivo Vinculado' : 'Sem Dispositivo \/ Livre'/);
+  assert.match(html, /displaySubtext = 'Aguardando Ativação'/);
+  assert.match(html, /title="Gestão Gastro é um sistema nativo em nuvem \(SaaS\)\. Licença vitalícia\/standalone é legada\/offline\."/);
+  assert.match(html, /title="Resetar Dispositivo Vinculado \(Use se o cliente trocou de aparelho ou formatou\)"/);
+});
+
+test('Fase C.4.1: License generation modal reorganization, Gestão Assistência addition, Barbearia default and Live Summary', () => {
+  const html = read('admin/index.html');
+
+  // 1. Gestão Assistência included in selectors and JS maps
+  assert.match(html, /<option value="gestao-assistencia">Gestão Assistência \(ML Standalone\)<\/option>/);
+  assert.match(html, /'gestao-assistencia': \['assistencia', 'geral'\]/);
+  assert.match(html, /'gestao-assistencia': 'Gestão Assistência'/);
+
+  // 2. Gestão Barbearia as default system in modal and JS fallbacks
+  assert.match(html, /<option value="gestao-barbearia" selected>Gestão Barbearia \(ML Standalone\)<\/option>/);
+  assert.match(html, /document\.getElementById\('gen-system'\)\?\.\s*value \|\| 'gestao-barbearia'/);
+
+  // 3. Renamed/complemented label for system plan
+  assert.match(html, /Liberação \/ Pacote de Recursos \(Plano\)/);
+
+  // 4. Commercial plan descriptions
+  assert.match(html, /ML Vitalício - Venda Mercado Livre \(Chave Standalone\)/);
+  assert.match(html, /Direto Vitalício - Venda Direta \(Site\/WhatsApp\)/);
+  assert.match(html, /Pro Vitalício - Pacote local ampliado \(Multi-recursos\)/);
+
+  // 5. Live Summary Box and JS updater function
+  assert.match(html, /id="gen-live-summary"/);
+  assert.match(html, /function updateGenerateSummary\(\)/);
+});

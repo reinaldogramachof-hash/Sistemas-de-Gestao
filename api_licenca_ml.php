@@ -725,19 +725,18 @@ if ($action === 'customers_summary') {
     foreach ($db as $key => $l) {
         $email = '';
         if (!empty($l['email_activation'])) {
-            $email = trim($l['email_activation']);
+            $email = strtolower(trim($l['email_activation']));
         } elseif (isset($l['client']) && str_contains($l['client'], '@')) {
-            $email = trim($l['client']);
+            $email = strtolower(trim($l['client']));
         }
 
-        $groupKey = !empty($email) ? strtolower($email) : trim($l['client'] ?? 'Desconhecido');
-        if (empty($groupKey)) {
-            $groupKey = 'Desconhecido';
-        }
+        $groupKey = !empty($email) ? $email : $key;
 
         $status = $l['status'] ?? 'pending';
         $system = $l['product'] ?? 'Sistema';
         $created_at = $l['created_at'] ?? '';
+
+        $isTrial = !empty($l['is_trial']) || ($l['type'] ?? '') === 'trial';
 
         if (!isset($customers[$groupKey])) {
             $name = $l['client'] ?? 'Desconhecido';
@@ -760,7 +759,29 @@ if ($action === 'customers_summary') {
                 'total_licenses' => 1,
                 'active_licenses' => ($status === 'active') ? 1 : 0,
                 'last_created_at' => $created_at,
-                'public_link' => ''
+                'public_link' => '',
+
+                // New fields
+                'customer_key' => $groupKey,
+                'sources' => ['licenses'],
+                'licenses_count' => 1,
+                'leads_count' => 0,
+                'open_leads_count' => 0,
+                'last_lead_at' => null,
+                'last_lead_status' => null,
+                'last_interest_type' => null,
+                'last_target_plan_code' => null,
+                'customer_whatsapp' => '',
+                'customer_name' => $name,
+                'contact_consent' => false,
+                'has_saas' => false,
+                'saas_tenants_count' => 0,
+                'trial_count' => $isTrial ? 1 : 0,
+                'active_count' => ($status === 'active') ? 1 : 0,
+                'blocked_count' => ($status === 'blocked') ? 1 : 0,
+                'pending_count' => ($status === 'pending') ? 1 : 0,
+                'relationship_stage' => 'customer_local',
+                'data_completeness' => 'license_only'
             ];
         } else {
             $c = &$customers[$groupKey];
@@ -776,9 +797,23 @@ if ($action === 'customers_summary') {
                 }
             }
             $c['total_licenses']++;
+            $c['licenses_count']++;
 
             if (!empty($l['slug'])) {
                 $c['slug'] = $l['slug'];
+            }
+
+            if ($status === 'active') {
+                $c['status'] = 'active';
+                $c['active_count']++;
+            } elseif ($status === 'pending') {
+                $c['pending_count']++;
+            } elseif ($status === 'blocked') {
+                $c['blocked_count']++;
+            }
+
+            if ($isTrial) {
+                $c['trial_count']++;
             }
 
             if ($status === 'active') {
@@ -803,8 +838,307 @@ if ($action === 'customers_summary') {
         }
     }
 
+    $leads = getDB($fileEvolutionLeads);
+    $getSystemTitle = function($sysId) {
+        $titles = [
+            'gestao-gastro' => 'Gestão Gastro',
+            'gestao-barbearia' => 'Gestão Barbearia',
+            'gestao-beleza' => 'Gestão Beleza',
+            'gestao-assistencia' => 'Gestão Assistência'
+        ];
+        return $titles[strtolower(trim($sysId))] ?? $sysId;
+    };
+
+    foreach ($leads as $lead) {
+        $leadEmail = !empty($lead['email']) ? strtolower(trim($lead['email'])) : '';
+        $leadLicense = !empty($lead['license_key']) ? trim($lead['license_key']) : '';
+        $leadName = !empty($lead['customer_name']) ? trim($lead['customer_name']) : '';
+        $leadWhatsapp = !empty($lead['customer_whatsapp']) ? trim($lead['customer_whatsapp']) : '';
+        $consent = !empty($lead['contact_consent']);
+        $leadStatus = $lead['status'] ?? 'novo';
+        $leadSystem = $getSystemTitle($lead['system_id'] ?? '');
+
+        $matchedKey = null;
+        if (!empty($leadEmail) && isset($customers[$leadEmail])) {
+            $matchedKey = $leadEmail;
+        } else {
+            foreach ($customers as $gk => $c) {
+                if ($c['license_key'] === $leadLicense) {
+                    $matchedKey = $gk;
+                    break;
+                }
+            }
+        }
+
+        if ($matchedKey !== null) {
+            $c = &$customers[$matchedKey];
+            if (!in_array('evolution_leads', $c['sources'])) {
+                $c['sources'][] = 'evolution_leads';
+            }
+            if (!in_array($leadSystem, $c['systems'])) {
+                $c['systems'][] = $leadSystem;
+            }
+            if ($leadWhatsapp !== '' && empty($c['customer_whatsapp'])) {
+                $c['customer_whatsapp'] = $leadWhatsapp;
+            }
+            if ($leadName !== '' && ($c['name'] === 'Desconhecido' || empty($c['name']))) {
+                $c['name'] = $leadName;
+                $c['customer_name'] = $leadName;
+            }
+            if ($consent) {
+                $c['contact_consent'] = true;
+            }
+
+            $c['leads_count']++;
+            if (in_array($leadStatus, ['novo', 'contatado', 'proposta_enviada'])) {
+                $c['open_leads_count']++;
+            }
+
+            $leadTime = !empty($lead['created_at']) ? strtotime($lead['created_at']) : 0;
+            $currentLastLeadTime = !empty($c['last_lead_at']) ? strtotime($c['last_lead_at']) : 0;
+            if ($leadTime > $currentLastLeadTime) {
+                $c['last_lead_at'] = $lead['created_at'];
+                $c['last_lead_status'] = $leadStatus;
+                $c['last_interest_type'] = $lead['interest_type'] ?? 'feature_interest';
+                $c['last_target_plan_code'] = $lead['target_plan_code'] ?? null;
+            }
+        } else {
+            $groupKey = !empty($leadEmail) ? $leadEmail : (!empty($leadLicense) ? $leadLicense : 'lead_' . uniqid());
+
+            if (isset($customers[$groupKey])) {
+                $c = &$customers[$groupKey];
+                if (!in_array($leadSystem, $c['systems'])) {
+                    $c['systems'][] = $leadSystem;
+                }
+                if ($leadWhatsapp !== '' && empty($c['customer_whatsapp'])) {
+                    $c['customer_whatsapp'] = $leadWhatsapp;
+                }
+                if ($leadName !== '' && ($c['name'] === 'Lead Interessado' || empty($c['name']))) {
+                    $c['name'] = $leadName;
+                    $c['customer_name'] = $leadName;
+                }
+                if ($consent) {
+                    $c['contact_consent'] = true;
+                }
+                $c['leads_count']++;
+                if (in_array($leadStatus, ['novo', 'contatado', 'proposta_enviada'])) {
+                    $c['open_leads_count']++;
+                }
+                $leadTime = !empty($lead['created_at']) ? strtotime($lead['created_at']) : 0;
+                $currentLastLeadTime = !empty($c['last_lead_at']) ? strtotime($c['last_lead_at']) : 0;
+                if ($leadTime > $currentLastLeadTime) {
+                    $c['last_lead_at'] = $lead['created_at'];
+                    $c['last_lead_status'] = $leadStatus;
+                    $c['last_interest_type'] = $lead['interest_type'] ?? 'feature_interest';
+                    $c['last_target_plan_code'] = $lead['target_plan_code'] ?? null;
+                }
+            } else {
+                $name = !empty($leadName) ? $leadName : 'Lead Interessado';
+                $customers[$groupKey] = [
+                    'name' => $name,
+                    'email' => $leadEmail,
+                    'slug' => '',
+                    'systems' => [$leadSystem],
+                    'active_system' => null,
+                    'plan_code' => null,
+                    'plan_name' => null,
+                    'billing_model' => null,
+                    'sales_channel' => null,
+                    'status' => 'pending',
+                    'license_key' => $leadLicense,
+                    'total_licenses' => 0,
+                    'active_licenses' => 0,
+                    'last_created_at' => null,
+                    'public_link' => '',
+
+                    'customer_key' => $groupKey,
+                    'sources' => ['evolution_leads'],
+                    'licenses_count' => 0,
+                    'leads_count' => 1,
+                    'open_leads_count' => in_array($leadStatus, ['novo', 'contatado', 'proposta_enviada']) ? 1 : 0,
+                    'last_lead_at' => $lead['created_at'] ?? null,
+                    'last_lead_status' => $leadStatus,
+                    'last_interest_type' => $lead['interest_type'] ?? 'feature_interest',
+                    'last_target_plan_code' => $lead['target_plan_code'] ?? null,
+                    'customer_whatsapp' => $leadWhatsapp,
+                    'customer_name' => $name,
+                    'contact_consent' => $consent,
+                    'has_saas' => false,
+                    'saas_tenants_count' => 0,
+                    'trial_count' => 0,
+                    'active_count' => 0,
+                    'blocked_count' => 0,
+                    'pending_count' => 0,
+                    'relationship_stage' => 'lead',
+                    'data_completeness' => 'lead_only'
+                ];
+            }
+        }
+    }
+
+    $saasTenants = [];
+    if (!empty($SUPABASE_URL) && !empty($SUPABASE_KEY)) {
+        $endpoint = '/rest/v1/tenants?select=id,name,slug,status,created_at,customers(name,email),licenses(license_key,status,license_type,expires_at,plans(code,name))&limit=100';
+        $res = supabaseLicenseRequest('GET', $endpoint);
+        if ($res['code'] === 200 && is_array($res['data'])) {
+            $saasTenants = $res['data'];
+        }
+    }
+
+    foreach ($saasTenants as $tenant) {
+        $tenantEmail = !empty($tenant['customers']['email']) ? strtolower(trim($tenant['customers']['email'])) : '';
+        $tenantName = $tenant['customers']['name'] ?? $tenant['name'] ?? 'SaaS Customer';
+        $tenantSlug = $tenant['slug'] ?? '';
+        $tenantLicenses = is_array($tenant['licenses'] ?? null) ? $tenant['licenses'] : [];
+
+        $matchedKey = null;
+        if (!empty($tenantEmail) && isset($customers[$tenantEmail])) {
+            $matchedKey = $tenantEmail;
+        } else {
+            foreach ($tenantLicenses as $tl) {
+                $tlKey = $tl['license_key'] ?? '';
+                if ($tlKey !== '') {
+                    foreach ($customers as $gk => $c) {
+                        if ($c['license_key'] === $tlKey) {
+                            $matchedKey = $gk;
+                            break 2;
+                        }
+                    }
+                }
+            }
+        }
+
+        if ($matchedKey !== null) {
+            $c = &$customers[$matchedKey];
+            $c['has_saas'] = true;
+            $c['saas_tenants_count']++;
+            if (!in_array('saas', $c['sources'])) {
+                $c['sources'][] = 'saas';
+            }
+            if (empty($c['slug'])) {
+                $c['slug'] = $tenantSlug;
+            }
+            foreach ($tenantLicenses as $tl) {
+                $tlStatus = $tl['status'] ?? '';
+                $isTrial = ($tl['license_type'] ?? '') === 'trial';
+                $c['licenses_count']++;
+                if ($tlStatus === 'active') {
+                    $c['active_count']++;
+                    $c['active_licenses']++;
+                } elseif ($tlStatus === 'blocked') {
+                    $c['blocked_count']++;
+                } elseif ($tlStatus === 'pending') {
+                    $c['pending_count']++;
+                }
+                if ($isTrial) {
+                    $c['trial_count']++;
+                }
+            }
+        } else {
+            $groupKey = !empty($tenantEmail) ? $tenantEmail : $tenantSlug;
+            if (isset($customers[$groupKey])) {
+                $c = &$customers[$groupKey];
+                $c['has_saas'] = true;
+                $c['saas_tenants_count']++;
+                if (!in_array('saas', $c['sources'])) {
+                    $c['sources'][] = 'saas';
+                }
+                if (empty($c['slug'])) {
+                    $c['slug'] = $tenantSlug;
+                }
+                foreach ($tenantLicenses as $tl) {
+                    $tlStatus = $tl['status'] ?? '';
+                    $isTrial = ($tl['license_type'] ?? '') === 'trial';
+                    $c['licenses_count']++;
+                    if ($tlStatus === 'active') {
+                        $c['active_count']++;
+                        $c['active_licenses']++;
+                    } elseif ($tlStatus === 'blocked') {
+                        $c['blocked_count']++;
+                    } elseif ($tlStatus === 'pending') {
+                        $c['pending_count']++;
+                    }
+                    if ($isTrial) {
+                        $c['trial_count']++;
+                    }
+                }
+            } else {
+                $activeLicensesCount = count(array_filter($tenantLicenses, fn($l) => ($l['status'] ?? '') === 'active'));
+                $customers[$groupKey] = [
+                    'name' => $tenantName,
+                    'email' => $tenantEmail,
+                    'slug' => $tenantSlug,
+                    'systems' => [],
+                    'active_system' => null,
+                    'plan_code' => 'premium_monthly',
+                    'plan_name' => 'SaaS Recorrente',
+                    'billing_model' => 'recurring',
+                    'sales_channel' => 'premium_online',
+                    'status' => $tenant['status'] ?? 'active',
+                    'license_key' => !empty($tenantLicenses[0]['license_key']) ? $tenantLicenses[0]['license_key'] : '',
+                    'total_licenses' => count($tenantLicenses),
+                    'active_licenses' => $activeLicensesCount,
+                    'last_created_at' => $tenant['created_at'] ?? null,
+                    'public_link' => '',
+
+                    'customer_key' => $groupKey,
+                    'sources' => ['saas'],
+                    'licenses_count' => count($tenantLicenses),
+                    'leads_count' => 0,
+                    'open_leads_count' => 0,
+                    'last_lead_at' => null,
+                    'last_lead_status' => null,
+                    'last_interest_type' => null,
+                    'last_target_plan_code' => null,
+                    'customer_whatsapp' => '',
+                    'customer_name' => $tenantName,
+                    'contact_consent' => false,
+                    'has_saas' => true,
+                    'saas_tenants_count' => 1,
+                    'trial_count' => count(array_filter($tenantLicenses, fn($l) => ($l['license_type'] ?? '') === 'trial')),
+                    'active_count' => $activeLicensesCount,
+                    'blocked_count' => count(array_filter($tenantLicenses, fn($l) => ($l['status'] ?? '') === 'blocked')),
+                    'pending_count' => count(array_filter($tenantLicenses, fn($l) => ($l['status'] ?? '') === 'pending')),
+                    'relationship_stage' => 'customer_saas',
+                    'data_completeness' => 'license_only'
+                ];
+            }
+        }
+    }
+
     $response = [];
     foreach ($customers as $groupKey => $c) {
+        $hasLeads = in_array('evolution_leads', $c['sources']);
+        $hasLicenses = in_array('licenses', $c['sources']);
+        $hasSaas = in_array('saas', $c['sources']) || $c['has_saas'];
+
+        if ($hasLeads && !$hasLicenses && !$hasSaas) {
+            $c['relationship_stage'] = 'lead';
+        } elseif (($hasLicenses || $hasSaas) && $c['trial_count'] > 0 && ($c['active_count'] <= 0 || $c['active_count'] == $c['trial_count'])) {
+            $c['relationship_stage'] = 'trial';
+        } elseif ($hasLicenses && !$hasSaas) {
+            $c['relationship_stage'] = 'customer_local';
+        } elseif (!$hasLicenses && $hasSaas) {
+            $c['relationship_stage'] = 'customer_saas';
+        } else {
+            $c['relationship_stage'] = 'mixed';
+        }
+
+        if (($hasLicenses || $hasSaas) && !$hasLeads) {
+            $c['data_completeness'] = 'license_only';
+        } elseif (!($hasLicenses || $hasSaas) && $hasLeads) {
+            $c['data_completeness'] = 'lead_only';
+        } else {
+            $hasName = !empty($c['name']) && $c['name'] !== 'Desconhecido' && $c['name'] !== 'Lead Interessado';
+            $hasEmail = !empty($c['email']);
+            $hasWhatsapp = !empty($c['customer_whatsapp']);
+            if ($hasName && $hasEmail && $hasWhatsapp) {
+                $c['data_completeness'] = 'complete';
+            } else {
+                $c['data_completeness'] = 'partial';
+            }
+        }
+
         if (empty($c['active_system']) && !empty($c['systems'])) {
             $c['active_system'] = $c['systems'][0];
         }

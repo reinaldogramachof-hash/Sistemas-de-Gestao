@@ -648,7 +648,7 @@ test('Fase C.5.3: Public api_catalog.php endpoint and Admin visual catalog fallb
   assert.match(catalogEndpointPhp, /require_once __DIR__ \. '\/catalog_loader\.php';/);
   assert.match(catalogEndpointPhp, /loadCommercialCatalog\(\)/);
   assert.match(catalogEndpointPhp, /'source' => 'local_official'/);
-  assert.doesNotMatch(catalogEndpointPhp, /ADMIN_SECRET/);
+  assert.doesNotMatch(catalogEndpointPhp, /"admin_secret"\s*=>/);
   assert.doesNotMatch(catalogEndpointPhp, /SUPABASE_KEY/);
 
   // 2. admin/index.html integrates api_catalog.php and maintains 3-layer fallback
@@ -657,4 +657,170 @@ test('Fase C.5.3: Public api_catalog.php endpoint and Admin visual catalog fallb
   assert.match(html, /source === 'local_official'/);
   assert.match(html, /Catálogo Local Oficial em uso/);
   assert.match(html, /const SAAS_CATALOG_FALLBACK = \{/); // Fallback JS preserved
+});
+
+test('Fase C.5.4: Administrative Catalog CRUD operations, automatic backups, and Admin operational form modal', () => {
+  const catalogEndpointPhp = read('api_catalog.php');
+  const html = read('admin/index.html');
+  const doc = read('docs/CATALOGO_COMERCIAL_LOCAL_OFICIAL.md');
+
+  // 1. api_catalog.php requires ADMIN_SECRET for write actions and does not leak secret keys
+  assert.match(catalogEndpointPhp, /validateAdminSecret\(\$jsonData\['admin_secret'\] \?\? '', \$ADMIN_SECRET\)/);
+  assert.match(catalogEndpointPhp, /action === 'save_system'/);
+  assert.match(catalogEndpointPhp, /action === 'toggle_status'/);
+  assert.match(catalogEndpointPhp, /backupCatalogFile\(/);
+  assert.match(catalogEndpointPhp, /products_catalog\.backup\./);
+  assert.doesNotMatch(catalogEndpointPhp, /"admin_secret"\s*=>/);
+
+  // 2. Gastro canonical rules enforced server-side
+  assert.match(catalogEndpointPhp, /\$slug === 'gestao-gastro'/);
+  assert.match(catalogEndpointPhp, /\$saasRecommended = true;/);
+  assert.match(catalogEndpointPhp, /\$standardMlAllowed = false;/);
+
+  // 3. Admin index.html replaces "ação em desenvolvimento" with real catalog form modal
+  assert.match(html, /id="catalog-system-modal"/);
+  assert.match(html, /id="form-catalog-system"/);
+  assert.match(html, /function saveCatalogSystem\(/);
+  assert.match(html, /id="cat-gastro-warning"/);
+  assert.doesNotMatch(html, /Ação <b>\$\{escapeHtml\(action\)\}<\/b> está em desenvolvimento\./);
+
+  // 4. Documentation covers C.5.4 CRUD and automatic backups
+  assert.match(doc, /Fase C.5.4/);
+  assert.match(doc, /products_catalog\.backup\./);
+  assert.match(doc, /save_system/);
+  assert.match(doc, /toggle_status/);
+});
+
+test('Fase C.5.4.1: Catalog CRUD persistence corrections, canonical base_price, complete lifetime plans, and channel/model allowlists', () => {
+  const catalogEndpointPhp = read('api_catalog.php');
+  const html = read('admin/index.html');
+  const doc = read('docs/CATALOGO_COMERCIAL_LOCAL_OFICIAL.md');
+
+  // 1. api_catalog.php uses base_price for lifetime plans and does not write legacy price field
+  assert.match(catalogEndpointPhp, /\$lifetimePlans\['ml_lifetime'\]\['base_price'\] = \$priceMl/);
+  assert.match(catalogEndpointPhp, /\$lifetimePlans\['direct_lifetime'\]\['base_price'\] = \$priceDirect/);
+  assert.match(catalogEndpointPhp, /\$lifetimePlans\['pro_lifetime'\]\['base_price'\] = \$pricePro/);
+  assert.doesNotMatch(catalogEndpointPhp, /\$lifetimePlans\['ml_lifetime'\]\['price'\] =/);
+
+  // 2. New systems build complete lifetime_plans structure
+  assert.match(catalogEndpointPhp, /'billing_model' => 'one_time'/);
+  assert.match(catalogEndpointPhp, /'features' => \['pdv_local'/);
+
+  // 3. Sanitizes channels and commercial models against allowlists
+  assert.match(catalogEndpointPhp, /\$channelAllowlist = \['mercadolivre', 'direct', 'landing_page', 'admin_saas'\]/);
+  assert.match(catalogEndpointPhp, /\$modelAllowlist = \['ml_lifetime', 'direct_lifetime', 'pro_lifetime', 'trial', 'online_essential', 'online_premium', 'project_custom_brand'\]/);
+  assert.match(catalogEndpointPhp, /array_diff\(\$allowedChannels, \['mercadolivre'\]\)/);
+  assert.match(catalogEndpointPhp, /array_diff\(\$allowedModels, \['ml_lifetime'\]\)/);
+
+  // 4. admin/index.html includes channel and model checkboxes and populates/submits them
+  assert.match(html, /name="cat_channel"/);
+  assert.match(html, /name="cat_model"/);
+  assert.match(html, /allowed_channels: allowedChannels/);
+  assert.match(html, /allowed_commercial_models: allowedModels/);
+  assert.match(html, /Sucesso:/);
+
+  // 5. Documentation updated with C.5.4.1
+  assert.match(doc, /Fase C.5.4.1/);
+  assert.match(doc, /base_price/);
+});
+
+test('Fase C.5.4.2: Gestão Assistência catalog rendering fix, 4 canonical systems guarantee, duplicate slug protection, and QA cleanup validation', () => {
+  const html = read('admin/index.html');
+  const catalogJson = read('api_data/products_catalog.json');
+  const catalogObj = JSON.parse(catalogJson);
+
+  // 1. All 4 canonical systems exist in products_catalog.json
+  assert.ok(catalogObj.systems['gestao-barbearia']);
+  assert.ok(catalogObj.systems['gestao-beleza']);
+  assert.ok(catalogObj.systems['gestao-assistencia']);
+  assert.ok(catalogObj.systems['gestao-gastro']);
+
+  // 2. Admin merges local catalog to prevent Gestão Assistência from being hidden if Supabase is partial
+  assert.match(html, /const mergedCatalog = \{ \.\.\.localCatalog \};/);
+  assert.match(html, /'gestao-assistencia'/);
+
+  // 3. Admin renders visual badge for inactive systems
+  assert.match(html, /isInactive \? '<span class="text-xs bg-red-600 text-white px-2 py-0\.5 rounded font-bold uppercase tracking-wider">Inativo<\/span>'/);
+
+  // 4. Verification that products_catalog.json contains ZERO QA residue or temporary systems
+  assert.doesNotMatch(catalogJson, /gestao-qa-catalogo/);
+  assert.doesNotMatch(catalogJson, /gestao-teste/);
+});
+
+test('Fase C.5.4.3: Commercial Catalog Cards Standardization, Canonical Prices, and Group Layout', () => {
+  const html = read('admin/index.html');
+  const doc = read('docs/CATALOGO_COMERCIAL_LOCAL_OFICIAL.md');
+  const catalogJson = read('api_data/products_catalog.json');
+  const catalogObj = JSON.parse(catalogJson);
+
+  // 1. Absence of legacy "Master Mensal" or R$ 0,00 mock artifacts in catalog
+  assert.doesNotMatch(html, /Master Mensal/);
+  assert.doesNotMatch(html, /R\$ 0,00\/mês/);
+
+  // 2. Presence of 3 plan groups in admin card layout
+  assert.match(html, /Planos Recorrentes Online \/ SaaS/);
+  assert.match(html, /Licenças Vitalícias \/ Standalone/);
+  assert.match(html, /Avaliação Gratuita \/ Trial/);
+
+  // 3. System canonical prices in products_catalog.json
+  const barb = catalogObj.systems['gestao-barbearia'];
+  assert.strictEqual(barb.saas_plans.online_essential.monthly_price, 59.90);
+  assert.strictEqual(barb.saas_plans.online_premium.monthly_price, 99.00);
+
+  const bel = catalogObj.systems['gestao-beleza'];
+  assert.strictEqual(bel.saas_plans.online_essential.monthly_price, 59.90);
+  assert.strictEqual(bel.saas_plans.online_premium.monthly_price, 99.00);
+
+  const ast = catalogObj.systems['gestao-assistencia'];
+  assert.strictEqual(ast.saas_plans.online_essential.monthly_price, 97.90);
+  assert.strictEqual(ast.saas_plans.online_premium.monthly_price, 149.90);
+
+  const gas = catalogObj.systems['gestao-gastro'];
+  assert.strictEqual(gas.saas_plans.online_essential.monthly_price, 89.00);
+  assert.strictEqual(gas.saas_plans.online_premium.monthly_price, 189.00);
+
+  // 4. Gastro highlights in Admin HTML
+  assert.match(html, /SaaS Recomendado/);
+  assert.match(html, /ML Padrão Indisponível/);
+  assert.match(html, /Offline \/ Standalone Permitido/);
+
+  // 5. Documentation updated with Phase C.5.4.3
+  assert.match(doc, /Fase C.5.4.3/);
+  assert.match(doc, /Padronização dos Cards de Prateleira no Admin/);
+});
+
+test('Fase C.5.4.4: Preservation of Canonical JSON Catalog Fields Post-CRUD', () => {
+  const catalogPhp = read('api_catalog.php');
+  const catalogJson = read('api_data/products_catalog.json');
+  const catalogObj = JSON.parse(catalogJson);
+
+  // 1. api_catalog.php performs safe merge preserving non-form canonical fields
+  assert.match(catalogPhp, /\$updatedSystem = \$existingSys;/);
+  assert.match(catalogPhp, /trial_config/);
+  assert.match(catalogPhp, /project_custom_brand_config/);
+
+  // 2. Exactly 4 canonical systems in products_catalog.json
+  const systemKeys = Object.keys(catalogObj.systems);
+  assert.strictEqual(systemKeys.length, 4);
+  assert.deepStrictEqual(systemKeys.sort(), ['gestao-assistencia', 'gestao-barbearia', 'gestao-beleza', 'gestao-gastro']);
+  assert.doesNotMatch(catalogJson, /gestao-qa-catalogo/);
+
+  // 3. Gestão Beleza has trial_config and project_custom_brand_config
+  const bel = catalogObj.systems['gestao-beleza'];
+  assert.ok(bel.trial_config);
+  assert.strictEqual(bel.trial_config.enabled, true);
+  assert.strictEqual(bel.trial_config.days, 7);
+  assert.ok(bel.project_custom_brand_config);
+  assert.strictEqual(bel.project_custom_brand_config.enabled, true);
+
+  // 4. Gestão Gastro lifetime_plans is an object {} and NOT an array []
+  const gas = catalogObj.systems['gestao-gastro'];
+  assert.strictEqual(typeof gas.lifetime_plans, 'object');
+  assert.strictEqual(Array.isArray(gas.lifetime_plans), false);
+
+  // 5. Gestão Gastro canonical rules intact
+  assert.strictEqual(gas.saas_recommended, true);
+  assert.strictEqual(gas.standard_ml_allowed, false);
+  assert.strictEqual(gas.allowed_channels.includes('mercadolivre'), false);
+  assert.strictEqual(gas.allowed_commercial_models.includes('ml_lifetime'), false);
 });

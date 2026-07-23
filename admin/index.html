@@ -1956,7 +1956,7 @@
             const normalized = {};
             for (const [slug, sys] of Object.entries(payload)) {
                 const icon = SAAS_CATALOG_FALLBACK[slug]?.icon || (slug === 'gestao-gastro' ? 'utensils' : (slug === 'gestao-barbearia' ? 'scissors' : (slug === 'gestao-beleza' ? 'sparkles' : 'wrench')));
-                const tone = SAAS_CATALOG_FALLBACK[slug]?.tone || 'from-slate-600 to-slate-800';
+                const tone = SAAS_CATALOG_FALLBACK[slug]?.tone || (slug === 'gestao-gastro' ? 'from-amber-500 to-orange-600' : (slug === 'gestao-barbearia' ? 'from-indigo-600 to-blue-700' : (slug === 'gestao-beleza' ? 'from-rose-500 to-fuchsia-600' : 'from-cyan-600 to-blue-700')));
 
                 const plans = {};
                 if (sys.saas_plans && typeof sys.saas_plans === 'object') {
@@ -1964,13 +1964,15 @@
                         const planCode = pVal.code || pKey;
                         const formattedPrice = pVal.monthly_price ? `R$ ${pVal.monthly_price.toFixed(2).replace('.', ',')}/mês` : 'N/A';
                         const priceCents = pVal.monthly_price ? Math.round(pVal.monthly_price * 100) : 0;
-                        const modulesList = Array.isArray(pVal.modules) ? pVal.modules.map(m => [m, typeof m === 'string' ? m.toUpperCase().replace(/_/g, ' ') : m]) : [];
+                        const modulesList = Array.isArray(pVal.modules) ? pVal.modules.map(m => [m, typeof m === 'string' ? m.replace(/_/g, ' ') : m]) : [];
 
-                        plans[planCode] = {
-                            name: pVal.name || 'Plano',
+                        plans[pKey] = {
+                            code: planCode,
+                            name: pVal.name || (pKey === 'online_essential' ? 'Online Essencial' : (pKey === 'online_premium' ? 'Online Premium' : pKey)),
                             price: formattedPrice,
                             priceCents: priceCents,
                             billingModel: pVal.billing_model || 'monthly',
+                            monthly_price: pVal.monthly_price,
                             maxUsers: pVal.max_users || null,
                             maxDevices: pVal.max_devices || null,
                             status: 'active',
@@ -1979,19 +1981,29 @@
                     }
                 }
 
-                if (SAAS_CATALOG_FALLBACK[slug]?.plans?.trial && !plans.trial) {
-                    plans.trial = SAAS_CATALOG_FALLBACK[slug].plans.trial;
-                }
-
                 normalized[slug] = {
+                    id: sys.id || slug,
+                    slug: slug,
                     title: sys.title || sys.name || slug,
-                    description: sys.description || '',
-                    status: sys.status || 'active',
+                    subtitle: sys.subtitle || sys.description || '',
+                    description: sys.subtitle || sys.description || '',
+                    status: sys.commercial_status || sys.status || 'active',
+                    commercial_status: sys.commercial_status || sys.status || 'active',
                     icon: icon,
                     tone: tone,
-                    publicPath: sys.publicPath || slug,
-                    saasRecommended: sys.saas_recommended ?? false,
-                    standardMlAllowed: sys.standard_ml_allowed ?? true,
+                    publicPath: sys.public_path || sys.publicPath || slug,
+                    public_path: sys.public_path || sys.publicPath || slug,
+                    saasRecommended: sys.saas_recommended ?? (slug === 'gestao-gastro'),
+                    saas_recommended: sys.saas_recommended ?? (slug === 'gestao-gastro'),
+                    standardMlAllowed: sys.standard_ml_allowed ?? (slug !== 'gestao-gastro'),
+                    standard_ml_allowed: sys.standard_ml_allowed ?? (slug !== 'gestao-gastro'),
+                    offline_standalone_fallback: sys.offline_standalone_fallback || sys.offlineFallback || null,
+                    allowed_channels: sys.allowed_channels || ['mercadolivre', 'direct', 'landing_page', 'admin_saas'],
+                    allowed_commercial_models: sys.allowed_commercial_models || ['ml_lifetime', 'direct_lifetime', 'pro_lifetime', 'trial', 'online_essential', 'online_premium', 'project_custom_brand'],
+                    lifetime_plans: sys.lifetime_plans || {},
+                    saas_plans: sys.saas_plans || {},
+                    trial_config: sys.trial_config || { enabled: true, days: 7, max_devices: 1, max_users: 2 },
+                    operational_notes: sys.operational_notes || '',
                     plans: plans
                 };
             }
@@ -1999,7 +2011,21 @@
         }
 
         async function loadSystemsCatalog() {
-            // 1. Tenta carregar catálogo dinâmico ao vivo do Supabase via api_provisioning.php
+            let localCatalog = null;
+            let supabaseCatalog = null;
+
+            // 1. Carrega Catálogo Local Oficial via api_catalog.php
+            try {
+                const response = await fetch('../api_catalog.php');
+                const data = await response.json();
+                if (data.status === 'success' && data.data) {
+                    localCatalog = normalizeLocalCatalogPayload(data.data);
+                }
+            } catch (error) {
+                console.warn('Falha ao carregar Catálogo Local Oficial de api_catalog.php.', error);
+            }
+
+            // 2. Tenta carregar catálogo dinâmico ao vivo do Supabase via api_provisioning.php
             try {
                 const response = await fetch('../api_provisioning.php', {
                     method: 'POST',
@@ -2008,52 +2034,213 @@
                 });
                 const data = await response.json();
 
-                if (data.status === 'success') {
-                    const catalog = normalizeSystemsCatalogPayload(data.data);
-                    if (catalog && Object.keys(catalog).length > 0) {
-                        return { catalog, source: 'supabase' };
-                    }
+                if (data.status === 'success' && Array.isArray(data.data) && data.data.length > 0) {
+                    supabaseCatalog = normalizeSystemsCatalogPayload(data.data);
                 }
             } catch (error) {
                 console.warn('Falha ao carregar catálogo SaaS do Supabase.', error);
             }
 
-            // 2. Tenta carregar Catálogo Local Oficial via api_catalog.php
-            try {
-                const response = await fetch('../api_catalog.php');
-                const data = await response.json();
-
-                if (data.status === 'success' && data.data) {
-                    const catalog = normalizeLocalCatalogPayload(data.data);
-                    if (catalog && Object.keys(catalog).length > 0) {
-                        return { catalog, source: 'local_official' };
+            // 3. Mescla catalogos priorizando a completude do Local Oficial se o Supabase nao tiver todos os sistemas
+            if (localCatalog && Object.keys(localCatalog).length > 0) {
+                const mergedCatalog = { ...localCatalog };
+                if (supabaseCatalog) {
+                    for (const slug in supabaseCatalog) {
+                        mergedCatalog[slug] = { ...mergedCatalog[slug], ...supabaseCatalog[slug] };
                     }
                 }
-            } catch (error) {
-                console.warn('Falha ao carregar Catálogo Local Oficial de api_catalog.php.', error);
+                const source = (supabaseCatalog && Object.keys(supabaseCatalog).length >= Object.keys(localCatalog).length) ? 'supabase' : 'local_official';
+                return { catalog: mergedCatalog, source };
             }
 
-            // 3. Fallback JS como última proteção
+            if (supabaseCatalog && Object.keys(supabaseCatalog).length > 0) {
+                return { catalog: supabaseCatalog, source: 'supabase' };
+            }
+
+            // 4. Fallback JS como última proteção
             return { catalog: SAAS_CATALOG_FALLBACK, source: 'fallback' };
         }
 
         function openSystemCatalogAction(action, systemSlug = '', planSlug = '') {
-            document.getElementById('generic-modal-title').innerText = "Catálogo de Sistemas";
+            const modal = document.getElementById('catalog-system-modal');
+            if (!modal) return;
 
-            let html = `<div class="p-4 bg-amber-50 border border-amber-200 text-amber-800 rounded-lg text-sm mb-4">Ação <b>${escapeHtml(action)}</b> está em desenvolvimento.</div>`;
+            const isNewInput = document.getElementById('cat-is-new');
+            const titleEl = document.getElementById('catalog-modal-title');
+            const slugInput = document.getElementById('cat-slug');
+            const nameInput = document.getElementById('cat-name');
+            const subtitleInput = document.getElementById('cat-subtitle');
+            const publicPathInput = document.getElementById('cat-public-path');
+            const statusSelect = document.getElementById('cat-status');
+            const saasRecommendedCheck = document.getElementById('cat-saas-recommended');
+            const standardMlCheck = document.getElementById('cat-standard-ml-allowed');
+            const priceEssentialInput = document.getElementById('cat-price-essential');
+            const pricePremiumInput = document.getElementById('cat-price-premium');
+            const priceMlInput = document.getElementById('cat-price-ml');
+            const priceDirectInput = document.getElementById('cat-price-direct');
+            const priceProInput = document.getElementById('cat-price-pro');
+            const notesInput = document.getElementById('cat-operational-notes');
+            const errorToast = document.getElementById('cat-error-toast');
+            const gastroWarning = document.getElementById('cat-gastro-warning');
 
-            if (systemSlug) {
-                const sysMeta = SAAS_CATALOG[systemSlug] || { title: systemSlug, description: 'N/A' };
-                html += `<div><span class="block text-xs font-bold text-slate-400 uppercase">Sistema</span><span class="font-medium text-slate-800">${escapeHtml(sysMeta.title)}</span></div>`;
+            errorToast.classList.add('hidden');
+            gastroWarning.classList.add('hidden');
+
+            const defaultChannels = ['mercadolivre', 'direct', 'landing_page', 'admin_saas'];
+            const defaultModels = ['ml_lifetime', 'direct_lifetime', 'pro_lifetime', 'trial', 'online_essential', 'online_premium', 'project_custom_brand'];
+
+            if (action === 'new' || action === 'new-system') {
+                isNewInput.value = 'true';
+                titleEl.innerText = "Novo Sistema no Catálogo";
+                slugInput.removeAttribute('readonly');
+                slugInput.classList.remove('bg-slate-100');
+
+                slugInput.value = '';
+                nameInput.value = '';
+                subtitleInput.value = '';
+                publicPathInput.value = '';
+                statusSelect.value = 'active';
+                saasRecommendedCheck.checked = false;
+                standardMlCheck.checked = true;
+                priceEssentialInput.value = '59.90';
+                pricePremiumInput.value = '99.00';
+                priceMlInput.value = '97.00';
+                priceDirectInput.value = '299.90';
+                priceProInput.value = '599.90';
+                notesInput.value = '';
+
+                document.querySelectorAll('input[name="cat_channel"]').forEach(el => {
+                    el.checked = defaultChannels.includes(el.value);
+                });
+                document.querySelectorAll('input[name="cat_model"]').forEach(el => {
+                    el.checked = defaultModels.includes(el.value);
+                });
+
+                modal.classList.remove('hidden');
+                if (window.lucide) lucide.createIcons();
+                return;
             }
-            if (planSlug && systemSlug && SAAS_CATALOG[systemSlug]?.plans[planSlug]) {
-                const plan = SAAS_CATALOG[systemSlug].plans[planSlug];
-                html += `<div class="mt-4"><span class="block text-xs font-bold text-slate-400 uppercase">Plano</span><span class="font-medium text-slate-800">${escapeHtml(plan.name)}</span></div>`;
-                html += `<div class="mt-2"><span class="block text-xs font-bold text-slate-400 uppercase">Módulos</span><span class="font-medium text-slate-600 text-sm">${plan.modules.map(m => escapeHtml(m[1])).join(', ')}</span></div>`;
-            }
 
-            document.getElementById('generic-modal-body').innerHTML = html;
-            document.getElementById('generic-modal').classList.remove('hidden');
+            if (action === 'edit-system' || action === 'edit-plan') {
+                isNewInput.value = 'false';
+                const sys = SAAS_CATALOG[systemSlug] || SAAS_CATALOG_FALLBACK[systemSlug] || {};
+                titleEl.innerText = `Editar Sistema: ${sys.title || sys.name || systemSlug}`;
+                slugInput.setAttribute('readonly', 'readonly');
+                slugInput.classList.add('bg-slate-100');
+
+                slugInput.value = systemSlug;
+                nameInput.value = sys.title || sys.name || systemSlug;
+                subtitleInput.value = sys.description || sys.subtitle || '';
+                publicPathInput.value = sys.publicPath || sys.public_path || systemSlug;
+                statusSelect.value = sys.status || sys.commercial_status || 'active';
+                saasRecommendedCheck.checked = sys.saasRecommended ?? sys.saas_recommended ?? (systemSlug === 'gestao-gastro');
+                standardMlCheck.checked = sys.standardMlAllowed ?? sys.standard_ml_allowed ?? (systemSlug !== 'gestao-gastro');
+
+                const pEssential = sys.plans?.online_essential?.monthly_price ?? (sys.plans?.basic?.priceCents ? (sys.plans.basic.priceCents / 100).toFixed(2) : (systemSlug === 'gestao-gastro' ? '89.00' : (systemSlug === 'gestao-assistencia' ? '97.90' : '59.90')));
+                const pPremium = sys.plans?.online_premium?.monthly_price ?? (sys.plans?.premium?.priceCents ? (sys.plans.premium.priceCents / 100).toFixed(2) : (systemSlug === 'gestao-gastro' ? '189.00' : (systemSlug === 'gestao-assistencia' ? '149.90' : '99.00')));
+
+                priceEssentialInput.value = pEssential;
+                pricePremiumInput.value = pPremium;
+
+                // Leitura canônica de base_price para planos vitalícios
+                const lifetime = sys.lifetime_plans || {};
+                priceMlInput.value = lifetime.ml_lifetime?.base_price ?? lifetime.ml_lifetime?.price ?? '97.00';
+                priceDirectInput.value = lifetime.direct_lifetime?.base_price ?? lifetime.direct_lifetime?.price ?? '299.90';
+                priceProInput.value = lifetime.pro_lifetime?.base_price ?? lifetime.pro_lifetime?.price ?? '599.90';
+                notesInput.value = sys.operational_notes || '';
+
+                const activeChannels = sys.allowed_channels || sys.allowedChannels || defaultChannels;
+                const activeModels = sys.allowed_commercial_models || sys.allowedCommercialModels || defaultModels;
+
+                document.querySelectorAll('input[name="cat_channel"]').forEach(el => {
+                    el.checked = activeChannels.includes(el.value);
+                });
+                document.querySelectorAll('input[name="cat_model"]').forEach(el => {
+                    el.checked = activeModels.includes(el.value);
+                });
+
+                if (systemSlug === 'gestao-gastro') {
+                    gastroWarning.classList.remove('hidden');
+                    standardMlCheck.checked = false;
+                    saasRecommendedCheck.checked = true;
+                    // Desmarca mercadolivre e ml_lifetime no Gastro
+                    const mlChan = document.querySelector('input[name="cat_channel"][value="mercadolivre"]');
+                    if (mlChan) mlChan.checked = false;
+                    const mlMod = document.querySelector('input[name="cat_model"][value="ml_lifetime"]');
+                    if (mlMod) mlMod.checked = false;
+                }
+
+                modal.classList.remove('hidden');
+                if (window.lucide) lucide.createIcons();
+                return;
+            }
+        }
+
+        async function saveCatalogSystem(event) {
+            event.preventDefault();
+            const submitBtn = document.getElementById('cat-submit-btn');
+            const errorToast = document.getElementById('cat-error-toast');
+            const errorMsg = document.getElementById('cat-error-msg');
+
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> Salvando...';
+            errorToast.classList.add('hidden');
+
+            const allowedChannels = Array.from(document.querySelectorAll('input[name="cat_channel"]:checked')).map(el => el.value);
+            const allowedModels = Array.from(document.querySelectorAll('input[name="cat_model"]:checked')).map(el => el.value);
+
+            const payload = {
+                action: 'save_system',
+                admin_secret: AUTH_SECRET,
+                is_new: document.getElementById('cat-is-new').value === 'true',
+                slug: document.getElementById('cat-slug').value.trim().toLowerCase(),
+                name: document.getElementById('cat-name').value.trim(),
+                subtitle: document.getElementById('cat-subtitle').value.trim(),
+                public_path: document.getElementById('cat-public-path').value.trim().toLowerCase(),
+                commercial_status: document.getElementById('cat-status').value,
+                saas_recommended: document.getElementById('cat-saas-recommended').checked,
+                standard_ml_allowed: document.getElementById('cat-standard-ml-allowed').checked,
+                allowed_channels: allowedChannels,
+                allowed_commercial_models: allowedModels,
+                price_essential: parseFloat(document.getElementById('cat-price-essential').value) || 0,
+                price_premium: parseFloat(document.getElementById('cat-price-premium').value) || 0,
+                price_ml: parseFloat(document.getElementById('cat-price-ml').value) || 97.00,
+                price_direct: parseFloat(document.getElementById('cat-price-direct').value) || 299.90,
+                price_pro: parseFloat(document.getElementById('cat-price-pro').value) || 599.90,
+                operational_notes: document.getElementById('cat-operational-notes').value.trim()
+            };
+
+            try {
+                const response = await fetch('../api_catalog.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await response.json();
+
+                if (data.status === 'success') {
+                    document.getElementById('catalog-system-modal').classList.add('hidden');
+                    await renderSaasSystems();
+
+                    const feedbackBox = document.getElementById('systems-catalog-status');
+                    if (feedbackBox) {
+                        feedbackBox.classList.remove('hidden', 'border-emerald-200', 'bg-emerald-50', 'text-emerald-800', 'border-blue-200', 'bg-blue-50', 'text-blue-800');
+                        feedbackBox.classList.add('border-emerald-200', 'bg-emerald-50', 'text-emerald-800');
+                        feedbackBox.innerHTML = `✓ <b>Sucesso:</b> Sistema ${escapeHtml(payload.name)} salvo com sucesso no catálogo oficial. Backup de segurança criado automaticamente.`;
+                    }
+                } else {
+                    errorMsg.innerText = data.message || 'Erro ao salvar sistema no catálogo.';
+                    errorToast.classList.remove('hidden');
+                }
+            } catch (err) {
+                console.error('Erro na requisição para salvar catálogo:', err);
+                errorMsg.innerText = 'Falha de comunicação com o servidor.';
+                errorToast.classList.remove('hidden');
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i data-lucide="save" class="w-4 h-4"></i> Salvar Sistema';
+                if (window.lucide) lucide.createIcons();
+            }
         }
 
         async function renderSaasSystems() {
@@ -2061,7 +2248,7 @@
             if (!grid) return;
 
             const statusBox = document.getElementById('systems-catalog-status');
-            grid.innerHTML = '<div class="col-span-full bg-white border border-slate-200 rounded-2xl p-6 text-sm text-slate-500">Carregando catálogo de sistemas...</div>';
+            grid.innerHTML = '<div class="col-span-full bg-white border border-slate-200 rounded-2xl p-6 text-sm text-slate-500 flex items-center justify-center gap-2"><i data-lucide="loader-2" class="w-4 h-4 animate-spin text-blue-600"></i> Carregando catálogo oficial de sistemas...</div>';
 
             const { catalog, source } = await loadSystemsCatalog();
 
@@ -2069,17 +2256,16 @@
                 statusBox.classList.remove('hidden', 'border-emerald-200', 'bg-emerald-50', 'text-emerald-800', 'border-blue-200', 'bg-blue-50', 'text-blue-800', 'border-amber-200', 'bg-amber-50', 'text-amber-800');
                 if (source === 'supabase') {
                     statusBox.classList.add('border-emerald-200', 'bg-emerald-50', 'text-emerald-800');
-                    statusBox.innerText = 'Catálogo conectado ao Supabase.';
+                    statusBox.innerText = '⚡ Catálogo conectado ao Supabase Cloud.';
                 } else if (source === 'local_official') {
                     statusBox.classList.add('border-blue-200', 'bg-blue-50', 'text-blue-800');
-                    statusBox.innerText = 'Catálogo Local Oficial em uso (products_catalog.json).';
+                    statusBox.innerText = '📦 Catálogo Local Oficial em uso (products_catalog.json). Fonte de verdade ativa.';
                 } else {
                     statusBox.classList.add('border-amber-200', 'bg-amber-50', 'text-amber-800');
-                    statusBox.innerText = 'Catálogo local/fallback em uso. Configure o Supabase para governança centralizada.';
+                    statusBox.innerText = '⚠️ Catálogo local/fallback em uso. Configure o Supabase para governança remota.';
                 }
             }
 
-            // Phase C.3 / C.5.3: Update global catalog dynamically and notify the provision tab
             if ((source === 'supabase' || source === 'local_official') && catalog && Object.keys(catalog).length > 0) {
                 for (const key in SAAS_CATALOG) {
                     delete SAAS_CATALOG[key];
@@ -2103,57 +2289,196 @@
                 }
             }
 
+            const channelLabels = {
+                mercadolivre: { label: 'Mercado Livre', class: 'bg-amber-100 text-amber-900 border-amber-200' },
+                direct: { label: 'Venda Direta', class: 'bg-indigo-100 text-indigo-900 border-indigo-200' },
+                landing_page: { label: 'Landing Page', class: 'bg-sky-100 text-sky-900 border-sky-200' },
+                admin_saas: { label: 'Admin SaaS', class: 'bg-purple-100 text-purple-900 border-purple-200' }
+            };
+
+            const modelLabels = {
+                ml_lifetime: { label: 'ML Vitalício', class: 'bg-slate-100 text-slate-800 border-slate-200' },
+                direct_lifetime: { label: 'Direto Vitalício', class: 'bg-slate-100 text-slate-800 border-slate-200' },
+                pro_lifetime: { label: 'Pro Vitalício', class: 'bg-slate-100 text-slate-800 border-slate-200' },
+                trial: { label: 'Trial', class: 'bg-purple-50 text-purple-800 border-purple-200' },
+                online_essential: { label: 'SaaS Essencial', class: 'bg-blue-50 text-blue-800 border-blue-200' },
+                online_premium: { label: 'SaaS Premium', class: 'bg-blue-50 text-blue-800 border-blue-200' },
+                project_custom_brand: { label: 'Marca Própria', class: 'bg-emerald-50 text-emerald-800 border-emerald-200' }
+            };
+
             grid.innerHTML = Object.entries(catalog).map(([systemSlug, system]) => {
-                const plans = Object.entries(system.plans).map(([planSlug, plan]) => `
-                    <div class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm flex justify-between items-start gap-4 group">
-                        <div>
-                            <h5 class="font-bold text-slate-800">${escapeHtml(plan.name)}</h5>
-                            <p class="text-xs text-slate-500 mt-1">${plan.modules.slice(0, 5).map(([, name]) => escapeHtml(name)).join(', ')}${plan.modules.length > 5 ? '...' : ''}</p>
-                            <div class="flex flex-wrap gap-1.5 mt-2">
-                                <span class="text-[10px] bg-blue-50 text-blue-700 border border-blue-100 rounded px-2 py-0.5 font-bold">${escapeHtml(getBillingLabel(plan.billingModel))}</span>
-                                <span class="text-[10px] bg-slate-50 text-slate-500 border border-slate-100 rounded px-2 py-0.5">${plan.modules.length} módulos vinculados</span>
-                                <span class="text-[10px] bg-slate-50 text-slate-500 border border-slate-100 rounded px-2 py-0.5">${plan.maxUsers || '∞'} usuários</span>
-                                <span class="text-[10px] bg-slate-50 text-slate-500 border border-slate-100 rounded px-2 py-0.5">${plan.maxDevices || '∞'} dispositivos</span>
+                const isInactive = (system.status === 'inactive' || system.commercial_status === 'inactive');
+
+                // Channels & Models Badges
+                const allowedChannels = system.allowed_channels || ['mercadolivre', 'direct', 'landing_page', 'admin_saas'];
+                const allowedModels = system.allowed_commercial_models || ['ml_lifetime', 'direct_lifetime', 'pro_lifetime', 'trial', 'online_essential', 'online_premium'];
+
+                const channelsBadgesHtml = allowedChannels.map(ch => {
+                    const info = channelLabels[ch] || { label: ch, class: 'bg-slate-100 text-slate-700 border-slate-200' };
+                    return `<span class="px-2 py-0.5 rounded text-[10px] font-bold border ${info.class}">${escapeHtml(info.label)}</span>`;
+                }).join(' ');
+
+                const modelsBadgesHtml = allowedModels.map(m => {
+                    const info = modelLabels[m] || { label: m, class: 'bg-slate-100 text-slate-700 border-slate-200' };
+                    return `<span class="px-2 py-0.5 rounded text-[10px] font-bold border ${info.class}">${escapeHtml(info.label)}</span>`;
+                }).join(' ');
+
+                // 1. Grupo SaaS (Online Recorrente)
+                const saasPlansMap = system.plans || {};
+                const saasEntries = Object.entries(saasPlansMap).filter(([k]) => k !== 'trial');
+
+                const saasPlansHtml = saasEntries.length > 0 ? saasEntries.map(([planKey, plan]) => {
+                    const modulesCount = Array.isArray(plan.modules) ? plan.modules.length : 0;
+                    const priceDisplay = plan.price || (plan.monthly_price ? `R$ ${plan.monthly_price.toFixed(2).replace('.', ',')}/mês` : 'N/A');
+                    const modulesPreview = Array.isArray(plan.modules) ? plan.modules.slice(0, 4).map(m => Array.isArray(m) ? m[1] || m[0] : m).join(', ') : '';
+
+                    return `
+                        <div class="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm hover:border-blue-300 transition-all flex flex-col justify-between group">
+                            <div>
+                                <div class="flex justify-between items-start">
+                                    <h5 class="font-black text-slate-800 text-sm">${escapeHtml(plan.name)}</h5>
+                                    <span class="font-black text-blue-700 text-sm">${escapeHtml(priceDisplay)}</span>
+                                </div>
+                                <div class="flex flex-wrap gap-1 mt-2">
+                                    <span class="text-[10px] bg-slate-50 text-slate-600 border border-slate-200 rounded px-1.5 py-0.5 font-medium">${plan.maxDevices || '3'} disp.</span>
+                                    <span class="text-[10px] bg-slate-50 text-slate-600 border border-slate-200 rounded px-1.5 py-0.5 font-medium">${plan.maxUsers || '12'} usu.</span>
+                                    <span class="text-[10px] bg-blue-50 text-blue-700 border border-blue-100 rounded px-1.5 py-0.5 font-bold">${modulesCount} módulos</span>
+                                </div>
+                                ${modulesPreview ? `<p class="text-[11px] text-slate-500 mt-2.5 line-clamp-2 leading-relaxed"><b>Recursos:</b> ${escapeHtml(modulesPreview)}${modulesCount > 4 ? '...' : ''}</p>` : ''}
+                            </div>
+                            <div class="mt-3 pt-2 border-t border-slate-100 flex justify-between items-center text-[10px]">
+                                <span class="text-slate-400 font-bold uppercase tracking-wider">Recorrente Mensal</span>
+                                <button type="button" onclick="openSystemCatalogAction('edit-system', '${escapeHtml(systemSlug)}')" class="text-blue-600 font-bold hover:underline">Editar Preço</button>
                             </div>
                         </div>
-                        <div class="text-right shrink-0">
-                            <span class="block font-black text-slate-700">${escapeHtml(formatCatalogPrice(plan))}</span>
-                            <span class="block text-[10px] text-slate-400 uppercase font-bold">${escapeHtml(plan.status || 'active')}</span>
-                            <button type="button" onclick="openSystemCatalogAction('edit-plan', '${escapeHtml(systemSlug)}', '${escapeHtml(planSlug)}')" class="text-blue-600 text-xs font-bold uppercase tracking-wider opacity-0 group-hover:opacity-100 transition-opacity">Editar</button>
+                    `;
+                }).join('') : `<div class="col-span-full bg-slate-100 border border-slate-200 rounded-xl p-3 text-xs text-slate-500 italic text-center">Nenhum plano mensal SaaS cadastrado.</div>`;
+
+                // 2. Grupo Vitalício / Standalone
+                const lifetimePlansObj = system.lifetime_plans || {};
+                const lifetimeEntries = Object.entries(lifetimePlansObj);
+
+                const lifetimePlansHtml = lifetimeEntries.length > 0 ? lifetimeEntries.map(([lKey, lPlan]) => {
+                    const bPrice = lPlan.base_price ?? lPlan.price ?? 0;
+                    const priceFormatted = bPrice ? `R$ ${bPrice.toFixed(2).replace('.', ',')}` : 'N/A';
+                    return `
+                        <div class="bg-white border border-slate-200 rounded-xl p-3 shadow-sm hover:border-emerald-300 transition-all flex flex-col justify-between">
+                            <div>
+                                <span class="text-[10px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded block w-max uppercase">${escapeHtml(lPlan.name || lKey)}</span>
+                                <div class="font-black text-slate-800 text-sm mt-1.5">${priceFormatted}</div>
+                                <div class="text-[10px] text-slate-500 mt-1">${lPlan.max_devices || 1} disp. · ${lPlan.max_users || 1} usu.</div>
+                            </div>
+                            <span class="text-[9px] text-slate-400 uppercase font-bold mt-2">Venda Única</span>
                         </div>
-                    </div>
-                `).join('');
-                const totalModules = Object.values(system.plans).reduce((total, plan) => total + plan.modules.length, 0);
+                    `;
+                }).join('') : null;
+
+                // 3. Grupo Trial
+                const trialDays = system.trial_config?.days || 7;
+                const trialDevices = system.trial_config?.max_devices || 1;
+                const trialUsers = system.trial_config?.max_users || 2;
 
                 return `
-                    <div class="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
-                        <div class="p-6 bg-gradient-to-r ${system.tone} flex justify-between items-center text-white">
-                            <div class="flex items-center gap-4">
-                                <div class="bg-white/20 p-3 rounded-2xl backdrop-blur-sm">
-                                    <i data-lucide="${system.icon}" class="w-8 h-8"></i>
+                    <div class="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden flex flex-col ${isInactive ? 'opacity-75' : ''}">
+                        <!-- HEADER DO SISTEMA -->
+                        <div class="p-6 bg-gradient-to-r ${system.tone} text-white">
+                            <div class="flex justify-between items-start gap-4">
+                                <div class="flex items-center gap-4">
+                                    <div class="bg-white/20 p-3 rounded-2xl backdrop-blur-sm shadow-inner shrink-0">
+                                        <i data-lucide="${system.icon}" class="w-8 h-8"></i>
+                                    </div>
+                                    <div>
+                                        <h3 class="font-black text-xl flex items-center gap-2 tracking-tight">
+                                            ${escapeHtml(system.title)}
+                                            ${isInactive ? '<span class="text-xs bg-red-600 text-white px-2 py-0.5 rounded font-bold uppercase tracking-wider">Inativo</span>' : ''}
+                                        </h3>
+                                        <p class="text-white/85 text-sm font-medium mt-0.5">${escapeHtml(system.subtitle || system.description)}</p>
+                                    </div>
                                 </div>
-                                <div>
-                                    <h3 class="font-black text-xl">${escapeHtml(system.title)}</h3>
-                                    <p class="text-white/80 text-sm font-medium">${escapeHtml(system.description)}</p>
+                                <div class="text-right shrink-0 flex flex-col items-end gap-2">
+                                    <span class="bg-white/20 text-white text-[11px] font-mono font-bold px-3 py-1 rounded-full backdrop-blur-sm border border-white/20">${escapeHtml(systemSlug)}</span>
+                                    <button type="button" onclick="openSystemCatalogAction('edit-system', '${escapeHtml(systemSlug)}')" class="text-white/80 hover:text-white transition-colors bg-white/10 hover:bg-white/20 p-2 rounded-xl backdrop-blur-sm" title="Editar parâmetros">
+                                        <i data-lucide="settings" class="w-4 h-4"></i>
+                                    </button>
                                 </div>
                             </div>
-                            <div class="text-right">
-                                <span class="bg-white/15 text-white text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full">${escapeHtml(systemSlug)}</span>
-                                <button type="button" onclick="openSystemCatalogAction('edit-system', '${escapeHtml(systemSlug)}')" class="block mt-2 ml-auto text-white/80 hover:text-white transition-colors bg-white/10 p-2 rounded-lg backdrop-blur-sm" title="Editar sistema">
-                                    <i data-lucide="settings" class="w-4 h-4"></i>
-                                </button>
+
+                            <!-- HIGHLIGHTS / REGRAS DE IMPACTO -->
+                            <div class="flex flex-wrap items-center gap-2 mt-4 pt-3 border-t border-white/20 text-[11px] font-bold">
+                                ${system.saas_recommended ? '<span class="bg-amber-400 text-amber-950 px-2.5 py-0.5 rounded-full flex items-center gap-1 shadow-sm"><i data-lucide="sparkles" class="w-3.5 h-3.5"></i> SaaS Recomendado</span>' : ''}
+                                ${system.standard_ml_allowed ? '<span class="bg-emerald-400/90 text-emerald-950 px-2.5 py-0.5 rounded-full flex items-center gap-1"><i data-lucide="check-circle-2" class="w-3.5 h-3.5"></i> ML Padrão Permitido</span>' : '<span class="bg-slate-900/60 text-slate-100 px-2.5 py-0.5 rounded-full flex items-center gap-1 backdrop-blur-sm"><i data-lucide="x-circle" class="w-3.5 h-3.5"></i> ML Padrão Indisponível</span>'}
+                                ${system.offline_standalone_fallback?.permitted ? '<span class="bg-white/20 text-white px-2.5 py-0.5 rounded-full flex items-center gap-1 backdrop-blur-sm" title="Atendimento presencial/infraestrutura dedicada"><i data-lucide="server" class="w-3.5 h-3.5"></i> Offline / Standalone Permitido</span>' : ''}
                             </div>
                         </div>
-                        <div class="p-6 flex-1 bg-slate-50/50">
-                            <div class="flex items-center justify-between mb-4">
-                                <h4 class="text-xs font-black text-slate-400 uppercase tracking-widest">Planos Ativos</h4>
-                                <span class="text-[10px] font-bold text-slate-400">${Object.keys(system.plans).length} planos · ${totalModules} módulos</span>
+
+                        <!-- CORPO DO CARD COM OS TRÊS GRUPOS DE PLANOS -->
+                        <div class="p-6 flex-1 bg-slate-50/50 space-y-6">
+
+                            <!-- CANAIS E MODELOS PERMITIDOS -->
+                            <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-2.5 text-xs">
+                                <div class="flex flex-wrap items-center gap-1.5">
+                                    <span class="font-black text-slate-400 uppercase tracking-widest text-[10px] mr-1">Canais:</span>
+                                    ${channelsBadgesHtml}
+                                </div>
+                                <div class="flex flex-wrap items-center gap-1.5 border-t border-slate-100 pt-2">
+                                    <span class="font-black text-slate-400 uppercase tracking-widest text-[10px] mr-1">Modelos:</span>
+                                    ${modelsBadgesHtml}
+                                </div>
                             </div>
-                            <div class="flex flex-wrap gap-2 mb-4">
-                                <span class="text-[10px] bg-white border border-slate-200 text-slate-500 rounded px-2 py-1 font-bold">Status: ${escapeHtml(system.status || 'active')}</span>
-                                <span class="text-[10px] bg-white border border-slate-200 text-slate-500 rounded px-2 py-1 font-bold">Path: ${escapeHtml(system.publicPath || systemSlug)}</span>
+
+                            <!-- GRUPO 1: ONLINE / RECORRENTE SAAS -->
+                            <div>
+                                <div class="flex items-center justify-between mb-3">
+                                    <h4 class="text-xs font-black text-slate-700 uppercase tracking-widest flex items-center gap-1.5">
+                                        <i data-lucide="cloud" class="w-4 h-4 text-blue-600"></i> Planos Recorrentes Online / SaaS
+                                    </h4>
+                                    <span class="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-100">${saasEntries.length} opções</span>
+                                </div>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                    ${saasPlansHtml}
+                                </div>
                             </div>
-                            <div class="space-y-4">${plans}</div>
+
+                            <!-- GRUPO 2: VITALÍCIO / STANDALONE -->
+                            <div>
+                                <div class="flex items-center justify-between mb-3">
+                                    <h4 class="text-xs font-black text-slate-700 uppercase tracking-widest flex items-center gap-1.5">
+                                        <i data-lucide="hard-drive" class="w-4 h-4 text-emerald-600"></i> Licenças Vitalícias / Standalone
+                                    </h4>
+                                    ${lifetimePlansHtml ? `<span class="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100">${lifetimeEntries.length} opções</span>` : '<span class="text-[10px] font-medium text-slate-400 italic">Indisponível na Prateleira</span>'}
+                                </div>
+                                ${lifetimePlansHtml ? `
+                                <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                    ${lifetimePlansHtml}
+                                </div>
+                                ` : `
+                                <div class="bg-slate-100/70 border border-dashed border-slate-200 rounded-xl p-3 text-center text-xs text-slate-500 font-medium">
+                                    Sistemas sem vendas de licença vitalícia avulsa por padrão comercial.
+                                </div>
+                                `}
+                            </div>
+
+                            <!-- GRUPO 3: TRIAL / AVALIAÇÃO -->
+                            <div>
+                                <div class="flex items-center justify-between mb-2">
+                                    <h4 class="text-xs font-black text-slate-700 uppercase tracking-widest flex items-center gap-1.5">
+                                        <i data-lucide="clock" class="w-4 h-4 text-purple-600"></i> Avaliação Gratuita / Trial
+                                    </h4>
+                                </div>
+                                <div class="bg-white border border-slate-200 rounded-xl p-3 shadow-sm flex items-center justify-between text-xs">
+                                    <div class="flex items-center gap-2">
+                                        <span class="bg-purple-50 text-purple-700 font-black px-2.5 py-1 rounded-lg border border-purple-100">${trialDays} Dias Grátis</span>
+                                        <span class="text-slate-600 font-medium">${trialDevices} disp. · ${trialUsers} usu.</span>
+                                    </div>
+                                    <span class="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">Disponível no Cadastro</span>
+                                </div>
+                            </div>
+
+                            ${system.operational_notes ? `
+                            <div class="bg-blue-50/70 border border-blue-100 rounded-xl p-3 text-xs text-blue-900">
+                                <b>Nota Operacional:</b> ${escapeHtml(system.operational_notes)}
+                            </div>
+                            ` : ''}
                         </div>
                     </div>
                 `;
@@ -4616,6 +4941,189 @@ Qualquer dúvida, estamos à disposição!`;
             <div class="p-4 border-t border-slate-100 bg-slate-50 flex justify-end">
                 <button onclick="closeGenericModal()" class="px-4 py-2 bg-slate-200 text-slate-700 font-bold rounded-lg hover:bg-slate-300 transition-colors">Fechar</button>
             </div>
+        </div>
+    </div>
+
+    <!-- Modal do Catálogo Comercial (CRUD de Sistemas/Produtos) -->
+    <div id="catalog-system-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh] border border-slate-200">
+            <div class="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                <div class="flex items-center gap-3">
+                    <div class="bg-blue-600/10 p-2.5 rounded-xl text-blue-600">
+                        <i data-lucide="package" class="w-6 h-6"></i>
+                    </div>
+                    <div>
+                        <h3 id="catalog-modal-title" class="text-lg font-black text-slate-800">Parâmetros do Sistema</h3>
+                        <p class="text-xs text-slate-500 font-medium">Governança Comercial e Regras do Produto</p>
+                    </div>
+                </div>
+                <button type="button" onclick="document.getElementById('catalog-system-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 transition-colors p-2 rounded-xl hover:bg-slate-100">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <form id="form-catalog-system" onsubmit="saveCatalogSystem(event)" class="p-6 overflow-y-auto space-y-6">
+                <input type="hidden" id="cat-is-new" value="false">
+
+                <!-- Gastro Warning Box -->
+                <div id="cat-gastro-warning" class="hidden bg-amber-50 border border-amber-200 text-amber-900 p-4 rounded-2xl text-xs space-y-1">
+                    <div class="flex items-center gap-2 font-bold text-amber-950">
+                        <i data-lucide="alert-triangle" class="w-4 h-4 text-amber-600"></i>
+                        Aviso de Paridade do Gestão Gastro (SaaS Recomendado)
+                    </div>
+                    <p class="text-amber-800">O Gestão Gastro não é comercializado via Mercado Livre nem possui licenças vitalícias avulsas por padrão comercial. As opções de ML foram desmarcadas automaticamente.</p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Slug / Identificador *</label>
+                        <input type="text" id="cat-slug" required placeholder="ex: gestao-gastro" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-blue-500 font-mono">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Nome Comercial *</label>
+                        <input type="text" id="cat-name" required placeholder="ex: Gestão Gastro" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-blue-500 font-bold">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Subtítulo / Descrição *</label>
+                        <input type="text" id="cat-subtitle" required placeholder="ex: Sistema para Restaurantes e Bares" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Public Path (Link) *</label>
+                        <input type="text" id="cat-public-path" required placeholder="ex: gestao-gastro" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-blue-500 font-mono">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Status Comercial</label>
+                        <select id="cat-status" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-blue-500 bg-white font-medium">
+                            <option value="active">Ativo (Permitido)</option>
+                            <option value="inactive">Inativo (Bloqueado)</option>
+                        </select>
+                    </div>
+                    <div class="flex items-center gap-2 pt-5">
+                        <input type="checkbox" id="cat-saas-recommended" class="w-4 h-4 text-blue-600 rounded">
+                        <label for="cat-saas-recommended" class="text-xs font-bold text-slate-700">SaaS Recomendado</label>
+                    </div>
+                    <div class="flex items-center gap-2 pt-5">
+                        <input type="checkbox" id="cat-standard-ml-allowed" class="w-4 h-4 text-blue-600 rounded">
+                        <label for="cat-standard-ml-allowed" class="text-xs font-bold text-slate-700">ML Padrão Permitido</label>
+                    </div>
+                </div>
+
+                <!-- Canais Permitidos -->
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase mb-2">Canais de Distribuição Autorizados</label>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-2 bg-slate-50 p-3 rounded-2xl border border-slate-100 text-xs">
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" name="cat_channel" value="mercadolivre" checked class="w-4 h-4 text-amber-500 rounded">
+                            <span class="font-medium text-slate-700">Mercado Livre</span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" name="cat_channel" value="direct" checked class="w-4 h-4 text-indigo-500 rounded">
+                            <span class="font-medium text-slate-700">Venda Direta</span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" name="cat_channel" value="landing_page" checked class="w-4 h-4 text-sky-500 rounded">
+                            <span class="font-medium text-slate-700">Landing Page</span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" name="cat_channel" value="admin_saas" checked class="w-4 h-4 text-purple-500 rounded">
+                            <span class="font-medium text-slate-700">Admin SaaS</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Modelos Comerciais -->
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase mb-2">Modelos Comerciais Permitidos</label>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-2 bg-slate-50 p-3 rounded-2xl border border-slate-100 text-xs">
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" name="cat_model" value="ml_lifetime" checked class="w-4 h-4 text-blue-600 rounded">
+                            <span class="font-medium text-slate-700">ML Vitalício</span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" name="cat_model" value="direct_lifetime" checked class="w-4 h-4 text-blue-600 rounded">
+                            <span class="font-medium text-slate-700">Direto Vitalício</span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" name="cat_model" value="pro_lifetime" checked class="w-4 h-4 text-blue-600 rounded">
+                            <span class="font-medium text-slate-700">Pro Vitalício</span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" name="cat_model" value="trial" checked class="w-4 h-4 text-purple-600 rounded">
+                            <span class="font-medium text-slate-700">Trial</span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" name="cat_model" value="online_essential" checked class="w-4 h-4 text-blue-600 rounded">
+                            <span class="font-medium text-slate-700">SaaS Essencial</span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" name="cat_model" value="online_premium" checked class="w-4 h-4 text-blue-600 rounded">
+                            <span class="font-medium text-slate-700">SaaS Premium</span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer col-span-2">
+                            <input type="checkbox" name="cat_model" value="project_custom_brand" checked class="w-4 h-4 text-emerald-600 rounded">
+                            <span class="font-medium text-slate-700">Marca Própria</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Preços Recorrentes SaaS -->
+                <div class="bg-blue-50/50 p-4 rounded-2xl border border-blue-100 space-y-3">
+                    <span class="block text-xs font-black text-blue-900 uppercase tracking-wider">Planos Recorrentes SaaS (Mensal)</span>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Online Essencial (R$) *</label>
+                            <input type="number" step="0.01" id="cat-price-essential" required placeholder="59.90" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-blue-500 font-mono bg-white">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Online Premium (R$) *</label>
+                            <input type="number" step="0.01" id="cat-price-premium" required placeholder="99.00" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-blue-500 font-mono bg-white">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Preços Vitalícios -->
+                <div class="bg-emerald-50/50 p-4 rounded-2xl border border-emerald-100 space-y-3">
+                    <span class="block text-xs font-black text-emerald-900 uppercase tracking-wider">Planos Vitalícios / Standalone (Venda Única)</span>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">ML Vitalício (R$)</label>
+                            <input type="number" step="0.01" id="cat-price-ml" placeholder="97.00" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-blue-500 font-mono bg-white">
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">Direto Vitalício (R$)</label>
+                            <input type="number" step="0.01" id="cat-price-direct" placeholder="299.90" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-blue-500 font-mono bg-white">
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">Pro Vitalício (R$)</label>
+                            <input type="number" step="0.01" id="cat-price-pro" placeholder="599.90" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-blue-500 font-mono bg-white">
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Notas Operacionais / Alertas Comerciais</label>
+                    <textarea id="cat-operational-notes" rows="2" placeholder="Observações internas sobre o sistema..." class="w-full border border-slate-200 rounded-xl p-3 text-xs outline-none focus:border-blue-500"></textarea>
+                </div>
+
+                <!-- Toast de Erro -->
+                <div id="cat-error-toast" class="hidden bg-red-50 border border-red-200 text-red-700 p-3 rounded-xl text-xs font-medium">
+                    <span id="cat-error-msg">Erro ao salvar parâmetros.</span>
+                </div>
+
+                <div class="flex justify-end gap-3 pt-2">
+                    <button type="button" onclick="document.getElementById('catalog-system-modal').classList.add('hidden')" class="px-5 py-2.5 bg-slate-100 text-slate-700 font-bold rounded-xl hover:bg-slate-200 transition-colors text-xs">Cancelar</button>
+                    <button type="submit" id="cat-submit-btn" class="px-6 py-2.5 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition-colors text-xs flex items-center gap-2 shadow-md shadow-blue-600/20">
+                        <i data-lucide="save" class="w-4 h-4"></i>
+                        Salvar Sistema
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 </body>

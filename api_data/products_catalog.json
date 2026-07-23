@@ -1,468 +1,469 @@
 {
-  "version": "1.0.0",
-  "updated_at": "2026-07-23T15:55:00-03:00",
-  "description": "Catálogo Comercial Local Oficial - Fonte de verdade local e fallback canônico para Sistemas de Gestão",
-  "systems": {
-    "gestao-barbearia": {
-      "id": "gestao-barbearia",
-      "name": "Gestão Barbearia",
-      "subtitle": "Barbearias, Salões Masculinos e Estúdios",
-      "public_path": "gestao-barbearia",
-      "commercial_status": "active",
-      "saas_recommended": false,
-      "standard_ml_allowed": true,
-      "allowed_channels": [
-        "mercadolivre",
-        "direct",
-        "landing_page",
-        "admin_saas"
-      ],
-      "allowed_commercial_models": [
-        "ml_lifetime",
-        "direct_lifetime",
-        "pro_lifetime",
-        "trial",
-        "online_essential",
-        "online_premium",
-        "project_custom_brand"
-      ],
-      "lifetime_plans": {
-        "ml_lifetime": {
-          "code": "ml_lifetime",
-          "name": "Produto ML Vitalício",
-          "base_price": 97.00,
-          "billing_model": "one_time",
-          "max_devices": 1,
-          "max_users": 1,
-          "features": [
-            "pdv_local",
-            "agendamento",
-            "caixa",
-            "financeiro",
-            "suporte_padrao"
-          ]
+    "version": "1.0.0",
+    "updated_at": "2026-07-23T19:38:52+00:00",
+    "description": "Catálogo Comercial Local Oficial - Fonte de verdade local e fallback canônico para Sistemas de Gestão",
+    "systems": {
+        "gestao-barbearia": {
+            "id": "gestao-barbearia",
+            "name": "Gestão Barbearia",
+            "subtitle": "Barbearias, Salões Masculinos e Estúdios",
+            "public_path": "gestao-barbearia",
+            "commercial_status": "active",
+            "saas_recommended": false,
+            "standard_ml_allowed": true,
+            "allowed_channels": [
+                "mercadolivre",
+                "direct",
+                "landing_page",
+                "admin_saas"
+            ],
+            "allowed_commercial_models": [
+                "ml_lifetime",
+                "direct_lifetime",
+                "pro_lifetime",
+                "trial",
+                "online_essential",
+                "online_premium",
+                "project_custom_brand"
+            ],
+            "lifetime_plans": {
+                "ml_lifetime": {
+                    "code": "ml_lifetime",
+                    "name": "Produto ML Vitalício",
+                    "base_price": 97,
+                    "billing_model": "one_time",
+                    "max_devices": 1,
+                    "max_users": 1,
+                    "features": [
+                        "pdv_local",
+                        "agendamento",
+                        "caixa",
+                        "financeiro",
+                        "suporte_padrao"
+                    ]
+                },
+                "direct_lifetime": {
+                    "code": "direct_lifetime",
+                    "name": "Site Vitalício",
+                    "base_price": 299.9,
+                    "billing_model": "one_time",
+                    "max_devices": 3,
+                    "max_users": 3,
+                    "features": [
+                        "pdv_local",
+                        "agendamento",
+                        "caixa",
+                        "financeiro",
+                        "relatorios_avancados",
+                        "suporte_prioritario"
+                    ]
+                },
+                "pro_lifetime": {
+                    "code": "pro_lifetime",
+                    "name": "Pro Vitalício",
+                    "base_price": 599.9,
+                    "billing_model": "one_time",
+                    "max_devices": 5,
+                    "max_users": 10,
+                    "features": [
+                        "pdv_local",
+                        "agendamento",
+                        "caixa",
+                        "financeiro",
+                        "relatorios_avancados",
+                        "multi_profissionais",
+                        "suporte_vip"
+                    ]
+                }
+            },
+            "saas_plans": {
+                "online_essential": {
+                    "code": "basic",
+                    "name": "Online Essencial",
+                    "monthly_price": 59.9,
+                    "billing_model": "monthly",
+                    "max_devices": 3,
+                    "max_users": 12,
+                    "modules": [
+                        "agenda",
+                        "clientes",
+                        "comissoes",
+                        "caixa",
+                        "financeiro",
+                        "estoque",
+                        "manual",
+                        "suporte"
+                    ]
+                },
+                "online_premium": {
+                    "code": "premium",
+                    "name": "Online Premium",
+                    "monthly_price": 99,
+                    "billing_model": "monthly",
+                    "max_devices": 10,
+                    "max_users": 50,
+                    "modules": [
+                        "agenda",
+                        "clientes",
+                        "comissoes",
+                        "caixa",
+                        "financeiro",
+                        "estoque",
+                        "relatorios_bi",
+                        "whatsapp_api",
+                        "multi_unidades",
+                        "manual",
+                        "suporte"
+                    ]
+                }
+            },
+            "trial_config": {
+                "enabled": true,
+                "days": 7,
+                "max_devices": 1,
+                "max_users": 2
+            },
+            "project_custom_brand_config": {
+                "enabled": true,
+                "name": "Projeto com Marca",
+                "description": "Personalização de marca, domínio próprio e suporte exclusivo"
+            },
+            "operational_notes": "Sistema maduro e disponível em todos os canais de vendas (ML, Direto e SaaS)."
         },
-        "direct_lifetime": {
-          "code": "direct_lifetime",
-          "name": "Site Vitalício",
-          "base_price": 299.90,
-          "billing_model": "one_time",
-          "max_devices": 3,
-          "max_users": 3,
-          "features": [
-            "pdv_local",
-            "agendamento",
-            "caixa",
-            "financeiro",
-            "relatorios_avancados",
-            "suporte_prioritario"
-          ]
+        "gestao-beleza": {
+            "id": "gestao-beleza",
+            "name": "Gestão Beleza",
+            "subtitle": "Sistema de agenda e gestão para salões e profissionais de beleza.",
+            "public_path": "gestao-beleza",
+            "commercial_status": "active",
+            "saas_recommended": false,
+            "standard_ml_allowed": true,
+            "allowed_channels": [
+                "mercadolivre",
+                "direct",
+                "landing_page",
+                "admin_saas"
+            ],
+            "allowed_commercial_models": [
+                "ml_lifetime",
+                "direct_lifetime",
+                "pro_lifetime",
+                "trial",
+                "online_essential",
+                "online_premium",
+                "project_custom_brand"
+            ],
+            "offline_standalone_fallback": null,
+            "lifetime_plans": {
+                "ml_lifetime": {
+                    "code": "ml_lifetime",
+                    "name": "Produto ML Vitalício",
+                    "base_price": 97,
+                    "billing_model": "one_time",
+                    "max_devices": 1,
+                    "max_users": 1,
+                    "features": [
+                        "agendamento",
+                        "procedimentos",
+                        "caixa",
+                        "suporte_padrao"
+                    ]
+                },
+                "direct_lifetime": {
+                    "code": "direct_lifetime",
+                    "name": "Site Vitalício",
+                    "base_price": 299.9,
+                    "billing_model": "one_time",
+                    "max_devices": 3,
+                    "max_users": 3,
+                    "features": [
+                        "agendamento",
+                        "procedimentos",
+                        "caixa",
+                        "financeiro",
+                        "comissoes",
+                        "suporte_prioritario"
+                    ]
+                },
+                "pro_lifetime": {
+                    "code": "pro_lifetime",
+                    "name": "Pro Vitalício",
+                    "base_price": 599.9,
+                    "billing_model": "one_time",
+                    "max_devices": 5,
+                    "max_users": 10,
+                    "features": [
+                        "agendamento",
+                        "procedimentos",
+                        "caixa",
+                        "financeiro",
+                        "comissoes",
+                        "relatorios_estetica",
+                        "suporte_vip"
+                    ]
+                }
+            },
+            "saas_plans": {
+                "online_essential": {
+                    "code": "basic",
+                    "name": "Online Essencial",
+                    "monthly_price": 59.9,
+                    "billing_model": "monthly",
+                    "max_devices": 3,
+                    "max_users": 12,
+                    "modules": [
+                        "agenda",
+                        "clientes",
+                        "comissoes",
+                        "pacotes_procedimentos",
+                        "caixa",
+                        "financeiro",
+                        "estoque",
+                        "manual",
+                        "suporte"
+                    ]
+                },
+                "online_premium": {
+                    "code": "premium",
+                    "name": "Online Premium",
+                    "monthly_price": 99,
+                    "billing_model": "monthly",
+                    "max_devices": 10,
+                    "max_users": 50,
+                    "modules": [
+                        "agenda",
+                        "clientes",
+                        "comissoes",
+                        "pacotes_procedimentos",
+                        "caixa",
+                        "financeiro",
+                        "estoque",
+                        "anamnese_digital",
+                        "whatsapp_api",
+                        "manual",
+                        "suporte"
+                    ]
+                }
+            },
+            "trial_config": {
+                "enabled": true,
+                "days": 7,
+                "max_devices": 1,
+                "max_users": 2
+            },
+            "project_custom_brand_config": {
+                "enabled": true,
+                "name": "Projeto com Marca",
+                "description": "Personalização de marca, domínio próprio e suporte exclusivo para clínicas e salões de beleza"
+            },
+            "operational_notes": "Sistema para profissionais e clínicas de estética/beleza, disponível para venda em todos os canais."
         },
-        "pro_lifetime": {
-          "code": "pro_lifetime",
-          "name": "Pro Vitalício",
-          "base_price": 599.90,
-          "billing_model": "one_time",
-          "max_devices": 5,
-          "max_users": 10,
-          "features": [
-            "pdv_local",
-            "agendamento",
-            "caixa",
-            "financeiro",
-            "relatorios_avancados",
-            "multi_profissionais",
-            "suporte_vip"
-          ]
+        "gestao-assistencia": {
+            "id": "gestao-assistencia",
+            "name": "Gestão Assistência",
+            "subtitle": "Assistência Técnica, Conserto de Celulares e Eletrônicos",
+            "public_path": "gestao-assistencia",
+            "commercial_status": "active",
+            "saas_recommended": false,
+            "standard_ml_allowed": true,
+            "allowed_channels": [
+                "mercadolivre",
+                "direct",
+                "landing_page",
+                "admin_saas"
+            ],
+            "allowed_commercial_models": [
+                "ml_lifetime",
+                "direct_lifetime",
+                "pro_lifetime",
+                "trial",
+                "online_essential",
+                "online_premium",
+                "project_custom_brand"
+            ],
+            "lifetime_plans": {
+                "ml_lifetime": {
+                    "code": "ml_lifetime",
+                    "name": "Produto ML Vitalício",
+                    "base_price": 97,
+                    "billing_model": "one_time",
+                    "max_devices": 1,
+                    "max_users": 1,
+                    "features": [
+                        "os_ordem_servico",
+                        "garantia",
+                        "caixa",
+                        "suporte_padrao"
+                    ]
+                },
+                "direct_lifetime": {
+                    "code": "direct_lifetime",
+                    "name": "Site Vitalício",
+                    "base_price": 299.9,
+                    "billing_model": "one_time",
+                    "max_devices": 3,
+                    "max_users": 3,
+                    "features": [
+                        "os_ordem_servico",
+                        "garantia",
+                        "pecas_estoque",
+                        "caixa",
+                        "financeiro",
+                        "suporte_prioritario"
+                    ]
+                },
+                "pro_lifetime": {
+                    "code": "pro_lifetime",
+                    "name": "Pro Vitalício",
+                    "base_price": 599.9,
+                    "billing_model": "one_time",
+                    "max_devices": 5,
+                    "max_users": 10,
+                    "features": [
+                        "os_ordem_servico",
+                        "garantia",
+                        "pecas_estoque",
+                        "tecnicos_multiples",
+                        "caixa",
+                        "financeiro",
+                        "suporte_vip"
+                    ]
+                }
+            },
+            "saas_plans": {
+                "online_essential": {
+                    "code": "basic",
+                    "name": "Online Essencial",
+                    "monthly_price": 97.9,
+                    "billing_model": "monthly",
+                    "max_devices": 3,
+                    "max_users": 12,
+                    "modules": [
+                        "ordens_servico",
+                        "clientes",
+                        "equipamentos",
+                        "caixa",
+                        "financeiro",
+                        "estoque_pecas",
+                        "manual",
+                        "suporte"
+                    ]
+                },
+                "online_premium": {
+                    "code": "premium",
+                    "name": "Online Premium",
+                    "monthly_price": 149.9,
+                    "billing_model": "monthly",
+                    "max_devices": 10,
+                    "max_users": 50,
+                    "modules": [
+                        "ordens_servico",
+                        "clientes",
+                        "equipamentos",
+                        "laudos_tecnicos",
+                        "caixa",
+                        "financeiro",
+                        "estoque_pecas",
+                        "whatsapp_status_os",
+                        "manual",
+                        "suporte"
+                    ]
+                }
+            },
+            "trial_config": {
+                "enabled": true,
+                "days": 7,
+                "max_devices": 1,
+                "max_users": 2
+            },
+            "project_custom_brand_config": {
+                "enabled": true,
+                "name": "Projeto com Marca",
+                "description": "White label para franquias e redes de assistência técnica"
+            },
+            "operational_notes": "Produto vitalício e SaaS liberado. Presente no gerador de licenças e centro de evolução."
+        },
+        "gestao-gastro": {
+            "id": "gestao-gastro",
+            "name": "Gestão Gastro",
+            "subtitle": "Restaurantes, Bares, Lanchonetes e Hamburguerias",
+            "public_path": "gestao-gastro",
+            "commercial_status": "active",
+            "saas_recommended": true,
+            "standard_ml_allowed": false,
+            "allowed_channels": [
+                "direct",
+                "landing_page",
+                "admin_saas"
+            ],
+            "allowed_commercial_models": [
+                "trial",
+                "online_essential",
+                "online_premium",
+                "project_custom_brand"
+            ],
+            "lifetime_plans": {},
+            "saas_plans": {
+                "online_essential": {
+                    "code": "basic",
+                    "name": "Online Essencial",
+                    "monthly_price": 89,
+                    "billing_model": "monthly",
+                    "max_devices": 3,
+                    "max_users": 12,
+                    "modules": [
+                        "pdv",
+                        "mesas_garcom_mobile",
+                        "caixa",
+                        "dashboard",
+                        "cardapio",
+                        "financeiro",
+                        "estoque",
+                        "manual",
+                        "configuracao",
+                        "suporte"
+                    ]
+                },
+                "online_premium": {
+                    "code": "premium",
+                    "name": "Online Premium",
+                    "monthly_price": 189,
+                    "billing_model": "monthly",
+                    "max_devices": 10,
+                    "max_users": 50,
+                    "modules": [
+                        "pdv",
+                        "mesas_garcom_mobile",
+                        "caixa",
+                        "dashboard",
+                        "cardapio",
+                        "kds_cozinha",
+                        "delivery_integrado",
+                        "financeiro",
+                        "estoque",
+                        "manual",
+                        "configuracao",
+                        "suporte"
+                    ]
+                }
+            },
+            "trial_config": {
+                "enabled": true,
+                "days": 7,
+                "max_devices": 3,
+                "max_users": 5
+            },
+            "project_custom_brand_config": {
+                "enabled": true,
+                "name": "Projeto com Marca",
+                "description": "Personalização exclusiva para redes de gastronomia e franquias"
+            },
+            "offline_standalone_fallback": {
+                "permitted": true,
+                "requires_custom_infrastructure": true,
+                "note": "Versão estritamente offline/standalone permitida apenas como atendimento presencial/específico de infraestrutura sob demanda."
+            },
+            "operational_notes": "Gestão Gastro tem o ecossistema SaaS (Nuvem / Supabase) como modalidade oficial recomendada. Vendas ML ou versões estritamente offline/standalone não são o padrão comercial oficial e demandam atendimento presencial/específico de infraestrutura."
         }
-      },
-      "saas_plans": {
-        "online_essential": {
-          "code": "basic",
-          "name": "Online Essencial",
-          "monthly_price": 59.90,
-          "billing_model": "monthly",
-          "max_devices": 3,
-          "max_users": 12,
-          "modules": [
-            "agenda",
-            "clientes",
-            "comissoes",
-            "caixa",
-            "financeiro",
-            "estoque",
-            "manual",
-            "suporte"
-          ]
-        },
-        "online_premium": {
-          "code": "premium",
-          "name": "Online Premium",
-          "monthly_price": 99.00,
-          "billing_model": "monthly",
-          "max_devices": 10,
-          "max_users": 50,
-          "modules": [
-            "agenda",
-            "clientes",
-            "comissoes",
-            "caixa",
-            "financeiro",
-            "estoque",
-            "relatorios_bi",
-            "whatsapp_api",
-            "multi_unidades",
-            "manual",
-            "suporte"
-          ]
-        }
-      },
-      "trial_config": {
-        "enabled": true,
-        "days": 7,
-        "max_devices": 1,
-        "max_users": 2
-      },
-      "project_custom_brand_config": {
-        "enabled": true,
-        "name": "Projeto com Marca",
-        "description": "Personalização de marca, domínio próprio e suporte exclusivo"
-      },
-      "operational_notes": "Sistema maduro e disponível em todos os canais de vendas (ML, Direto e SaaS)."
-    },
-    "gestao-beleza": {
-      "id": "gestao-beleza",
-      "name": "Gestão Beleza",
-      "subtitle": "Salões de Beleza, Spas e Clínicas de Estética",
-      "public_path": "gestao-beleza",
-      "commercial_status": "active",
-      "saas_recommended": false,
-      "standard_ml_allowed": true,
-      "allowed_channels": [
-        "mercadolivre",
-        "direct",
-        "landing_page",
-        "admin_saas"
-      ],
-      "allowed_commercial_models": [
-        "ml_lifetime",
-        "direct_lifetime",
-        "pro_lifetime",
-        "trial",
-        "online_essential",
-        "online_premium",
-        "project_custom_brand"
-      ],
-      "lifetime_plans": {
-        "ml_lifetime": {
-          "code": "ml_lifetime",
-          "name": "Produto ML Vitalício",
-          "base_price": 97.00,
-          "billing_model": "one_time",
-          "max_devices": 1,
-          "max_users": 1,
-          "features": [
-            "agendamento",
-            "procedimentos",
-            "caixa",
-            "suporte_padrao"
-          ]
-        },
-        "direct_lifetime": {
-          "code": "direct_lifetime",
-          "name": "Site Vitalício",
-          "base_price": 299.90,
-          "billing_model": "one_time",
-          "max_devices": 3,
-          "max_users": 3,
-          "features": [
-            "agendamento",
-            "procedimentos",
-            "caixa",
-            "financeiro",
-            "comissoes",
-            "suporte_prioritario"
-          ]
-        },
-        "pro_lifetime": {
-          "code": "pro_lifetime",
-          "name": "Pro Vitalício",
-          "base_price": 599.90,
-          "billing_model": "one_time",
-          "max_devices": 5,
-          "max_users": 10,
-          "features": [
-            "agendamento",
-            "procedimentos",
-            "caixa",
-            "financeiro",
-            "comissoes",
-            "relatorios_estetica",
-            "suporte_vip"
-          ]
-        }
-      },
-      "saas_plans": {
-        "online_essential": {
-          "code": "basic",
-          "name": "Online Essencial",
-          "monthly_price": 59.90,
-          "billing_model": "monthly",
-          "max_devices": 3,
-          "max_users": 12,
-          "modules": [
-            "agenda",
-            "clientes",
-            "comissoes",
-            "pacotes_procedimentos",
-            "caixa",
-            "financeiro",
-            "estoque",
-            "manual",
-            "suporte"
-          ]
-        },
-        "online_premium": {
-          "code": "premium",
-          "name": "Online Premium",
-          "monthly_price": 99.00,
-          "billing_model": "monthly",
-          "max_devices": 10,
-          "max_users": 50,
-          "modules": [
-            "agenda",
-            "clientes",
-            "comissoes",
-            "pacotes_procedimentos",
-            "caixa",
-            "financeiro",
-            "estoque",
-            "anamnese_digital",
-            "whatsapp_api",
-            "manual",
-            "suporte"
-          ]
-        }
-      },
-      "trial_config": {
-        "enabled": true,
-        "days": 7,
-        "max_devices": 1,
-        "max_users": 2
-      },
-      "project_custom_brand_config": {
-        "enabled": true,
-        "name": "Projeto com Marca",
-        "description": "Personalização visual e marca própria para redes de beleza"
-      },
-      "operational_notes": "Plena paridade comercial com Barbearia nos canais ML, Direto e SaaS."
-    },
-    "gestao-assistencia": {
-      "id": "gestao-assistencia",
-      "name": "Gestão Assistência",
-      "subtitle": "Assistência Técnica, Conserto de Celulares e Eletrônicos",
-      "public_path": "gestao-assistencia",
-      "commercial_status": "active",
-      "saas_recommended": false,
-      "standard_ml_allowed": true,
-      "allowed_channels": [
-        "mercadolivre",
-        "direct",
-        "landing_page",
-        "admin_saas"
-      ],
-      "allowed_commercial_models": [
-        "ml_lifetime",
-        "direct_lifetime",
-        "pro_lifetime",
-        "trial",
-        "online_essential",
-        "online_premium",
-        "project_custom_brand"
-      ],
-      "lifetime_plans": {
-        "ml_lifetime": {
-          "code": "ml_lifetime",
-          "name": "Produto ML Vitalício",
-          "base_price": 97.00,
-          "billing_model": "one_time",
-          "max_devices": 1,
-          "max_users": 1,
-          "features": [
-            "os_ordem_servico",
-            "garantia",
-            "caixa",
-            "suporte_padrao"
-          ]
-        },
-        "direct_lifetime": {
-          "code": "direct_lifetime",
-          "name": "Site Vitalício",
-          "base_price": 299.90,
-          "billing_model": "one_time",
-          "max_devices": 3,
-          "max_users": 3,
-          "features": [
-            "os_ordem_servico",
-            "garantia",
-            "pecas_estoque",
-            "caixa",
-            "financeiro",
-            "suporte_prioritario"
-          ]
-        },
-        "pro_lifetime": {
-          "code": "pro_lifetime",
-          "name": "Pro Vitalício",
-          "base_price": 599.90,
-          "billing_model": "one_time",
-          "max_devices": 5,
-          "max_users": 10,
-          "features": [
-            "os_ordem_servico",
-            "garantia",
-            "pecas_estoque",
-            "tecnicos_multiples",
-            "caixa",
-            "financeiro",
-            "suporte_vip"
-          ]
-        }
-      },
-      "saas_plans": {
-        "online_essential": {
-          "code": "basic",
-          "name": "Online Essencial",
-          "monthly_price": 97.90,
-          "billing_model": "monthly",
-          "max_devices": 3,
-          "max_users": 12,
-          "modules": [
-            "ordens_servico",
-            "clientes",
-            "equipamentos",
-            "caixa",
-            "financeiro",
-            "estoque_pecas",
-            "manual",
-            "suporte"
-          ]
-        },
-        "online_premium": {
-          "code": "premium",
-          "name": "Online Premium",
-          "monthly_price": 149.90,
-          "billing_model": "monthly",
-          "max_devices": 10,
-          "max_users": 50,
-          "modules": [
-            "ordens_servico",
-            "clientes",
-            "equipamentos",
-            "laudos_tecnicos",
-            "caixa",
-            "financeiro",
-            "estoque_pecas",
-            "whatsapp_status_os",
-            "manual",
-            "suporte"
-          ]
-        }
-      },
-      "trial_config": {
-        "enabled": true,
-        "days": 7,
-        "max_devices": 1,
-        "max_users": 2
-      },
-      "project_custom_brand_config": {
-        "enabled": true,
-        "name": "Projeto com Marca",
-        "description": "White label para franquias e redes de assistência técnica"
-      },
-      "operational_notes": "Produto vitalício e SaaS liberado. Presente no gerador de licenças e centro de evolução."
-    },
-    "gestao-gastro": {
-      "id": "gestao-gastro",
-      "name": "Gestão Gastro",
-      "subtitle": "Restaurantes, Bares, Lanchonetes e Hamburguerias",
-      "public_path": "gestao-gastro",
-      "commercial_status": "active",
-      "saas_recommended": true,
-      "standard_ml_allowed": false,
-      "allowed_channels": [
-        "direct",
-        "landing_page",
-        "admin_saas"
-      ],
-      "allowed_commercial_models": [
-        "trial",
-        "online_essential",
-        "online_premium",
-        "project_custom_brand"
-      ],
-      "lifetime_plans": {},
-      "saas_plans": {
-        "online_essential": {
-          "code": "basic",
-          "name": "Online Essencial",
-          "monthly_price": 89.00,
-          "billing_model": "monthly",
-          "max_devices": 3,
-          "max_users": 12,
-          "modules": [
-            "pdv",
-            "mesas_garcom_mobile",
-            "caixa",
-            "dashboard",
-            "cardapio",
-            "financeiro",
-            "estoque",
-            "manual",
-            "configuracao",
-            "suporte"
-          ]
-        },
-        "online_premium": {
-          "code": "premium",
-          "name": "Online Premium",
-          "monthly_price": 189.00,
-          "billing_model": "monthly",
-          "max_devices": 10,
-          "max_users": 50,
-          "modules": [
-            "pdv",
-            "mesas_garcom_mobile",
-            "caixa",
-            "dashboard",
-            "cardapio",
-            "kds_cozinha",
-            "delivery_integrado",
-            "financeiro",
-            "estoque",
-            "manual",
-            "configuracao",
-            "suporte"
-          ]
-        }
-      },
-      "trial_config": {
-        "enabled": true,
-        "days": 7,
-        "max_devices": 3,
-        "max_users": 5
-      },
-      "project_custom_brand_config": {
-        "enabled": true,
-        "name": "Projeto com Marca",
-        "description": "Personalização exclusiva para redes de gastronomia e franquias"
-      },
-      "offline_standalone_fallback": {
-        "permitted": true,
-        "requires_custom_infrastructure": true,
-        "note": "Versão estritamente offline/standalone permitida apenas como atendimento presencial/específico de infraestrutura sob demanda."
-      },
-      "operational_notes": "Gestão Gastro tem o ecossistema SaaS (Nuvem / Supabase) como modalidade oficial recomendada. Vendas ML ou versões estritamente offline/standalone não são o padrão comercial oficial e demandam atendimento presencial/específico de infraestrutura."
     }
-  }
 }

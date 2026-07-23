@@ -390,3 +390,39 @@ test('Fase B.1.1: admin and PHP catalog validate 4 canonical systems, public nam
   assert.match(html, /\['relatorios_avancados',/);
   assert.match(html, /\['gestao_garantias',/);
 });
+
+test('Fase C.1: Dashboard Operacional Híbrido has honest labels, Evolution Leads statistics and local metrics preservation', () => {
+  const html = read('admin/index.html');
+  const php = read('api_licenca_ml.php');
+
+  // 1. Separação de receita vitalícia vs recorrência
+  assert.match(html, /Recorrência Estimada \(Local\):/);
+  assert.match(html, /Receita Vitalícia Registrada:/);
+
+  // 2. Ausência de rótulo enganoso "Receita Total" no HTML
+  assert.doesNotMatch(html, /Receita Total:/);
+
+  // 3. Presença de cards/labels dos Leads de Evolução no HTML
+  assert.match(html, /Leads de Evolução/);
+  assert.match(html, /id="stat-leads-total"/);
+  assert.match(html, /id="stat-leads-new-today"/);
+  assert.match(html, /id="stat-leads-new"/);
+  assert.match(html, /id="stat-leads-contacted"/);
+  assert.match(html, /id="stat-leads-proposta"/);
+  assert.match(html, /id="stat-leads-converted"/);
+  assert.match(html, /id="stat-leads-lost-discarded"/);
+
+  // 4. Preservação dos cards críticos de licenças/trials
+  assert.match(html, /Licenças Ativas \(Local\)/);
+  assert.match(html, /Pendentes \/ Trials \(Local\)/);
+  assert.match(html, /id="stat-active"/);
+  assert.match(html, /id="stat-pending"/);
+  assert.match(html, /id="stat-trial-active"/);
+  assert.match(html, /id="stat-trial-expired"/);
+  assert.match(html, /id="stat-blocked"/);
+
+  // 5. Backend dashboard_stats inclui cálculo de leads de evolução e trata fallback
+  assert.match(php, /\$stats\['evolution_leads'\]\s*=\s*\$leadsStats/);
+  assert.match(php, /getDB\(\$fileEvolutionLeads\)/);
+  assert.match(php, /'novos_hoje' => 0/);
+});

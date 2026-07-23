@@ -40,6 +40,7 @@ $fileLicenses = __DIR__ . '/api_data/database_licenses_secure.json';
 $fileArchivedLicenses = __DIR__ . '/api_data/database_licenses_archived.json';
 $fileLogs = __DIR__ . '/api_data/system_logs.json';
 $fileReceipts = __DIR__ . '/api_data/receipts_log.json';
+$fileEvolutionLeads = __DIR__ . '/api_data/evolution_leads.json';
 $SUPABASE_URL = env('SUPABASE_URL');
 $SUPABASE_KEY = env('SUPABASE_SERVICE_KEY');
 
@@ -682,6 +683,31 @@ if ($action === 'dashboard_stats') {
             $stats['by_product'][$pName]['blocked']++;
         }
     }
+
+    // Carrega dados de Leads de Evolução para estatísticas operacionais
+    $leads = getDB($fileEvolutionLeads);
+    $leadsStats = [
+        'total' => count($leads),
+        'novo' => 0,
+        'contatado' => 0,
+        'proposta_enviada' => 0,
+        'convertido' => 0,
+        'perdido' => 0,
+        'descartado' => 0,
+        'novos_hoje' => 0
+    ];
+    $today = date('Y-m-d');
+    foreach ($leads as $lead) {
+        $status = $lead['status'] ?? 'novo';
+        if (isset($leadsStats[$status])) {
+            $leadsStats[$status]++;
+        }
+        if (isset($lead['created_at']) && str_starts_with($lead['created_at'], $today)) {
+            $leadsStats['novos_hoje']++;
+        }
+    }
+    $stats['evolution_leads'] = $leadsStats;
+
     echo json_encode($stats);
     exit;
 }

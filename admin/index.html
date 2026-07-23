@@ -1950,7 +1950,56 @@
             }));
         }
 
+        function normalizeLocalCatalogPayload(payload) {
+            if (!payload || typeof payload !== 'object') return null;
+
+            const normalized = {};
+            for (const [slug, sys] of Object.entries(payload)) {
+                const icon = SAAS_CATALOG_FALLBACK[slug]?.icon || (slug === 'gestao-gastro' ? 'utensils' : (slug === 'gestao-barbearia' ? 'scissors' : (slug === 'gestao-beleza' ? 'sparkles' : 'wrench')));
+                const tone = SAAS_CATALOG_FALLBACK[slug]?.tone || 'from-slate-600 to-slate-800';
+
+                const plans = {};
+                if (sys.saas_plans && typeof sys.saas_plans === 'object') {
+                    for (const [pKey, pVal] of Object.entries(sys.saas_plans)) {
+                        const planCode = pVal.code || pKey;
+                        const formattedPrice = pVal.monthly_price ? `R$ ${pVal.monthly_price.toFixed(2).replace('.', ',')}/mês` : 'N/A';
+                        const priceCents = pVal.monthly_price ? Math.round(pVal.monthly_price * 100) : 0;
+                        const modulesList = Array.isArray(pVal.modules) ? pVal.modules.map(m => [m, typeof m === 'string' ? m.toUpperCase().replace(/_/g, ' ') : m]) : [];
+
+                        plans[planCode] = {
+                            name: pVal.name || 'Plano',
+                            price: formattedPrice,
+                            priceCents: priceCents,
+                            billingModel: pVal.billing_model || 'monthly',
+                            maxUsers: pVal.max_users || null,
+                            maxDevices: pVal.max_devices || null,
+                            status: 'active',
+                            modules: modulesList
+                        };
+                    }
+                }
+
+                if (SAAS_CATALOG_FALLBACK[slug]?.plans?.trial && !plans.trial) {
+                    plans.trial = SAAS_CATALOG_FALLBACK[slug].plans.trial;
+                }
+
+                normalized[slug] = {
+                    title: sys.title || sys.name || slug,
+                    description: sys.description || '',
+                    status: sys.status || 'active',
+                    icon: icon,
+                    tone: tone,
+                    publicPath: sys.publicPath || slug,
+                    saasRecommended: sys.saas_recommended ?? false,
+                    standardMlAllowed: sys.standard_ml_allowed ?? true,
+                    plans: plans
+                };
+            }
+            return normalized;
+        }
+
         async function loadSystemsCatalog() {
+            // 1. Tenta carregar catálogo dinâmico ao vivo do Supabase via api_provisioning.php
             try {
                 const response = await fetch('../api_provisioning.php', {
                     method: 'POST',
@@ -1969,6 +2018,22 @@
                 console.warn('Falha ao carregar catálogo SaaS do Supabase.', error);
             }
 
+            // 2. Tenta carregar Catálogo Local Oficial via api_catalog.php
+            try {
+                const response = await fetch('../api_catalog.php');
+                const data = await response.json();
+
+                if (data.status === 'success' && data.data) {
+                    const catalog = normalizeLocalCatalogPayload(data.data);
+                    if (catalog && Object.keys(catalog).length > 0) {
+                        return { catalog, source: 'local_official' };
+                    }
+                }
+            } catch (error) {
+                console.warn('Falha ao carregar Catálogo Local Oficial de api_catalog.php.', error);
+            }
+
+            // 3. Fallback JS como última proteção
             return { catalog: SAAS_CATALOG_FALLBACK, source: 'fallback' };
         }
 
@@ -2001,18 +2066,21 @@
             const { catalog, source } = await loadSystemsCatalog();
 
             if (statusBox) {
-                statusBox.classList.remove('hidden', 'border-emerald-200', 'bg-emerald-50', 'text-emerald-800', 'border-amber-200', 'bg-amber-50', 'text-amber-800');
+                statusBox.classList.remove('hidden', 'border-emerald-200', 'bg-emerald-50', 'text-emerald-800', 'border-blue-200', 'bg-blue-50', 'text-blue-800', 'border-amber-200', 'bg-amber-50', 'text-amber-800');
                 if (source === 'supabase') {
                     statusBox.classList.add('border-emerald-200', 'bg-emerald-50', 'text-emerald-800');
                     statusBox.innerText = 'Catálogo conectado ao Supabase.';
+                } else if (source === 'local_official') {
+                    statusBox.classList.add('border-blue-200', 'bg-blue-50', 'text-blue-800');
+                    statusBox.innerText = 'Catálogo Local Oficial em uso (products_catalog.json).';
                 } else {
                     statusBox.classList.add('border-amber-200', 'bg-amber-50', 'text-amber-800');
                     statusBox.innerText = 'Catálogo local/fallback em uso. Configure o Supabase para governança centralizada.';
                 }
             }
 
-            // Phase C.3: Update global catalog dynamically and notify the provision tab
-            if (source === 'supabase' && catalog && Object.keys(catalog).length > 0) {
+            // Phase C.3 / C.5.3: Update global catalog dynamically and notify the provision tab
+            if ((source === 'supabase' || source === 'local_official') && catalog && Object.keys(catalog).length > 0) {
                 for (const key in SAAS_CATALOG) {
                     delete SAAS_CATALOG[key];
                 }
@@ -2022,10 +2090,13 @@
 
             const provStatusBox = document.getElementById('provision-catalog-status');
             if (provStatusBox) {
-                provStatusBox.classList.remove('hidden', 'border-emerald-200', 'bg-emerald-50', 'text-emerald-800', 'border-amber-200', 'bg-amber-50', 'text-amber-800');
+                provStatusBox.classList.remove('hidden', 'border-emerald-200', 'bg-emerald-50', 'text-emerald-800', 'border-blue-200', 'bg-blue-50', 'text-blue-800', 'border-amber-200', 'bg-amber-50', 'text-amber-800');
                 if (source === 'supabase') {
                     provStatusBox.classList.add('border-emerald-200', 'bg-emerald-50', 'text-emerald-800');
                     provStatusBox.innerHTML = '⚡ <b>Catálogo Conectado:</b> Usando definições em tempo real do Supabase Cloud.';
+                } else if (source === 'local_official') {
+                    provStatusBox.classList.add('border-blue-200', 'bg-blue-50', 'text-blue-800');
+                    provStatusBox.innerHTML = '📦 <b>Catálogo Local Oficial:</b> Usando definições oficiais de api_data/products_catalog.json.';
                 } else {
                     provStatusBox.classList.add('border-amber-200', 'bg-amber-50', 'text-amber-800');
                     provStatusBox.innerHTML = '⚠️ <b>Catálogo Fallback/Local em uso:</b> As opções exibidas são definições locais (offline) do Painel Admin.';

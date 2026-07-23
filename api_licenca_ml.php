@@ -1,6 +1,7 @@
 <?php
 // API V11.8 - PROFESSIONAL FULL (SECURE ENV + CORS DYNAMIC)
 require_once __DIR__ . '/env_loader.php';
+require_once __DIR__ . '/catalog_loader.php';
 
 ini_set('display_errors', 0);
 error_reporting(E_ALL);
@@ -1180,7 +1181,7 @@ if ($action === 'generate') {
     $isTrial = !empty($jsonData['trial']);
     $trialDays = (int) ($jsonData['trial_days'] ?? 3);
 
-    $allowedSystems = ['gestao-gastro', 'gestao-barbearia', 'gestao-beleza'];
+    $allowedSystems = getAllowedSystemsForLicenseGeneration();
     $allowedSegments = ['restaurante', 'bar', 'lanchonete', 'pizzaria', 'hamburgueria', 'barbearia', 'salao', 'estetica', 'geral'];
     $allowedPlanSlugs = ['basic', 'premium', 'trial'];
 
@@ -1202,8 +1203,14 @@ if ($action === 'generate') {
     }
     $planMeta = $canonicalPlans[$reqPlanCode];
 
-    $systemId = $jsonData['system_id'] ?? 'gestao-gastro';
+    $systemId = $jsonData['system_id'] ?? getDefaultSystemId();
     if (!in_array($systemId, $allowedSystems, true)) {
+        echo json_encode(['status' => 'error', 'message' => 'Sistema nao permitido para licenca.']);
+        exit;
+    }
+
+    // Bloqueia Mercado Livre padrão se o sistema não aceita ML padrão (ex: Gastro em plano vitalício ML padrão)
+    if ($reqPlanCode === 'ml_lifetime' && !isSystemStandardMLAllowed($systemId)) {
         echo json_encode(['status' => 'error', 'message' => 'Sistema nao permitido para licenca.']);
         exit;
     }
@@ -1380,8 +1387,8 @@ if ($action === 'register_evolution_lead') {
         exit;
     }
 
-    $allowed_systems = ['gestao-assistencia', 'gestao-barbearia', 'gestao-beleza'];
-    if (!in_array($system_id, $allowed_systems)) {
+    $allowed_systems = getAllowedSystemsForLeads();
+    if (!in_array($system_id, $allowed_systems, true)) {
         echo json_encode(['status' => 'error', 'message' => 'Sistema inválido']);
         exit;
     }

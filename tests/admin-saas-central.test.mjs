@@ -120,7 +120,7 @@ test('admin license generation captures system segment modules and tenant contex
   assert.match(html, /gestao-gastro[\s\S]*restaurante[\s\S]*bar[\s\S]*lanchonete/);
   assert.match(html, /gestao-assistencia[\s\S]*assistencia/);
 
-  assert.match(php, /\$allowedSystems = \[/);
+  assert.match(php, /\$allowedSystems = /);
   assert.match(php, /gestao-assistencia/);
   assert.match(php, /\$allowedSegments = \[/);
   assert.match(php, /assistencia/);
@@ -540,4 +540,121 @@ test('Fase C.4.1: License generation modal reorganization, Gestão Assistência 
   // 5. Live Summary Box and JS updater function
   assert.match(html, /id="gen-live-summary"/);
   assert.match(html, /function updateGenerateSummary\(\)/);
+});
+
+test('Fase C.5.1 / C.5.1.1: Official local commercial catalog JSON structure, canonical prices, rules and documentation', () => {
+  const jsonRaw = read('api_data/products_catalog.json');
+  const docRaw = read('docs/CATALOGO_COMERCIAL_LOCAL_OFICIAL.md');
+
+  // 1. JSON Is valid
+  const catalog = JSON.parse(jsonRaw);
+  assert.ok(catalog.systems, 'Catalog must contain a systems property');
+
+  // 2. All 4 canonical systems present
+  const requiredSystems = ['gestao-barbearia', 'gestao-beleza', 'gestao-assistencia', 'gestao-gastro'];
+  for (const sysId of requiredSystems) {
+    assert.ok(catalog.systems[sysId], `System ${sysId} must be present in products_catalog.json`);
+  }
+
+  // 3. gestao-barbearia rules and canonical SaaS prices (59.90 / 99.00)
+  const barb = catalog.systems['gestao-barbearia'];
+  assert.strictEqual(barb.standard_ml_allowed, true);
+  assert.ok(barb.allowed_channels.includes('mercadolivre'));
+  assert.ok(barb.allowed_commercial_models.includes('ml_lifetime'));
+  assert.ok(barb.allowed_commercial_models.includes('direct_lifetime'));
+  assert.ok(barb.allowed_commercial_models.includes('pro_lifetime'));
+  assert.ok(barb.allowed_commercial_models.includes('trial'));
+  assert.ok(barb.allowed_commercial_models.includes('online_essential'));
+  assert.ok(barb.allowed_commercial_models.includes('online_premium'));
+  assert.ok(barb.allowed_commercial_models.includes('project_custom_brand'));
+  assert.strictEqual(barb.saas_plans.online_essential.monthly_price, 59.90);
+  assert.strictEqual(barb.saas_plans.online_premium.monthly_price, 99.00);
+
+  // 4. gestao-beleza rules and canonical SaaS prices (59.90 / 99.00)
+  const bel = catalog.systems['gestao-beleza'];
+  assert.strictEqual(bel.standard_ml_allowed, true);
+  assert.ok(bel.allowed_channels.includes('mercadolivre'));
+  assert.ok(bel.allowed_commercial_models.includes('ml_lifetime'));
+  assert.strictEqual(bel.saas_plans.online_essential.monthly_price, 59.90);
+  assert.strictEqual(bel.saas_plans.online_premium.monthly_price, 99.00);
+
+  // 5. gestao-assistencia rules and canonical SaaS prices (97.90 / 149.90)
+  const ast = catalog.systems['gestao-assistencia'];
+  assert.strictEqual(ast.standard_ml_allowed, true);
+  assert.ok(ast.allowed_channels.includes('mercadolivre'));
+  assert.ok(ast.allowed_commercial_models.includes('ml_lifetime'));
+  assert.strictEqual(ast.saas_plans.online_essential.monthly_price, 97.90);
+  assert.strictEqual(ast.saas_plans.online_premium.monthly_price, 149.90);
+
+  // 6. gestao-gastro rules (SaaS Recommended, Not Standard ML) and canonical SaaS prices (89.00 / 189.00)
+  const gastro = catalog.systems['gestao-gastro'];
+  assert.strictEqual(gastro.saas_recommended, true);
+  assert.strictEqual(gastro.standard_ml_allowed, false);
+  assert.strictEqual(gastro.allowed_channels.includes('mercadolivre'), false);
+  assert.ok(gastro.offline_standalone_fallback, 'Gastro must register offline fallback configuration');
+  assert.strictEqual(gastro.offline_standalone_fallback.permitted, true);
+  assert.strictEqual(gastro.saas_plans.online_essential.monthly_price, 89.00);
+  assert.strictEqual(gastro.saas_plans.online_premium.monthly_price, 189.00);
+
+  // 7. Official Documentation validations
+  assert.match(docRaw, /# Catálogo Comercial Local Oficial/);
+  assert.match(docRaw, /gestao-barbearia/);
+  assert.match(docRaw, /gestao-beleza/);
+  assert.match(docRaw, /gestao-assistencia/);
+  assert.match(docRaw, /gestao-gastro/);
+  assert.match(docRaw, /saas_recommended/);
+  assert.match(docRaw, /Supabase Cloud/);
+  assert.match(docRaw, /59,90/);
+  assert.match(docRaw, /99,00/);
+  assert.match(docRaw, /97,90/);
+  assert.match(docRaw, /149,90/);
+});
+
+test('Fase C.5.2 / C.5.2.1: PHP catalog_loader.php helper integration and contextual system permission rules in api_licenca_ml.php', () => {
+  const catalogPhp = read('catalog_loader.php');
+  const mlPhp = read('api_licenca_ml.php');
+
+  // 1. catalog_loader.php defines required contextual helper functions and fallbacks
+  assert.match(catalogPhp, /function loadCommercialCatalog\(\)/);
+  assert.match(catalogPhp, /function getCommercialSystems\(\)/);
+  assert.match(catalogPhp, /function getCommercialSystem\(/);
+  assert.match(catalogPhp, /function isSystemStandardMLAllowed\(/);
+  assert.match(catalogPhp, /function isOfflineFallbackPermitted\(/);
+  assert.match(catalogPhp, /function isSystemAllowedForModel\(/);
+  assert.match(catalogPhp, /function getAllowedSystemsForML\(\)/);
+  assert.match(catalogPhp, /function getAllowedSystemsForLicenseGeneration\(\)/);
+  assert.match(catalogPhp, /function getAllowedSystemsForLeads\(\)/);
+  assert.match(catalogPhp, /function getDefaultSystemId\(\)/);
+  assert.match(catalogPhp, /fallbackCatalog = \[/);
+
+  // 2. api_licenca_ml.php requires catalog_loader.php and uses contextual functions
+  assert.match(mlPhp, /require_once __DIR__ \. '\/catalog_loader\.php';/);
+  assert.match(mlPhp, /\$allowedSystems = getAllowedSystemsForLicenseGeneration\(\);/);
+  assert.match(mlPhp, /\$allowed_systems = getAllowedSystemsForLeads\(\);/);
+  assert.match(mlPhp, /isSystemStandardMLAllowed\(\$systemId\)/);
+  assert.match(mlPhp, /getDefaultSystemId\(\)/);
+
+  // 3. Eliminates old conflicting hardcoded arrays in api_licenca_ml.php
+  assert.doesNotMatch(mlPhp, /\$allowedSystems = \['gestao-gastro', 'gestao-barbearia', 'gestao-beleza'\];/);
+  assert.doesNotMatch(mlPhp, /\$allowed_systems = \['gestao-assistencia', 'gestao-barbearia', 'gestao-beleza'\];/);
+  assert.doesNotMatch(mlPhp, /\$systemId = \$jsonData\['system_id'\] \?\? 'gestao-gastro';/);
+});
+
+test('Fase C.5.3: Public api_catalog.php endpoint and Admin visual catalog fallback hierarchy', () => {
+  const catalogEndpointPhp = read('api_catalog.php');
+  const html = read('admin/index.html');
+
+  // 1. api_catalog.php uses catalog_loader.php and returns safe JSON without secrets
+  assert.match(catalogEndpointPhp, /require_once __DIR__ \. '\/catalog_loader\.php';/);
+  assert.match(catalogEndpointPhp, /loadCommercialCatalog\(\)/);
+  assert.match(catalogEndpointPhp, /'source' => 'local_official'/);
+  assert.doesNotMatch(catalogEndpointPhp, /ADMIN_SECRET/);
+  assert.doesNotMatch(catalogEndpointPhp, /SUPABASE_KEY/);
+
+  // 2. admin/index.html integrates api_catalog.php and maintains 3-layer fallback
+  assert.match(html, /fetch\('\.\.\/api_catalog\.php'\)/);
+  assert.match(html, /function normalizeLocalCatalogPayload\(/);
+  assert.match(html, /source === 'local_official'/);
+  assert.match(html, /Catálogo Local Oficial em uso/);
+  assert.match(html, /const SAAS_CATALOG_FALLBACK = \{/); // Fallback JS preserved
 });

@@ -301,3 +301,187 @@ test('Fase 3: admin evolution leads UI has filters, export CSV and uses no inlin
   assert.match(source, /selector:\s*'\.lead-notes-input'/);
   assert.match(source, /querySelectorAll\(cfg\.selector\)/);
 });
+
+test('Fase B.3: admin evolution leads table renders commercial metadata labels and CSV export includes new fields', () => {
+  const source = read('admin/index.html');
+
+  assert.match(source, /Licença Vitalícia ML/);
+  assert.match(source, /Licença Vitalícia Site/);
+  assert.match(source, /Online Essencial/);
+  assert.match(source, /Online Premium/);
+  assert.match(source, /Upgrade de Plano/);
+  assert.match(source, /Interesse em Recurso/);
+  assert.match(source, /Não informado/);
+
+  // CSV Export includes new columns
+  assert.match(source, /'Tipo Interesse'/);
+  assert.match(source, /'Plano Atual'/);
+  assert.match(source, /'Plano Alvo'/);
+  assert.match(source, /l\.interest_type/);
+  assert.match(source, /l\.current_plan_code/);
+  assert.match(source, /l\.target_plan_code/);
+});
+
+test('Fase B.4: admin evolution leads UI contains copy message action with fallbacks and no inline handlers', () => {
+  const source = read('admin/index.html');
+
+  // Copy action presence
+  assert.match(source, /copy-lead-msg-btn/);
+  assert.match(source, /Copiar mensagem/);
+
+  // Message generator helper
+  assert.match(source, /function generateEvolutionLeadMessage/);
+  assert.match(source, /copyEvolutionLeadMessage/);
+  assert.match(source, /showAdminToast/);
+
+  // Uses commercial fields and fallbacks
+  assert.match(source, /lead\.interest_type/);
+  assert.match(source, /lead\.current_plan_code/);
+  assert.match(source, /lead\.target_plan_code/);
+  assert.match(source, /Não informado/);
+  assert.match(source, /Solicitação de evolução/);
+
+  // Clipboard API & Fallback
+  assert.match(source, /navigator\.clipboard\.writeText/);
+  assert.match(source, /document\.execCommand\('copy'\)/);
+
+  // No inline handlers for copy button
+  const startIdx = source.indexOf('function renderEvolutionLeadsTable()');
+  const endIdx = source.indexOf('async function updateEvolutionLeadFields');
+  assert.ok(startIdx > -1);
+  assert.ok(endIdx > -1);
+  const renderBlock = source.slice(startIdx, endIdx);
+
+  assert.equal(renderBlock.includes('onclick='), false, 'renderEvolutionLeadsTable must not output inline onclick for copy button');
+  assert.match(source, /querySelectorAll\('\.copy-lead-msg-btn'\)/);
+
+  // No alert() in copy message flow
+  const copyFuncIdx = source.indexOf('async function copyEvolutionLeadMessage');
+  assert.ok(copyFuncIdx > -1);
+  const copyFuncBlock = source.slice(copyFuncIdx, copyFuncIdx + 1200);
+  assert.equal(copyFuncBlock.includes('alert('), false, 'copyEvolutionLeadMessage must not use alert()');
+});
+
+test('Fase B.6: admin evolution leads UI renders customer_name and customer_whatsapp, includes them in CSV and message generator, and blocks alerts/inline handlers', () => {
+  const source = read('admin/index.html');
+
+  // Admin table exhibits name and WhatsApp
+  assert.match(source, /lead\.customer_name/);
+  assert.match(source, /lead\.customer_whatsapp/);
+  assert.match(source, /lead\.contact_consent/);
+  assert.match(source, /WhatsApp não informado/);
+
+  // CSV includes Nome Cliente, WhatsApp Cliente, Consentimento Contato
+  assert.match(source, /'Nome Cliente'/);
+  assert.match(source, /'WhatsApp Cliente'/);
+  assert.match(source, /'Consentimento Contato'/);
+  assert.match(source, /l\.customer_name/);
+  assert.match(source, /l\.customer_whatsapp/);
+  assert.match(source, /l\.contact_consent/);
+
+  // Message generator includes customer_name and customer_whatsapp when available
+  assert.match(source, /lead\.customer_name/);
+  assert.match(source, /lead\.customer_whatsapp/);
+
+  // Absence of alert() in new flow
+  const updateFuncIdx = source.indexOf('async function updateEvolutionLeadFields');
+  assert.ok(updateFuncIdx > -1);
+  const updateFuncBlock = source.slice(updateFuncIdx, updateFuncIdx + 1200);
+  assert.equal(updateFuncBlock.includes('alert('), false, 'updateEvolutionLeadFields must not use alert()');
+});
+
+test('Fase B.6.1: admin evolution leads UI cards refactoring, blocks separation, copy button maintenance and CSV stability', () => {
+  const source = read('admin/index.html');
+
+  // 1. Validar que a estrutura de tabela foi removida ou convertida em cards no HTML
+  assert.equal(source.includes('<table class="w-full text-left border-collapse text-sm">'), false, 'Tabela antiga deve ter sido removida do HTML');
+  assert.match(source, /id="leads-table" class="flex flex-col/); // Novo container de cards
+
+  // 2. Validar a presença da estrutura de cards no JavaScript (render com blocos claros)
+  assert.match(source, /Bloco 1: Cliente e origem/);
+  assert.match(source, /Bloco 2: Interesse comercial/);
+  assert.match(source, /Bloco 3: Atendimento/);
+  assert.match(source, /Bloco 4: Ações/);
+
+  // 3. Validar a manutenção do botão de copiar mensagem e seus atributos
+  assert.match(source, /class="copy-lead-msg-btn/);
+  assert.match(source, /Copiar mensagem/);
+
+  // 4. Garantir que não há novos handlers onclick inline na renderização dos cards
+  const startIdx = source.indexOf('function renderEvolutionLeadsTable()');
+  const endIdx = source.indexOf('async function updateEvolutionLeadFields');
+  assert.ok(startIdx > -1);
+  assert.ok(endIdx > -1);
+  const renderBlock = source.slice(startIdx, endIdx);
+
+  assert.equal(renderBlock.includes('onclick='), false, 'renderEvolutionLeadsTable não deve introduzir handlers onclick inline');
+  assert.equal(renderBlock.includes('onchange='), false, 'renderEvolutionLeadsTable não deve introduzir handlers onchange inline');
+  assert.equal(renderBlock.includes('onblur='), false, 'renderEvolutionLeadsTable não deve introduzir handlers onblur inline');
+  assert.equal(renderBlock.includes('onkeypress='), false, 'renderEvolutionLeadsTable não deve introduzir handlers onkeypress inline');
+
+  // 5. Garantir a ausência de alert() no fluxo atualizado
+  const updateFuncIdx = source.indexOf('async function updateEvolutionLeadFields');
+  assert.ok(updateFuncIdx > -1);
+  const updateFuncBlock = source.slice(updateFuncIdx, updateFuncIdx + 1200);
+  assert.equal(updateFuncBlock.includes('alert('), false, 'updateEvolutionLeadFields não deve conter alert()');
+
+  // 6. Validar a presença continuada dos campos essenciais do lead
+  assert.match(source, /customer_name/);
+  assert.match(source, /customer_whatsapp/);
+  assert.match(source, /contact_consent/);
+
+  // 7. Validar estabilidade da exportação do CSV (preservação das colunas de leads)
+  assert.match(source, /'Nome Cliente'/);
+  assert.match(source, /'WhatsApp Cliente'/);
+  assert.match(source, /'Consentimento Contato'/);
+  assert.match(source, /'Tipo Interesse'/);
+  assert.match(source, /'Plano Atual'/);
+  assert.match(source, /'Plano Alvo'/);
+});
+
+test('Fase B.7: admin evolution leads UI allows manual consultive WhatsApp action with validation and no inline handlers/alerts', () => {
+  const source = read('admin/index.html');
+
+  // 1. Presença do botão/texto Abrir WhatsApp no HTML e JS
+  assert.match(source, /Abrir WhatsApp/);
+  assert.match(source, /open-lead-wa-btn/);
+
+  // 2. Presença da função de normalização do WhatsApp
+  assert.match(source, /function normalizeWhatsappNumber/);
+  assert.match(source, /replace\(\/\\D\/g,\s*''\)/);
+
+  // 3. Presença da função openEvolutionLeadWhatsapp
+  assert.match(source, /function openEvolutionLeadWhatsapp/);
+
+  // 4. Uso de wa.me
+  assert.match(source, /https:\/\/wa\.me\//);
+
+  // 5. Uso de encodeURIComponent
+  assert.match(source, /encodeURIComponent/);
+
+  // 6. Validação de contact_consent
+  assert.match(source, /lead\.contact_consent/);
+
+  // 7. Uso de showAdminToast para feedback de erro
+  assert.match(source, /showAdminToast/);
+
+  // 8. Ausência de onclick inline no render dos cards
+  const startIdx = source.indexOf('function renderEvolutionLeadsTable()');
+  const endIdx = source.indexOf('async function updateEvolutionLeadFields');
+  assert.ok(startIdx > -1);
+  assert.ok(endIdx > -1);
+  const renderBlock = source.slice(startIdx, endIdx);
+
+  assert.equal(renderBlock.includes('onclick='), false, 'renderEvolutionLeadsTable não deve introduzir handlers onclick inline');
+  assert.match(source, /querySelectorAll\('\.open-lead-wa-btn'\)/);
+
+  // 9. Ausência de alert() no fluxo do WhatsApp
+  const waFuncIdx = source.indexOf('function openEvolutionLeadWhatsapp');
+  assert.ok(waFuncIdx > -1);
+  const waFuncBlock = source.slice(waFuncIdx, waFuncIdx + 1000);
+  assert.equal(waFuncBlock.includes('alert('), false, 'openEvolutionLeadWhatsapp não deve conter alert()');
+
+  // 10. Manutenção do botão Copiar mensagem
+  assert.match(source, /copy-lead-msg-btn/);
+  assert.match(source, /Copiar mensagem/);
+});

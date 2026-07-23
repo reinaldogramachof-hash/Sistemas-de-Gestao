@@ -151,3 +151,126 @@ test('Fase 3.1: update_evolution_lead_fields rejects invalid status in payload',
   // Deve validar status e retornar 'Status inválido'
   assert.match(block, /'Status inválido'/);
 });
+
+test('Fase B.2: evolution centers in all three systems exhibit commercial plans, CTAs and compatible payload', () => {
+  const barbearia = read('gestao-barbearia/js/app_core.js');
+  const beleza = read('gestao-beleza/js/app_core.js');
+  const assistencia = read('gestao-assistencia/assets/js/modules/evolution.js');
+
+  const systems = [
+    { name: 'Barbearia', code: barbearia, priceEss: '59,90', pricePrem: '99,00' },
+    { name: 'Beleza', code: beleza, priceEss: '59,90', pricePrem: '99,00' },
+    { name: 'Assistência', code: assistencia, priceEss: '97,90', pricePrem: '149,90' },
+  ];
+
+  for (const sys of systems) {
+    // Validação da vitrine comercial
+    assert.match(sys.code, /Licença Vitalícia Local/, `${sys.name} deve conter 'Licença Vitalícia Local'`);
+    assert.match(sys.code, /Online Essencial/, `${sys.name} deve conter 'Online Essencial'`);
+    assert.match(sys.code, /Online Premium/, `${sys.name} deve conter 'Online Premium'`);
+    assert.match(sys.code, /Solicitar Evolução do Sistema/, `${sys.name} deve conter CTA 'Solicitar Evolução do Sistema'`);
+    assert.match(sys.code, /Tenho interesse/, `${sys.name} deve conter botão 'Tenho interesse'`);
+
+    // Validação dos preços aprovados
+    assert.match(sys.code, new RegExp(sys.priceEss.replace(',', '\\,')), `${sys.name} deve conter preço essencial R$ ${sys.priceEss}`);
+    assert.match(sys.code, new RegExp(sys.pricePrem.replace(',', '\\,')), `${sys.name} deve conter preço premium R$ ${sys.pricePrem}`);
+
+    // Chamada à API register_evolution_lead
+    assert.match(sys.code, /register_evolution_lead/, `${sys.name} deve chamar register_evolution_lead`);
+
+    // Payload compatível
+    assert.match(sys.code, /license_key:/, `${sys.name} payload deve incluir license_key`);
+    assert.match(sys.code, /email:/, `${sys.name} payload deve incluir email`);
+    assert.match(sys.code, /system_id:/, `${sys.name} payload deve incluir system_id`);
+    assert.match(sys.code, /feature_key:/, `${sys.name} payload deve incluir feature_key`);
+    assert.match(sys.code, /feature_title:/, `${sys.name} payload deve incluir feature_title`);
+    assert.match(sys.code, /source:/, `${sys.name} payload deve incluir source`);
+
+    // Bloqueio de alert()
+    const toastIdx = sys.code.indexOf('function showEvolutionToast');
+    assert.ok(toastIdx > -1, `${sys.name} deve possuir showEvolutionToast`);
+    const toastFunc = sys.code.slice(toastIdx, toastIdx + 1600);
+    assert.equal(toastFunc.includes('alert('), false, `${sys.name} não deve usar alert() no fluxo de evolução`);
+  }
+});
+
+test('Fase B.3: register_evolution_lead sanitizes commercial metadata and blocks admin fields', () => {
+  const apiSource = read('api_licenca_ml.php');
+
+  const startIdx = apiSource.indexOf("if ($action === 'register_evolution_lead') {");
+  const endIdx = apiSource.indexOf("if ($action === 'list_evolution_leads') {");
+  assert.ok(startIdx > -1);
+  assert.ok(endIdx > -1);
+
+  const block = apiSource.slice(startIdx, endIdx);
+
+  // Deve sanitizar campos comerciais
+  assert.match(block, /interest_type/, 'deve processar interest_type');
+  assert.match(block, /current_plan_code/, 'deve processar current_plan_code');
+  assert.match(block, /target_plan_code/, 'deve processar target_plan_code');
+
+  // Deve validar contra whitelists
+  assert.match(block, /plan_upgrade/, 'deve incluir whitelist plan_upgrade');
+  assert.match(block, /feature_interest/, 'deve incluir whitelist feature_interest');
+  assert.match(block, /ml_lifetime/, 'deve incluir whitelist ml_lifetime');
+
+  // NÃO deve ler nem permitir escrita de campos administrativos pelo endpoint público
+  assert.equal(block.includes("$jsonData['notes']"), false, 'register_evolution_lead não deve ler notes do payload público');
+  assert.equal(block.includes("$jsonData['owner']"), false, 'register_evolution_lead não deve ler owner do payload público');
+  assert.equal(block.includes("$jsonData['next_contact_at']"), false, 'register_evolution_lead não deve ler next_contact_at do payload público');
+  assert.equal(block.includes("$jsonData['contact_channel']"), false, 'register_evolution_lead não deve ler contact_channel do payload público');
+  assert.equal(block.includes("$jsonData['status']"), false, 'register_evolution_lead não deve permitir status via payload público');
+});
+
+test('Fase B.3: client systems include interest_type, current_plan_code, and target_plan_code in payload', () => {
+  const barbearia = read('gestao-barbearia/js/app_core.js');
+  const beleza = read('gestao-beleza/js/app_core.js');
+  const assistencia = read('gestao-assistencia/assets/js/modules/evolution.js');
+
+  const systems = [
+    { name: 'Barbearia', code: barbearia },
+    { name: 'Beleza', code: beleza },
+    { name: 'Assistência', code: assistencia },
+  ];
+
+  for (const sys of systems) {
+    assert.match(sys.code, /interest_type:/, `${sys.name} payload deve enviar interest_type`);
+    assert.match(sys.code, /current_plan_code:/, `${sys.name} payload deve enviar current_plan_code`);
+    assert.match(sys.code, /target_plan_code:/, `${sys.name} payload deve enviar target_plan_code`);
+  }
+});
+
+test('Fase B.6: public payload captures customer_name, customer_whatsapp and contact_consent safely', () => {
+  const apiSource = read('api_licenca_ml.php');
+  const barbearia = read('gestao-barbearia/js/app_core.js');
+  const beleza = read('gestao-beleza/js/app_core.js');
+  const assistencia = read('gestao-assistencia/assets/js/modules/evolution.js');
+
+  const startIdx = apiSource.indexOf("if ($action === 'register_evolution_lead') {");
+  const endIdx = apiSource.indexOf("if ($action === 'list_evolution_leads') {");
+  assert.ok(startIdx > -1);
+  assert.ok(endIdx > -1);
+
+  const block = apiSource.slice(startIdx, endIdx);
+
+  // Sanitização e processamento dos novos campos
+  assert.match(block, /customer_name/, 'deve processar customer_name');
+  assert.match(block, /customer_whatsapp/, 'deve processar customer_whatsapp');
+  assert.match(block, /contact_consent/, 'deve processar contact_consent');
+
+  // Sanitização de WhatsApp (apenas dígitos e +)
+  assert.match(block, /preg_replace\('\/\[\^\\d\+\]\/', '',/, 'deve sanitizar telefone mantendo apenas digitos e +');
+
+  // Os sistemas clientes devem enviar os novos campos
+  const systems = [
+    { name: 'Barbearia', code: barbearia },
+    { name: 'Beleza', code: beleza },
+    { name: 'Assistência', code: assistencia },
+  ];
+
+  for (const sys of systems) {
+    assert.match(sys.code, /customer_name:/, `${sys.name} deve enviar customer_name`);
+    assert.match(sys.code, /customer_whatsapp:/, `${sys.name} deve enviar customer_whatsapp`);
+    assert.match(sys.code, /contact_consent:/, `${sys.name} deve enviar contact_consent`);
+  }
+});

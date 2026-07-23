@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 require_once __DIR__ . '/env_loader.php';
 
 ini_set('display_errors', 0);
@@ -150,17 +150,20 @@ function getSaasCatalog()
             'path' => 'gestao-gastro',
             'plans' => [
                 'basic' => [
-                    'name' => 'Básico',
+                    'name' => 'Online Essencial',
+                    'price_cents' => 8900,
                     'license_type' => 'monthly',
                     'modules' => ['pdv', 'mesas_garcom_mobile', 'caixa', 'dashboard', 'cardapio', 'financeiro', 'estoque', 'manual', 'configuracao', 'suporte', 'seguranca', 'evolucao']
                 ],
                 'premium' => [
-                    'name' => 'Premium',
+                    'name' => 'Online Premium',
+                    'price_cents' => 18900,
                     'license_type' => 'monthly',
                     'modules' => ['pdv', 'mesas_garcom_mobile', 'caixa', 'dashboard', 'cardapio', 'financeiro', 'estoque', 'manual', 'configuracao', 'suporte', 'kds', 'relatorios_avancados', 'seguranca', 'evolucao']
                 ],
                 'trial' => [
                     'name' => 'Trial',
+                    'price_cents' => 0,
                     'license_type' => 'trial',
                     'modules' => ['pdv', 'mesas_garcom_mobile', 'caixa', 'dashboard', 'cardapio', 'financeiro', 'estoque', 'manual', 'configuracao', 'suporte', 'seguranca', 'evolucao']
                 ]
@@ -170,27 +173,27 @@ function getSaasCatalog()
             'name' => 'Gestão Barbearia',
             'path' => 'gestao-barbearia',
             'plans' => [
-                'basic' => ['name' => 'Básico', 'license_type' => 'monthly', 'modules' => ['agenda', 'caixa', 'clientes', 'servicos', 'profissionais', 'relatorios', 'suporte']],
-                'premium' => ['name' => 'Premium Online', 'license_type' => 'monthly', 'modules' => ['agenda', 'caixa', 'clientes', 'servicos', 'profissionais', 'relatorios', 'comissoes', 'agendamento_online', 'suporte']],
-                'trial' => ['name' => 'Trial', 'license_type' => 'trial', 'modules' => ['agenda', 'caixa', 'clientes', 'servicos', 'profissionais', 'relatorios', 'suporte']]
+                'basic' => ['name' => 'Online Essencial', 'price_cents' => 5990, 'license_type' => 'monthly', 'modules' => ['agenda', 'caixa', 'clientes', 'servicos', 'profissionais', 'relatorios', 'suporte']],
+                'premium' => ['name' => 'Online Premium', 'price_cents' => 9900, 'license_type' => 'monthly', 'modules' => ['agenda', 'caixa', 'clientes', 'servicos', 'profissionais', 'relatorios', 'comissoes', 'agendamento_online', 'suporte']],
+                'trial' => ['name' => 'Trial', 'price_cents' => 0, 'license_type' => 'trial', 'modules' => ['agenda', 'caixa', 'clientes', 'servicos', 'profissionais', 'relatorios', 'suporte']]
             ]
         ],
         'gestao-beleza' => [
             'name' => 'Gestão Beleza',
             'path' => 'gestao-beleza',
             'plans' => [
-                'basic' => ['name' => 'Básico', 'license_type' => 'monthly', 'modules' => ['agenda', 'caixa', 'clientes', 'servicos', 'estoque', 'suporte']],
-                'premium' => ['name' => 'Premium', 'license_type' => 'monthly', 'modules' => ['agenda', 'caixa', 'clientes', 'servicos', 'estoque', 'pacotes', 'relatorios', 'suporte']],
-                'trial' => ['name' => 'Trial', 'license_type' => 'trial', 'modules' => ['agenda', 'caixa', 'clientes', 'servicos', 'estoque', 'suporte']]
+                'basic' => ['name' => 'Online Essencial', 'price_cents' => 5990, 'license_type' => 'monthly', 'modules' => ['agenda', 'caixa', 'clientes', 'servicos', 'estoque', 'suporte']],
+                'premium' => ['name' => 'Online Premium', 'price_cents' => 9900, 'license_type' => 'monthly', 'modules' => ['agenda', 'caixa', 'clientes', 'servicos', 'estoque', 'pacotes', 'relatorios', 'suporte']],
+                'trial' => ['name' => 'Trial', 'price_cents' => 0, 'license_type' => 'trial', 'modules' => ['agenda', 'caixa', 'clientes', 'servicos', 'estoque', 'suporte']]
             ]
         ],
         'gestao-assistencia' => [
             'name' => 'Gestão Assistência',
             'path' => 'gestao-assistencia',
             'plans' => [
-                'basic' => ['name' => 'Básico', 'license_type' => 'monthly', 'modules' => ['dashboard', 'ordens_servico', 'clientes', 'pdv', 'estoque', 'financeiro', 'relatorios', 'configuracoes', 'manual', 'suporte']],
-                'premium' => ['name' => 'Premium', 'license_type' => 'monthly', 'modules' => ['dashboard', 'ordens_servico', 'clientes', 'pdv', 'estoque', 'financeiro', 'relatorios', 'configuracoes', 'manual', 'backup', 'suporte']],
-                'trial' => ['name' => 'Trial', 'license_type' => 'trial', 'modules' => ['dashboard', 'ordens_servico', 'clientes', 'pdv', 'estoque', 'financeiro', 'manual', 'suporte']]
+                'basic' => ['name' => 'Online Essencial', 'price_cents' => 9790, 'license_type' => 'monthly', 'modules' => ['dashboard', 'ordens_servico', 'clientes', 'pdv', 'estoque', 'financeiro', 'relatorios', 'configuracoes', 'manual', 'suporte']],
+                'premium' => ['name' => 'Online Premium', 'price_cents' => 14990, 'license_type' => 'monthly', 'modules' => ['dashboard', 'ordens_servico', 'clientes', 'pdv', 'estoque', 'financeiro', 'relatorios', 'configuracoes', 'manual', 'backup', 'portal_cliente', 'whatsapp_auto', 'relatorios_avancados', 'gestao_garantias', 'suporte']],
+                'trial' => ['name' => 'Trial', 'price_cents' => 0, 'license_type' => 'trial', 'modules' => ['dashboard', 'ordens_servico', 'clientes', 'pdv', 'estoque', 'financeiro', 'manual', 'suporte']]
             ]
         ]
     ];

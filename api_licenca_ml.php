@@ -1006,6 +1006,15 @@ if ($action === 'register_evolution_lead') {
     $feature_title = isset($jsonData['feature_title']) ? trim($jsonData['feature_title']) : '';
     $source = isset($jsonData['source']) ? trim($jsonData['source']) : 'evolution_module';
 
+    $raw_interest_type = isset($jsonData['interest_type']) ? trim($jsonData['interest_type']) : '';
+    $raw_current_plan_code = isset($jsonData['current_plan_code']) ? trim($jsonData['current_plan_code']) : '';
+    $raw_target_plan_code = isset($jsonData['target_plan_code']) ? trim($jsonData['target_plan_code']) : '';
+
+    // Novos campos Fase B.6 (Sanitização e limites)
+    $customer_name = isset($jsonData['customer_name']) ? substr(strip_tags(trim($jsonData['customer_name'])), 0, 100) : '';
+    $customer_whatsapp = isset($jsonData['customer_whatsapp']) ? substr(preg_replace('/[^\d+]/', '', $jsonData['customer_whatsapp']), 0, 20) : '';
+    $contact_consent = isset($jsonData['contact_consent']) ? (bool)$jsonData['contact_consent'] : false;
+
     if (empty($system_id) || empty($feature_key)) {
         echo json_encode(['status' => 'error', 'message' => 'Campos obrigatórios ausentes']);
         exit;
@@ -1015,6 +1024,34 @@ if ($action === 'register_evolution_lead') {
     if (!in_array($system_id, $allowed_systems)) {
         echo json_encode(['status' => 'error', 'message' => 'Sistema inválido']);
         exit;
+    }
+
+    // Sanitização e normalização segura com fallbacks
+    $allowed_interest_types = ['plan_upgrade', 'feature_interest'];
+    if (in_array($raw_interest_type, $allowed_interest_types)) {
+        $interest_type = $raw_interest_type;
+    } else {
+        if (in_array($feature_key, ['online_essential', 'online_premium'])) {
+            $interest_type = 'plan_upgrade';
+        } else {
+            $interest_type = 'feature_interest';
+        }
+    }
+
+    $allowed_current_plans = ['ml_lifetime', 'site_lifetime', 'basic', 'premium'];
+    $current_plan_code = in_array($raw_current_plan_code, $allowed_current_plans) ? $raw_current_plan_code : '';
+
+    $allowed_target_plans = ['basic', 'premium'];
+    if (in_array($raw_target_plan_code, $allowed_target_plans)) {
+        $target_plan_code = $raw_target_plan_code;
+    } else {
+        if ($feature_key === 'online_essential') {
+            $target_plan_code = 'basic';
+        } else if ($feature_key === 'online_premium') {
+            $target_plan_code = 'premium';
+        } else {
+            $target_plan_code = '';
+        }
     }
 
     $fileEvolutionLeads = 'api_data/evolution_leads.json';
@@ -1030,6 +1067,21 @@ if ($action === 'register_evolution_lead') {
             $lead['last_interaction'] = date('Y-m-d H:i:s');
             if (empty($lead['email']) && !empty($email)) $lead['email'] = $email;
             if (empty($lead['license_key']) && !empty($license_key)) $lead['license_key'] = $license_key;
+
+            if (!empty($interest_type)) $lead['interest_type'] = $interest_type;
+            if (!empty($current_plan_code)) $lead['current_plan_code'] = $current_plan_code;
+            if (!empty($target_plan_code)) $lead['target_plan_code'] = $target_plan_code;
+
+            // Atualização dos campos Fase B.6
+            if (isset($jsonData['customer_name']) && trim($jsonData['customer_name']) !== '') {
+                $lead['customer_name'] = $customer_name;
+            }
+            if (isset($jsonData['customer_whatsapp']) && trim($jsonData['customer_whatsapp']) !== '') {
+                $lead['customer_whatsapp'] = $customer_whatsapp;
+            }
+            if (isset($jsonData['contact_consent'])) {
+                $lead['contact_consent'] = $contact_consent;
+            }
             break;
         }
     }
@@ -1042,6 +1094,12 @@ if ($action === 'register_evolution_lead') {
             'feature_key' => $feature_key,
             'feature_title' => $feature_title,
             'source' => $source,
+            'interest_type' => $interest_type,
+            'current_plan_code' => $current_plan_code,
+            'target_plan_code' => $target_plan_code,
+            'customer_name' => $customer_name,
+            'customer_whatsapp' => $customer_whatsapp,
+            'contact_consent' => $contact_consent,
             'created_at' => date('Y-m-d H:i:s'),
             'last_interaction' => date('Y-m-d H:i:s'),
             'count' => 1,

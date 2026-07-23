@@ -866,24 +866,8 @@
                                 <i data-lucide="download" class="w-4 h-4"></i> Exportar CSV
                             </button>
                         </div>
-                        <div class="overflow-x-auto">
-                            <table class="w-full text-left border-collapse text-sm">
-                                <thead>
-                                    <tr class="bg-slate-50 text-slate-500 font-bold border-b">
-                                        <th class="px-4 py-4 text-xs uppercase tracking-wider">Última Interação</th>
-                                        <th class="px-4 py-4 text-xs uppercase tracking-wider">Origem</th>
-                                        <th class="px-4 py-4 text-xs uppercase tracking-wider">Recurso de Interesse</th>
-                                        <th class="px-4 py-4 text-xs uppercase tracking-wider">Status</th>
-                                        <th class="px-4 py-4 text-xs uppercase tracking-wider">Responsável</th>
-                                        <th class="px-4 py-4 text-xs uppercase tracking-wider">Canal</th>
-                                        <th class="px-4 py-4 text-xs uppercase tracking-wider">Próximo Contato</th>
-                                        <th class="px-4 py-4 text-xs uppercase tracking-wider">Observações</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="leads-table" class="divide-y divide-slate-100">
-                                    <!-- Dynamic -->
-                                </tbody>
-                            </table>
+                        <div id="leads-table" class="flex flex-col gap-6 p-6 bg-slate-50/50">
+                            <!-- Dynamic Cards -->
                         </div>
                     </div>
                 </div>
@@ -1398,9 +1382,9 @@
                 publicPath: 'gestao-gastro',
                 plans: {
                     basic: {
-                        name: 'Básico',
-                        price: 'R$ 97/mês',
-                        priceCents: 9700,
+                        name: 'Online Essencial',
+                        price: 'R$ 89/mês',
+                        priceCents: 8900,
                         billingModel: 'monthly',
                         maxUsers: 12,
                         maxDevices: 3,
@@ -1408,9 +1392,9 @@
                         modules: [['pdv', 'PDV'], ['mesas_garcom_mobile', 'Mesas e garçom mobile'], ['caixa', 'Caixa'], ['dashboard', 'Dashboard'], ['cardapio', 'Cardápio'], ['financeiro', 'Financeiro'], ['estoque', 'Estoque'], ['manual', 'Manual'], ['configuracao', 'Configuração'], ['suporte', 'Suporte']]
                     },
                     premium: {
-                        name: 'Premium',
-                        price: 'R$ 197/mês',
-                        priceCents: 19700,
+                        name: 'Online Premium',
+                        price: 'R$ 189/mês',
+                        priceCents: 18900,
                         billingModel: 'monthly',
                         maxUsers: null,
                         maxDevices: null,
@@ -1437,8 +1421,8 @@
                 tone: 'from-indigo-500 to-sky-500',
                 publicPath: 'gestao-barbearia',
                 plans: {
-                    basic: { name: 'Básico', price: 'R$ 59/mês', priceCents: 5900, billingModel: 'monthly', maxUsers: 6, maxDevices: 2, status: 'active', modules: [['agenda', 'Agenda'], ['caixa', 'Caixa'], ['clientes', 'Clientes'], ['servicos', 'Serviços'], ['profissionais', 'Profissionais'], ['relatorios', 'Relatórios'], ['suporte', 'Suporte']] },
-                    premium: { name: 'Premium Online', price: 'R$ 99/mês', priceCents: 9900, billingModel: 'monthly', maxUsers: null, maxDevices: null, status: 'active', modules: [['agenda', 'Agenda'], ['caixa', 'Caixa'], ['clientes', 'Clientes'], ['servicos', 'Serviços'], ['profissionais', 'Profissionais'], ['relatorios', 'Relatórios'], ['comissoes', 'Comissões'], ['agendamento_online', 'Agendamento online'], ['suporte', 'Suporte']] },
+                    basic: { name: 'Online Essencial', price: 'R$ 59,90/mês', priceCents: 5990, billingModel: 'monthly', maxUsers: 6, maxDevices: 2, status: 'active', modules: [['agenda', 'Agenda'], ['caixa', 'Caixa'], ['clientes', 'Clientes'], ['servicos', 'Serviços'], ['profissionais', 'Profissionais'], ['relatorios', 'Relatórios'], ['suporte', 'Suporte']] },
+                    premium: { name: 'Online Premium', price: 'R$ 99,00/mês', priceCents: 9900, billingModel: 'monthly', maxUsers: null, maxDevices: null, status: 'active', modules: [['agenda', 'Agenda'], ['caixa', 'Caixa'], ['clientes', 'Clientes'], ['servicos', 'Serviços'], ['profissionais', 'Profissionais'], ['relatorios', 'Relatórios'], ['comissoes', 'Comissões'], ['agendamento_online', 'Agendamento online'], ['suporte', 'Suporte']] },
                     trial: { name: 'Trial', price: '14 dias', priceCents: 0, billingModel: 'trial', maxUsers: 6, maxDevices: 2, status: 'active', modules: [['agenda', 'Agenda'], ['caixa', 'Caixa'], ['clientes', 'Clientes'], ['servicos', 'Serviços'], ['profissionais', 'Profissionais'], ['relatorios', 'Relatórios'], ['suporte', 'Suporte']] }
                 }
             },
@@ -1450,9 +1434,22 @@
                 tone: 'from-rose-500 to-fuchsia-500',
                 publicPath: 'gestao-beleza',
                 plans: {
-                    basic: { name: 'Básico', price: 'R$ 69/mês', priceCents: 6900, billingModel: 'monthly', maxUsers: 6, maxDevices: 2, status: 'active', modules: [['agenda', 'Agenda'], ['caixa', 'Caixa'], ['clientes', 'Clientes'], ['servicos', 'Serviços'], ['estoque', 'Estoque'], ['suporte', 'Suporte']] },
-                    premium: { name: 'Premium', price: 'R$ 129/mês', priceCents: 12900, billingModel: 'monthly', maxUsers: null, maxDevices: null, status: 'active', modules: [['agenda', 'Agenda'], ['caixa', 'Caixa'], ['clientes', 'Clientes'], ['servicos', 'Serviços'], ['estoque', 'Estoque'], ['pacotes', 'Pacotes'], ['relatorios', 'Relatórios'], ['suporte', 'Suporte']] },
+                    basic: { name: 'Online Essencial', price: 'R$ 59,90/mês', priceCents: 5990, billingModel: 'monthly', maxUsers: 6, maxDevices: 2, status: 'active', modules: [['agenda', 'Agenda'], ['caixa', 'Caixa'], ['clientes', 'Clientes'], ['servicos', 'Serviços'], ['estoque', 'Estoque'], ['suporte', 'Suporte']] },
+                    premium: { name: 'Online Premium', price: 'R$ 99,00/mês', priceCents: 9900, billingModel: 'monthly', maxUsers: null, maxDevices: null, status: 'active', modules: [['agenda', 'Agenda'], ['caixa', 'Caixa'], ['clientes', 'Clientes'], ['servicos', 'Serviços'], ['estoque', 'Estoque'], ['pacotes', 'Pacotes'], ['relatorios', 'Relatórios'], ['suporte', 'Suporte']] },
                     trial: { name: 'Trial', price: '14 dias', priceCents: 0, billingModel: 'trial', maxUsers: 6, maxDevices: 2, status: 'active', modules: [['agenda', 'Agenda'], ['caixa', 'Caixa'], ['clientes', 'Clientes'], ['servicos', 'Serviços'], ['estoque', 'Estoque'], ['suporte', 'Suporte']] }
+                }
+            },
+            'gestao-assistencia': {
+                title: 'Gestão Assistência',
+                description: 'Assistências técnicas e manutenção',
+                status: 'active',
+                icon: 'wrench',
+                tone: 'from-blue-500 to-cyan-500',
+                publicPath: 'gestao-assistencia',
+                plans: {
+                    basic: { name: 'Online Essencial', price: 'R$ 97,90/mês', priceCents: 9790, billingModel: 'monthly', maxUsers: 6, maxDevices: 2, status: 'active', modules: [['dashboard', 'Dashboard'], ['ordens_servico', 'Ordens de serviço'], ['clientes', 'Clientes'], ['pdv', 'PDV'], ['estoque', 'Estoque'], ['financeiro', 'Financeiro'], ['relatorios', 'Relatórios'], ['configuracoes', 'Configurações'], ['manual', 'Manual'], ['suporte', 'Suporte']] },
+                    premium: { name: 'Online Premium', price: 'R$ 149,90/mês', priceCents: 14990, billingModel: 'monthly', maxUsers: null, maxDevices: null, status: 'active', modules: [['dashboard', 'Dashboard'], ['ordens_servico', 'Ordens de serviço'], ['clientes', 'Clientes'], ['pdv', 'PDV'], ['estoque', 'Estoque'], ['financeiro', 'Financeiro'], ['relatorios', 'Relatórios'], ['configuracoes', 'Configurações'], ['manual', 'Manual'], ['backup', 'Backup em nuvem'], ['portal_cliente', 'Portal do cliente O.S.'], ['whatsapp_auto', 'WhatsApp automático'], ['relatorios_avancados', 'Relatórios avançados'], ['gestao_garantias', 'Gestão de garantias'], ['suporte', 'Suporte']] },
+                    trial: { name: 'Trial', price: '14 dias', priceCents: 0, billingModel: 'trial', maxUsers: 6, maxDevices: 2, status: 'active', modules: [['dashboard', 'Dashboard'], ['ordens_servico', 'Ordens de serviço'], ['clientes', 'Clientes'], ['pdv', 'PDV'], ['estoque', 'Estoque'], ['financeiro', 'Financeiro'], ['manual', 'Manual'], ['suporte', 'Suporte']] }
                 }
             }
         };
@@ -2689,6 +2686,35 @@
 
         let loadedEvolutionLeads = [];
 
+        function normalizeWhatsappNumber(whatsapp) {
+            if (!whatsapp) return '';
+            const digits = whatsapp.replace(/\D/g, '');
+            if (digits.length < 10) return '';
+            if (digits.startsWith('55')) {
+                return digits;
+            }
+            if (digits.length === 10 || digits.length === 11) {
+                return '55' + digits;
+            }
+            return digits;
+        }
+
+        function openEvolutionLeadWhatsapp(lead) {
+            if (!lead) return;
+            if (!lead.contact_consent || lead.contact_consent == '0') {
+                showAdminToast('Cliente não autorizou contato ou consentimento não informado.', 'error');
+                return;
+            }
+            const phone = normalizeWhatsappNumber(lead.customer_whatsapp);
+            if (!phone) {
+                showAdminToast('WhatsApp inválido ou não informado.', 'error');
+                return;
+            }
+            const msg = generateEvolutionLeadMessage(lead);
+            const url = `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`;
+            window.open(url, '_blank');
+        }
+
         async function loadEvolutionLeads() {
             const res = await apiCall('list_evolution_leads');
             if (!res || res.status !== 'success') {
@@ -2737,13 +2763,142 @@
                     lead.email || '',
                     lead.license_key || '',
                     lead.feature_title || '',
-                    lead.feature_key || ''
+                    lead.feature_key || '',
+                    lead.interest_type || '',
+                    lead.current_plan_code || '',
+                    lead.target_plan_code || ''
                 ].join(' ').toLowerCase();
 
                 const matchesSearch = !searchQuery || searchHaystack.includes(searchQuery);
 
                 return matchesSystem && matchesStatus && matchesSearch;
             });
+        }
+
+        function showAdminToast(msg, type = 'success') {
+            let container = document.getElementById('admin-toast-container');
+            if (!container) {
+                container = document.createElement('div');
+                container.id = 'admin-toast-container';
+                container.className = 'fixed bottom-4 right-4 z-[9999] flex flex-col gap-2 pointer-events-none';
+                document.body.appendChild(container);
+            }
+
+            const toast = document.createElement('div');
+            toast.className = `pointer-events-auto flex items-center gap-2.5 px-4 py-3 rounded-xl text-white font-bold text-xs shadow-xl transition-all duration-300 transform translate-y-2 opacity-0 ${
+                type === 'success' ? 'bg-emerald-600 border border-emerald-500/30' :
+                type === 'error' ? 'bg-rose-600 border border-rose-500/30' :
+                'bg-slate-800 border border-slate-700'
+            }`;
+            toast.innerHTML = `<i data-lucide="${type === 'success' ? 'check-circle-2' : type === 'error' ? 'alert-circle' : 'info'}" class="w-4 h-4"></i><span>${escapeHtml(msg)}</span>`;
+
+            container.appendChild(toast);
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+
+            setTimeout(() => {
+                toast.classList.remove('translate-y-2', 'opacity-0');
+            }, 10);
+
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'translate-y-2');
+                setTimeout(() => toast.remove(), 300);
+            }, 3500);
+        }
+
+        function generateEvolutionLeadMessage(lead) {
+            if (!lead) return '';
+
+            const systemNames = {
+                'gestao-assistencia': 'Gestão Assistência',
+                'gestao-barbearia': 'Gestão Barbearia',
+                'gestao-beleza': 'Gestão Beleza'
+            };
+            const systemText = systemNames[lead.system_id] || lead.system_id || 'Sistema de Gestão';
+            const emailText = lead.email || 'Não informado';
+            const licenseText = lead.license_key || 'Não informada';
+
+            const planLabels = {
+                'ml_lifetime': 'Licença Vitalícia ML',
+                'site_lifetime': 'Licença Vitalícia Site',
+                'basic': 'Online Essencial',
+                'premium': 'Online Premium'
+            };
+            const currentPlanText = lead.current_plan_code ? (planLabels[lead.current_plan_code] || lead.current_plan_code) : 'Não informado';
+            const targetPlanText = lead.target_plan_code ? (planLabels[lead.target_plan_code] || lead.target_plan_code) : 'Não informado';
+
+            const interestTypeLabels = {
+                'plan_upgrade': 'Upgrade de Plano',
+                'feature_interest': 'Interesse em Recurso'
+            };
+            const interestTypeText = lead.interest_type ? (interestTypeLabels[lead.interest_type] || lead.interest_type) : 'Solicitação de evolução';
+            const featureText = lead.feature_title || lead.feature_key || 'Solicitação de evolução';
+
+            const statusLabels = {
+                'novo': 'Novo',
+                'contatado': 'Contatado',
+                'proposta_enviada': 'Proposta Enviada',
+                'convertido': 'Convertido',
+                'perdido': 'Perdido',
+                'descartado': 'Descartado'
+            };
+            const statusText = statusLabels[lead.status] || lead.status || 'Novo';
+
+            let msg = `Olá! Vi aqui sua solicitação de evolução do sistema no *${systemText}*.\n\n`;
+            msg += `📌 *Dados do Registro:*\n`;
+            if (lead.customer_name) {
+                msg += `• *Nome:* ${lead.customer_name}\n`;
+            }
+            if (lead.customer_whatsapp) {
+                msg += `• *WhatsApp:* ${lead.customer_whatsapp}\n`;
+            }
+            msg += `• *E-mail:* ${emailText}\n`;
+            msg += `• *Licença Atual:* ${licenseText}\n`;
+            msg += `• *Plano Atual:* ${currentPlanText}\n\n`;
+
+            if (lead.interest_type === 'plan_upgrade') {
+                msg += `🚀 *Solicitação:* Upgrade para o plano *${targetPlanText}*\n`;
+                msg += `• *Item de Interesse:* ${featureText}\n`;
+            } else if (lead.interest_type === 'feature_interest') {
+                msg += `💡 *Interesse Registrado:* Recurso *${featureText}*\n`;
+                msg += `• *Plano Recomendado:* ${targetPlanText}\n`;
+            } else {
+                msg += `💡 *Interesse Registrado:* ${featureText}\n`;
+            }
+
+            msg += `• *Status no Painel:* ${statusText}\n\n`;
+            msg += `Posso te explicar como funciona essa migração online e indicar os próximos passos? 😊`;
+
+            return msg;
+        }
+
+        async function copyEvolutionLeadMessage(lead) {
+            const text = generateEvolutionLeadMessage(lead);
+            if (!text) {
+                showAdminToast('Não foi possível gerar a mensagem para este lead', 'error');
+                return;
+            }
+
+            try {
+                if (navigator.clipboard && window.isSecureContext) {
+                    await navigator.clipboard.writeText(text);
+                } else {
+                    const textArea = document.createElement('textarea');
+                    textArea.value = text;
+                    textArea.style.position = 'fixed';
+                    textArea.style.left = '-999999px';
+                    textArea.style.top = '-999999px';
+                    document.body.appendChild(textArea);
+                    textArea.focus();
+                    textArea.select();
+                    const successful = document.execCommand('copy');
+                    document.body.removeChild(textArea);
+                    if (!successful) throw new Error('execCommand copy failed');
+                }
+                showAdminToast('Mensagem comercial copiada para a área de transferência!', 'success');
+            } catch (err) {
+                console.error('Erro ao copiar mensagem:', err);
+                showAdminToast('Não foi possível copiar a mensagem automaticamente.', 'error');
+            }
         }
 
         function renderEvolutionLeadsTable() {
@@ -2753,6 +2908,17 @@
             updateLeadsCounters();
 
             const filteredLeads = getFilteredEvolutionLeads();
+
+            const planLabels = {
+                'ml_lifetime': 'Licença Vitalícia ML',
+                'site_lifetime': 'Licença Vitalícia Site',
+                'basic': 'Online Essencial',
+                'premium': 'Online Premium'
+            };
+            const interestTypeLabels = {
+                'plan_upgrade': 'Upgrade de Plano',
+                'feature_interest': 'Interesse em Recurso'
+            };
 
             let html = '';
             filteredLeads.forEach(lead => {
@@ -2769,6 +2935,10 @@
                 const lastInt = lead.last_interaction || lead.created_at || '';
                 const createdAt = lead.created_at || '';
 
+                const currentPlanText = lead.current_plan_code ? (planLabels[lead.current_plan_code] || lead.current_plan_code) : 'Não informado';
+                const targetPlanText = lead.target_plan_code ? (planLabels[lead.target_plan_code] || lead.target_plan_code) : 'Não informado';
+                const interestTypeText = lead.interest_type ? (interestTypeLabels[lead.interest_type] || lead.interest_type) : 'Não informado';
+
                 const statusOptions = ['novo', 'contatado', 'proposta_enviada', 'convertido', 'perdido', 'descartado'].map(st => {
                     const selected = lead.status === st ? 'selected' : '';
                     const labels = {
@@ -2783,65 +2953,204 @@
                     return `<option value="${st}" ${selected}>${label}</option>`;
                 }).join('');
 
+                const customerNameText = lead.customer_name ? escapeHtml(lead.customer_name) : 'Não informado';
+                const customerWhatsappText = lead.customer_whatsapp ? escapeHtml(lead.customer_whatsapp) : 'WhatsApp não informado';
+                const consentText = lead.contact_consent ? '<span class="text-emerald-600 font-bold ml-1" title="Autorizou contato">(Autorizado)</span>' : '<span class="text-slate-400 ml-1" title="Não autorizou ou não informado">(Não autorizado)</span>';
+
+                const hasConsent = lead.contact_consent && lead.contact_consent != '0';
+                const rawPhone = normalizeWhatsappNumber(lead.customer_whatsapp);
+                const isWaEnabled = hasConsent && rawPhone;
+
+                const waButtonHtml = isWaEnabled ? `
+                    <button data-email="${escapeHtml(lead.email || '')}" data-license="${escapeHtml(lead.license_key || '')}" data-system="${escapeHtml(lead.system_id || '')}" data-feature="${escapeHtml(lead.feature_key || '')}"
+                        class="open-lead-wa-btn w-full inline-flex items-center justify-center gap-1.5 px-4 py-2.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200/50 rounded-xl text-xs font-bold transition-all shadow-xs hover:shadow-sm"
+                        title="Abrir WhatsApp com mensagem comercial preenchida">
+                        <i data-lucide="message-circle" class="w-4 h-4 text-emerald-600"></i>
+                        <span>Abrir WhatsApp</span>
+                    </button>
+                ` : `
+                    <button class="w-full inline-flex items-center justify-center gap-1.5 px-4 py-2.5 bg-slate-50 text-slate-400 border border-slate-100 rounded-xl text-xs font-bold cursor-not-allowed opacity-60"
+                        title="WhatsApp ou autorização não informado" disabled>
+                        <i data-lucide="message-circle" class="w-4 h-4 text-slate-300"></i>
+                        <span>Abrir WhatsApp</span>
+                    </button>
+                `;
+
                 html += `
-                <tr class="hover:bg-slate-50 border-b border-slate-100 text-xs">
-                    <td class="px-4 py-3 text-slate-500 font-medium">
-                        <div>\${escapeHtml(lastInt)}</div>
-                        <div class="text-[10px] text-slate-400">Criado: \${escapeHtml(createdAt)}</div>
-                    </td>
-                    <td class="px-4 py-3">
-                        <span class="font-bold text-slate-800 block">\${escapeHtml(systemText)}</span>
-                        <span class="text-[11px] text-slate-500 block">\${emailText}</span>
-                        <span class="font-mono text-[10px] text-slate-400 block">\${licenseText}</span>
-                    </td>
-                    <td class="px-4 py-3 font-medium text-slate-700">
-                        <div>\${featureText}</div>
-                        <div class="text-[10px] text-slate-400">Origem: \${escapeHtml(lead.source || 'evolution_module')} · Cliques: <span class="font-bold">\${countVal}</span></div>
-                    </td>
-                    <td class="px-4 py-3">
-                        <select data-email="\${escapeHtml(lead.email || '')}" data-license="\${escapeHtml(lead.license_key || '')}" data-system="\${escapeHtml(lead.system_id || '')}" data-feature="\${escapeHtml(lead.feature_key || '')}"
-                            class="lead-status-select border rounded px-1.5 py-0.5 outline-none text-xs font-bold \${
-                                lead.status === 'novo' ? 'bg-amber-50 text-amber-700 border-amber-200' :
-                                lead.status === 'contatado' ? 'bg-blue-50 text-blue-700 border-blue-200' :
-                                lead.status === 'proposta_enviada' ? 'bg-violet-50 text-violet-700 border-violet-200' :
-                                lead.status === 'convertido' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
-                                lead.status === 'perdido' ? 'bg-rose-50 text-rose-700 border-rose-200' :
-                                'bg-slate-50 text-slate-700 border-slate-200'
+                <div class="bg-white rounded-2xl border border-slate-100 shadow-xs hover:shadow-md transition-all p-6 grid grid-cols-1 lg:grid-cols-4 gap-6 text-slate-700">
+                    <!-- Bloco 1: Cliente e origem -->
+                    <div class="space-y-2">
+                        <div class="flex items-center justify-between">
+                            <span class="font-bold text-sm tracking-tight text-slate-900">${customerNameText}</span>
+                            <span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                                lead.system_id === 'gestao-assistencia' ? 'bg-blue-100 text-blue-800' :
+                                lead.system_id === 'gestao-barbearia' ? 'bg-orange-100 text-orange-800' :
+                                'bg-purple-100 text-purple-800'
                             }">
-                            \${statusOptions}
-                        </select>
-                    </td>
-                    <td class="px-4 py-3">
-                        <input type="text" placeholder="Sem resp." value="\${escapeHtml(lead.owner || '')}"
-                            data-email="\${escapeHtml(lead.email || '')}" data-license="\${escapeHtml(lead.license_key || '')}" data-system="\${escapeHtml(lead.system_id || '')}" data-feature="\${escapeHtml(lead.feature_key || '')}"
-                            class="lead-owner-input border border-slate-200 rounded px-2 py-1 outline-none text-xs w-24 focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
-                    </td>
-                    <td class="px-4 py-3">
-                        <input type="text" placeholder="Ex: WhatsApp" value="\${escapeHtml(lead.contact_channel || '')}"
-                            data-email="\${escapeHtml(lead.email || '')}" data-license="\${escapeHtml(lead.license_key || '')}" data-system="\${escapeHtml(lead.system_id || '')}" data-feature="\${escapeHtml(lead.feature_key || '')}"
-                            class="lead-channel-input border border-slate-200 rounded px-2 py-1 outline-none text-xs w-24 focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
-                    </td>
-                    <td class="px-4 py-3">
-                        <input type="date" value="\${escapeHtml(lead.next_contact_at || '')}"
-                            data-email="\${escapeHtml(lead.email || '')}" data-license="\${escapeHtml(lead.license_key || '')}" data-system="\${escapeHtml(lead.system_id || '')}" data-feature="\${escapeHtml(lead.feature_key || '')}"
-                            class="lead-next-contact-input border border-slate-200 rounded px-1.5 py-1 outline-none text-xs focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
-                    </td>
-                    <td class="px-4 py-3">
-                        <input type="text" placeholder="Anotações comerciais..." value="\${escapeHtml(lead.notes || '')}"
-                            data-email="\${escapeHtml(lead.email || '')}" data-license="\${escapeHtml(lead.license_key || '')}" data-system="\${escapeHtml(lead.system_id || '')}" data-feature="\${escapeHtml(lead.feature_key || '')}"
-                            class="lead-notes-input border border-slate-200 rounded px-2 py-1 outline-none text-xs w-full focus:ring-1 focus:ring-blue-500 focus:border-blue-500 min-w-[150px]">
-                    </td>
-                </tr>`;
+                                ${escapeHtml(systemText)}
+                            </span>
+                        </div>
+                        <div class="text-xs space-y-1">
+                            <div class="flex items-center gap-1">
+                                <span class="text-slate-400 font-medium">Email:</span>
+                                <span class="text-slate-600 font-semibold select-all">${emailText}</span>
+                            </div>
+                            <div class="flex items-center gap-1">
+                                <span class="text-slate-400 font-medium">Licença:</span>
+                                <span class="font-mono text-slate-600 select-all">${licenseText}</span>
+                            </div>
+                            <div class="flex items-center gap-1">
+                                <span class="text-slate-400 font-medium">WhatsApp:</span>
+                                <span class="text-slate-600 font-semibold select-all">${customerWhatsappText}</span>
+                                ${consentText}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Bloco 2: Interesse comercial -->
+                    <div class="space-y-2 lg:border-l lg:border-slate-100 lg:pl-6">
+                        <div class="flex items-center gap-1.5">
+                            <span class="text-[10px] font-bold px-2.5 py-0.5 rounded-md ${
+                                lead.interest_type === 'plan_upgrade' ? 'bg-purple-100 text-purple-700' :
+                                lead.interest_type === 'feature_interest' ? 'bg-amber-100 text-amber-700' :
+                                'bg-slate-100 text-slate-600'
+                            }">
+                                ${escapeHtml(interestTypeText)}
+                            </span>
+                            <span class="text-[10px] text-slate-400">Origem: ${escapeHtml(lead.source || 'evolution_module')}</span>
+                        </div>
+                        <div class="font-bold text-slate-900 text-sm">${featureText}</div>
+                        <div class="text-xs space-y-0.5">
+                            <div>
+                                <span class="text-slate-400">Atual:</span> <strong class="text-slate-700">${escapeHtml(currentPlanText)}</strong>
+                            </div>
+                            <div>
+                                <span class="text-slate-400">Alvo:</span> <strong class="text-slate-700">${escapeHtml(targetPlanText)}</strong>
+                            </div>
+                            <div class="text-[10px] text-slate-400 flex justify-between items-center pt-1">
+                                <span>Última Int.: ${escapeHtml(lastInt)}</span>
+                                <span class="font-semibold bg-slate-100 px-1.5 py-0.5 rounded-sm">Cliques: ${countVal}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Bloco 3: Atendimento -->
+                    <div class="space-y-3 lg:border-l lg:border-slate-100 lg:pl-6 text-xs">
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="block text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-1">Status</label>
+                                <select data-email="${escapeHtml(lead.email || '')}" data-license="${escapeHtml(lead.license_key || '')}" data-system="${escapeHtml(lead.system_id || '')}" data-feature="${escapeHtml(lead.feature_key || '')}"
+                                    class="lead-status-select w-full border rounded-lg px-2 py-1 outline-none font-bold ${
+                                        lead.status === 'novo' ? 'bg-amber-50 text-amber-700 border-amber-200' :
+                                        lead.status === 'contatado' ? 'bg-blue-50 text-blue-700 border-blue-200' :
+                                        lead.status === 'proposta_enviada' ? 'bg-violet-50 text-violet-700 border-violet-200' :
+                                        lead.status === 'convertido' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                                        lead.status === 'perdido' ? 'bg-rose-50 text-rose-700 border-rose-200' :
+                                        'bg-slate-50 text-slate-700 border-slate-200'
+                                    }">
+                                    ${statusOptions}
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-1">Responsável</label>
+                                <input type="text" placeholder="Sem resp." value="${escapeHtml(lead.owner || '')}"
+                                    data-email="${escapeHtml(lead.email || '')}" data-license="${escapeHtml(lead.license_key || '')}" data-system="${escapeHtml(lead.system_id || '')}" data-feature="${escapeHtml(lead.feature_key || '')}"
+                                    class="lead-owner-input w-full border border-slate-200 rounded-lg px-2 py-1 outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="block text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-1">Canal</label>
+                                <input type="text" placeholder="Ex: WhatsApp" value="${escapeHtml(lead.contact_channel || '')}"
+                                    data-email="${escapeHtml(lead.email || '')}" data-license="${escapeHtml(lead.license_key || '')}" data-system="${escapeHtml(lead.system_id || '')}" data-feature="${escapeHtml(lead.feature_key || '')}"
+                                    class="lead-channel-input w-full border border-slate-200 rounded-lg px-2 py-1 outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
+                            </div>
+                            <div>
+                                <label class="block text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-1">Próximo Contato</label>
+                                <input type="date" value="${escapeHtml(lead.next_contact_at || '')}"
+                                    data-email="${escapeHtml(lead.email || '')}" data-license="${escapeHtml(lead.license_key || '')}" data-system="${escapeHtml(lead.system_id || '')}" data-feature="${escapeHtml(lead.feature_key || '')}"
+                                    class="lead-next-contact-input w-full border border-slate-200 rounded-lg px-1.5 py-1 outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-1">Observações Comerciais</label>
+                            <input type="text" placeholder="Anotações comerciais..." value="${escapeHtml(lead.notes || '')}"
+                                data-email="${escapeHtml(lead.email || '')}" data-license="${escapeHtml(lead.license_key || '')}" data-system="${escapeHtml(lead.system_id || '')}" data-feature="${escapeHtml(lead.feature_key || '')}"
+                                class="lead-notes-input w-full border border-slate-200 rounded-lg px-2 py-1 outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
+                        </div>
+                    </div>
+
+                    <!-- Bloco 4: Ações -->
+                    <div class="flex lg:flex-col items-center lg:items-end justify-between lg:justify-between lg:border-l lg:border-slate-100 lg:pl-6 gap-3">
+                        <div class="text-[10px] text-slate-400 text-left lg:text-right hidden lg:block">
+                            <div>Criado em:</div>
+                            <div class="font-semibold text-slate-600">${escapeHtml(createdAt)}</div>
+                        </div>
+                        <div class="flex flex-col sm:flex-row lg:flex-col gap-2 w-full">
+                            ${waButtonHtml}
+                            <button data-email="${escapeHtml(lead.email || '')}" data-license="${escapeHtml(lead.license_key || '')}" data-system="${escapeHtml(lead.system_id || '')}" data-feature="${escapeHtml(lead.feature_key || '')}"
+                                class="copy-lead-msg-btn w-full inline-flex items-center justify-center gap-1.5 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-all shadow-xs hover:shadow-sm"
+                                title="Copiar mensagem comercial para WhatsApp">
+                                <i data-lucide="copy" class="w-4 h-4 text-slate-500"></i>
+                                <span>Copiar mensagem</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>`;
             });
 
             tableBody.innerHTML = html || `
-                <tr>
-                    <td colspan="8" class="px-6 py-12 text-center text-slate-400">
-                        Nenhum lead de evolução correspondente aos filtros.
-                    </td>
-                </tr>`;
+                <div class="p-8 text-center text-slate-400 bg-white rounded-2xl border border-slate-100 shadow-xs w-full">
+                    Nenhum lead de evolução correspondente aos filtros.
+                </div>`;
+
+            if (typeof lucide !== 'undefined') {
+                lucide.createIcons();
+            }
 
             // Attach event listeners dynamically to avoid inline handlers
+            tableBody.querySelectorAll('.open-lead-wa-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const email = this.getAttribute('data-email') || '';
+                    const license = this.getAttribute('data-license') || '';
+                    const system = this.getAttribute('data-system') || '';
+                    const feature = this.getAttribute('data-feature') || '';
+
+                    const lead = loadedEvolutionLeads.find(l =>
+                        (l.email === email || l.license_key === license) &&
+                        l.system_id === system &&
+                        l.feature_key === feature
+                    );
+
+                    if (lead) {
+                        openEvolutionLeadWhatsapp(lead);
+                    } else {
+                        showAdminToast('Lead não encontrado para abrir WhatsApp', 'error');
+                    }
+                });
+            });
+
+            tableBody.querySelectorAll('.copy-lead-msg-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const email = this.getAttribute('data-email') || '';
+                    const license = this.getAttribute('data-license') || '';
+                    const system = this.getAttribute('data-system') || '';
+                    const feature = this.getAttribute('data-feature') || '';
+
+                    const lead = loadedEvolutionLeads.find(l =>
+                        (l.email === email || l.license_key === license) &&
+                        l.system_id === system &&
+                        l.feature_key === feature
+                    );
+
+                    if (lead) {
+                        copyEvolutionLeadMessage(lead);
+                    } else {
+                        showAdminToast('Lead não encontrado para gerar mensagem', 'error');
+                    }
+                });
+            });
+
             tableBody.querySelectorAll('.lead-status-select').forEach(select => {
                 select.addEventListener('change', function() {
                     const email = this.getAttribute('data-email') || '';
@@ -2914,7 +3223,7 @@
                     updateLeadsCounters();
                 }
             } else {
-                alert('Erro ao atualizar dados: ' + (res ? res.message : 'resposta vazia'));
+                showAdminToast('Erro ao atualizar dados: ' + (res ? res.message : 'resposta vazia'), 'error');
                 loadEvolutionLeads();
             }
         }
@@ -2932,6 +3241,12 @@
                 'Sistema',
                 'E-mail',
                 'Licenca',
+                'Nome Cliente',
+                'WhatsApp Cliente',
+                'Consentimento Contato',
+                'Tipo Interesse',
+                'Plano Atual',
+                'Plano Alvo',
                 'Recurso',
                 'Cliques',
                 'Status',
@@ -2947,6 +3262,12 @@
                 l.system_id || '',
                 l.email || '',
                 l.license_key || '',
+                l.customer_name || '',
+                l.customer_whatsapp || '',
+                l.contact_consent ? 'Sim' : 'Não',
+                l.interest_type || '',
+                l.current_plan_code || '',
+                l.target_plan_code || '',
                 l.feature_title || l.feature_key || '',
                 String(l.count || 1),
                 l.status || 'novo',

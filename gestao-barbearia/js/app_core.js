@@ -1,4 +1,4 @@
-﻿
+
 // ESTADO GLOBAL
 const DB_KEY = 'brand_barber_pro_v2';
 const defaultDB = {
@@ -497,59 +497,102 @@ function router(view) {
 }
 
 const EVOLUTION_FEATURES = {
-    onlineAgenda: { status: 'premium', plan: 'premium_monthly', title: 'Agenda Online para Clientes', description: 'Permita que seus clientes escolham horários disponíveis pelo celular.', icon: 'smartphone', cta: 'Conhecer recurso', message: 'Este recurso fará parte da evolução Premium Online Mensal.' },
-    cloudBackup: { status: 'premium', plan: 'premium_monthly', title: 'Backup em Nuvem', description: 'Proteja os dados da barbearia com sincronização segura fora do computador.', icon: 'cloud', cta: 'Conhecer recurso', message: 'Este recurso fará parte da evolução Premium Online Mensal.' },
-    multiUser: { status: 'premium', plan: 'premium_monthly', title: 'Multiusuário', description: 'Dê acesso para recepção, barbeiros e gestores com permissões separadas.', icon: 'users', cta: 'Conhecer recurso', message: 'Este recurso fará parte da evolução Premium Online Mensal.' },
-    whatsappAuto: { status: 'premium', plan: 'premium_monthly', title: 'WhatsApp Automático', description: 'Envie lembretes, confirmações e mensagens de retorno para clientes.', icon: 'message-circle', cta: 'Conhecer recurso', message: 'Este recurso fará parte da evolução Premium Online Mensal.' },
-    publicPage: { status: 'premium', plan: 'premium_monthly', title: 'Página Pública da Barbearia', description: 'Tenha uma página online com serviços, horários e link de agendamento.', icon: 'globe', cta: 'Conhecer recurso', message: 'Este recurso fará parte da evolução Premium Online Mensal.' },
-    advReports: { status: 'premium', plan: 'premium_monthly', title: 'Relatórios Avançados Online', description: 'Compare períodos e acompanhe métricas da equipe na nuvem.', icon: 'bar-chart', cta: 'Conhecer recurso', message: 'Este recurso fará parte da evolução Premium Online Mensal.' }
+    onlineAgenda: { status: 'premium', plan: 'online_premium', title: 'Agenda Online para Clientes', description: 'Permita que seus clientes escolham horários disponíveis pelo celular.', icon: 'smartphone', cta: 'Tenho interesse', currentPlanCode: 'ml_lifetime', targetPlanCode: 'online_premium', interestType: 'feature' },
+    cloudBackup: { status: 'essential', plan: 'online_essential', title: 'Backup em Nuvem', description: 'Proteja os dados da barbearia com sincronização segura fora do computador.', icon: 'cloud', cta: 'Tenho interesse', currentPlanCode: 'ml_lifetime', targetPlanCode: 'online_essential', interestType: 'feature' },
+    multiUser: { status: 'essential', plan: 'online_essential', title: 'Multiusuário', description: 'Dê acesso para recepção, barbeiros e gestores com permissões separadas.', icon: 'users', cta: 'Tenho interesse', currentPlanCode: 'ml_lifetime', targetPlanCode: 'online_essential', interestType: 'feature' },
+    whatsappAuto: { status: 'premium', plan: 'online_premium', title: 'WhatsApp Automático', description: 'Envie lembretes, confirmações e mensagens de retorno para clientes.', icon: 'message-circle', cta: 'Tenho interesse', currentPlanCode: 'ml_lifetime', targetPlanCode: 'online_premium', interestType: 'feature' },
+    publicPage: { status: 'premium', plan: 'online_premium', title: 'Página Pública da Barbearia', description: 'Tenha uma página online com serviços, horários e link de agendamento.', icon: 'globe', cta: 'Tenho interesse', currentPlanCode: 'ml_lifetime', targetPlanCode: 'online_premium', interestType: 'feature' },
+    advReports: { status: 'premium', plan: 'online_premium', title: 'Relatórios Avançados Online', description: 'Compare períodos e acompanhe métricas da equipe na nuvem.', icon: 'bar-chart', cta: 'Tenho interesse', currentPlanCode: 'ml_lifetime', targetPlanCode: 'online_premium', interestType: 'feature' }
 };
 
 function renderEvolutionCenter() {
     const container = document.getElementById('evolution-cards');
     if (!container) return;
 
-    const themeColors = {
-        bg: 'bg-white dark:bg-barber-card',
-        border: 'border-slate-100 dark:border-white/5',
-        textTitle: 'text-slate-800 dark:text-white',
-        textDesc: 'text-slate-600 dark:text-slate-400',
-        cta: 'text-brand-blue hover:text-brand-dark'
-    };
-    const iconColors = {
-        onlineAgenda: 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400',
-        cloudBackup: 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400',
-        multiUser: 'bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400',
-        whatsappAuto: 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400',
-        publicPage: 'bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400',
-        advReports: 'bg-teal-100 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400'
-    };
+    let html = `
+    <!-- Banner de Vitrine Comercial de Planos Barbearia -->
+    <div class="col-span-full grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8 text-left">
+        <!-- Plano Atual -->
+        <div class="bg-white dark:bg-barber-card rounded-2xl p-6 border-2 border-emerald-500/30 dark:border-emerald-500/20 flex flex-col relative shadow-sm">
+            <div class="flex items-center justify-between mb-4">
+                <span class="text-xs font-bold px-3 py-1 bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300 rounded-full uppercase tracking-wider">Plano Ativo</span>
+                <i data-lucide="check-circle-2" class="w-6 h-6 text-emerald-500"></i>
+            </div>
+            <h3 class="text-xl font-extrabold text-slate-800 dark:text-white mb-1">Licença Vitalícia Local</h3>
+            <p class="text-xs text-slate-500 dark:text-slate-400 mb-4">Sua licença local permanente adquirida para 1 computador.</p>
+            <div class="text-2xl font-black text-slate-700 dark:text-slate-200 mb-4">Ativo e Permanente</div>
+            <ul class="text-xs text-slate-600 dark:text-slate-300 space-y-2 mb-6 flex-1">
+                <li class="flex items-center gap-2"><i data-lucide="check" class="w-4 h-4 text-emerald-500"></i> Agenda Completa de Serviços</li>
+                <li class="flex items-center gap-2"><i data-lucide="check" class="w-4 h-4 text-emerald-500"></i> Gestão de Barbeiros e Comissões</li>
+                <li class="flex items-center gap-2"><i data-lucide="check" class="w-4 h-4 text-emerald-500"></i> Controle de Caixa e Clientes</li>
+                <li class="flex items-center gap-2"><i data-lucide="check" class="w-4 h-4 text-emerald-500"></i> Operação 100% local em 1 PC</li>
+            </ul>
+            <div class="text-[11px] text-slate-400 text-center italic">Sua licença local continua ativa sem custos adicionais.</div>
+        </div>
 
-    let html = '';
+        <!-- Plano Online Essencial -->
+        <div class="bg-white dark:bg-barber-card rounded-2xl p-6 border border-slate-100 dark:border-white/5 flex flex-col relative shadow-sm hover:shadow-md transition-all">
+            <div class="flex items-center justify-between mb-4">
+                <span class="text-xs font-bold px-3 py-1 bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300 rounded-full uppercase tracking-wider">Evolução Cloud</span>
+                <i data-lucide="cloud" class="w-6 h-6 text-blue-500"></i>
+            </div>
+            <h3 class="text-xl font-extrabold text-slate-800 dark:text-white mb-1">Online Essencial</h3>
+            <p class="text-xs text-slate-500 dark:text-slate-400 mb-4">Acesse de qualquer lugar e conecte sua recepção e barbeiros.</p>
+            <div class="text-2xl font-black text-blue-600 dark:text-blue-400 mb-4">R$ 59,90 <span class="text-xs font-normal text-slate-500">/mês</span></div>
+            <ul class="text-xs text-slate-600 dark:text-slate-300 space-y-2 mb-6 flex-1">
+                <li class="flex items-center gap-2"><i data-lucide="plus" class="w-4 h-4 text-blue-500"></i> Tudo da Licença Vitalícia Local</li>
+                <li class="flex items-center gap-2"><i data-lucide="plus" class="w-4 h-4 text-blue-500"></i> Acesso Multusuário (Equipe/Recepção)</li>
+                <li class="flex items-center gap-2"><i data-lucide="plus" class="w-4 h-4 text-blue-500"></i> Multi-dispositivo (PC, Tablet, Celular)</li>
+                <li class="flex items-center gap-2"><i data-lucide="plus" class="w-4 h-4 text-blue-500"></i> Backup Automático na Nuvem</li>
+            </ul>
+            <button onclick="showEvolutionToast('online_essential')" class="w-full py-3 bg-blue-50 hover:bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 dark:text-blue-300 font-bold rounded-xl text-sm transition-all flex items-center justify-center gap-2">
+                <i data-lucide="sparkles" class="w-4 h-4"></i> Solicitar Evolução do Sistema
+            </button>
+        </div>
+
+        <!-- Plano Online Premium -->
+        <div class="bg-gradient-to-b from-indigo-500/5 to-blue-500/5 bg-white dark:bg-barber-card rounded-2xl p-6 border-2 border-indigo-500/40 dark:border-indigo-500/30 flex flex-col relative shadow-md">
+            <div class="flex items-center justify-between mb-4">
+                <span class="text-xs font-bold px-3 py-1 bg-indigo-600 text-white rounded-full uppercase tracking-wider shadow-sm">Recomendado</span>
+                <i data-lucide="crown" class="w-6 h-6 text-indigo-500"></i>
+            </div>
+            <h3 class="text-xl font-extrabold text-slate-800 dark:text-white mb-1">Online Premium</h3>
+            <p class="text-xs text-slate-500 dark:text-slate-400 mb-4">Agendamento online pelos clientes, página própria e automação por WhatsApp.</p>
+            <div class="text-2xl font-black text-indigo-600 dark:text-indigo-400 mb-4">R$ 99,00 <span class="text-xs font-normal text-slate-500">/mês</span></div>
+            <ul class="text-xs text-slate-600 dark:text-slate-300 space-y-2 mb-6 flex-1">
+                <li class="flex items-center gap-2"><i data-lucide="check" class="w-4 h-4 text-indigo-500"></i> Tudo do Online Essencial</li>
+                <li class="flex items-center gap-2"><i data-lucide="check" class="w-4 h-4 text-indigo-500"></i> Agendamento Online pelos Clientes</li>
+                <li class="flex items-center gap-2"><i data-lucide="check" class="w-4 h-4 text-indigo-500"></i> Página Pública da Barbearia</li>
+                <li class="flex items-center gap-2"><i data-lucide="check" class="w-4 h-4 text-indigo-500"></i> Lembretes por WhatsApp Automático</li>
+                <li class="flex items-center gap-2"><i data-lucide="check" class="w-4 h-4 text-indigo-500"></i> Relatórios Avançados Online</li>
+            </ul>
+            <button onclick="showEvolutionToast('online_premium')" class="w-full py-3 bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white font-bold rounded-xl text-sm transition-all shadow-md flex items-center justify-center gap-2">
+                <i data-lucide="zap" class="w-4 h-4"></i> Solicitar Evolução do Sistema
+            </button>
+        </div>
+
+    </div>
+
+    <!-- Divisor da Vitrine de Recursos -->
+    <div class="col-span-full border-t border-slate-200 dark:border-white/10 pt-6 mb-4 text-left">
+        <h4 class="text-lg font-bold text-slate-800 dark:text-white">Recursos Específicos para Manifestar Interesse</h4>
+        <p class="text-xs text-slate-500 dark:text-slate-400">Clique em "Tenho interesse" para registrar prioridade para sua barbearia.</p>
+    </div>
+    `;
+
     for (const [key, feature] of Object.entries(EVOLUTION_FEATURES)) {
-        let badgeHtml = '';
-        if (feature.status === 'premium') {
-            badgeHtml = `<span class="text-[10px] font-bold px-2 py-1 bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 rounded-full uppercase tracking-wide">${feature.plan === 'pro_lifetime' ? 'Pro/Premium' : 'Premium Online'}</span>`;
-        } else if (feature.status === 'soon') {
-            badgeHtml = '<span class="text-[10px] font-bold px-2 py-1 bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400 rounded-full uppercase tracking-wide">Em breve</span>';
-        } else if (feature.status === 'available') {
-            badgeHtml = '<span class="text-[10px] font-bold px-2 py-1 bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 rounded-full uppercase tracking-wide">Disponível</span>';
-        } else if (feature.status === 'optional') {
-            badgeHtml = '<span class="text-[10px] font-bold px-2 py-1 bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 rounded-full uppercase tracking-wide">Opcional</span>';
-        }
-
-        const iColor = iconColors[key] || 'bg-slate-100 dark:bg-slate-900/30 text-slate-600 dark:text-slate-400';
+        let badgeHtml = `<span class="text-[10px] font-bold px-2 py-1 bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 rounded-full uppercase tracking-wide">Premium Online</span>`;
 
         html += `
-        <div class="${themeColors.bg} rounded-2xl p-6 shadow-sm border ${themeColors.border} flex flex-col">
-            <div class="w-12 h-12 ${iColor} rounded-xl flex items-center justify-center mb-4">
+        <div class="bg-white dark:bg-barber-card rounded-2xl p-6 shadow-sm border border-slate-100 dark:border-white/5 flex flex-col text-left">
+            <div class="w-12 h-12 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-xl flex items-center justify-center mb-4">
                 <i data-lucide="${feature.icon}" class="w-6 h-6"></i>
             </div>
-            <h3 class="font-bold text-lg ${themeColors.textTitle} mb-2">${feature.title}</h3>
-            <p class="text-sm ${themeColors.textDesc} mb-4 flex-1">${feature.description}</p>
-            <div class="flex items-center justify-between mt-auto pt-4 border-t ${themeColors.border}">
+            <h3 class="font-bold text-lg text-slate-800 dark:text-white mb-2">${feature.title}</h3>
+            <p class="text-sm text-slate-600 dark:text-slate-400 mb-4 flex-1">${feature.description}</p>
+            <div class="flex items-center justify-between mt-auto pt-4 border-t border-slate-100 dark:border-white/5">
                 ${badgeHtml}
-                <button onclick="showEvolutionToast('${key}')" class="text-sm font-bold ${themeColors.cta} transition-colors">${feature.cta}</button>
+                <button onclick="showEvolutionToast('${key}')" class="text-sm font-bold text-brand-blue hover:text-brand-dark transition-colors">${feature.cta}</button>
             </div>
         </div>`;
     }
@@ -563,7 +606,12 @@ function renderEvolutionCenter() {
 
 function showEvolutionToast(featureKey) {
     const feature = EVOLUTION_FEATURES[featureKey] || {};
-    const featureTitle = feature.title || featureKey;
+    const isPlanUpgrade = (featureKey === 'online_essential' || featureKey === 'online_premium');
+    const interestType = feature.interestType || (isPlanUpgrade ? 'plan_upgrade' : 'feature_interest');
+    const currentPlanCode = feature.currentPlanCode || 'ml_lifetime';
+    const targetPlanCode = feature.targetPlanCode || (featureKey === 'online_essential' ? 'basic' : featureKey === 'online_premium' ? 'premium' : (feature.status === 'essential' ? 'basic' : 'premium'));
+
+    const featureTitle = feature.title || (featureKey === 'online_essential' ? 'Evolução Online Essencial' : featureKey === 'online_premium' ? 'Evolução Online Premium' : featureKey);
     const notify = (msg, type) => {
         if (typeof showNotification === 'function') {
             showNotification(msg, type);
@@ -578,41 +626,111 @@ function showEvolutionToast(featureKey) {
         }
     };
 
-    notify(`Registrando interesse no recurso premium: ${featureTitle}...`, 'info');
+    // Modal consultivo de WhatsApp
+    const prefix = 'barbearia';
+    const esc = (s) => (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+    const savedName = localStorage.getItem(prefix + '_customer_name') || '';
+    const savedWhatsapp = localStorage.getItem(prefix + '_customer_whatsapp') || '';
 
-    // Registro comercial assíncrono (Fase 2)
-    try {
-        const licenseKey = localStorage.getItem('barbearia_license') || localStorage.getItem('plena_license') || '';
-        const email = localStorage.getItem('barbearia_email') || localStorage.getItem('ml_license_email') || '';
-
-        fetch('../api_licenca_ml.php?action=register_evolution_lead', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                license_key: licenseKey,
-                email: email,
-                system_id: 'gestao-barbearia',
-                feature_key: featureKey,
-                feature_title: featureTitle,
-                source: 'evolution_module'
-            })
-        })
-        .then(res => res.json())
-        .then(data => {
-            if (data && data.status === 'success') {
-                notify(`Interesse registrado! O recurso "${featureTitle}" estará disponível na evolução online.`, 'success');
-            } else {
-                notify(`Interesse registrado localmente. Não foi possível enviar agora.`, 'warning');
-            }
-        })
-        .catch(err => {
-            console.warn('Erro ao registrar interesse (offline):', err);
-            notify(`Não foi possível registrar no momento devido à falta de conexão.`, 'error');
-        });
-    } catch (e) {
-        console.error('Falha ao processar registro comercial:', e);
-        notify(`Não foi possível registrar no momento.`, 'error');
+    let modal = document.getElementById('evolution-consultative-modal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'evolution-consultative-modal';
+        modal.className = 'fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4';
+        document.body.appendChild(modal);
     }
+
+    modal.innerHTML = `
+      <div class="bg-white dark:bg-slate-900 rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200 dark:border-slate-800 transform transition-all text-left">
+        <h3 class="text-lg font-bold text-slate-900 dark:text-white mb-2">Solicitar Evolução</h3>
+        <p class="text-xs text-slate-500 dark:text-slate-400 mb-4">Informe um WhatsApp para a equipe Plena explicar os próximos passos da evolução.</p>
+
+        <div class="space-y-4 mb-4">
+          <div>
+            <label class="block text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">Nome do Responsável (Opcional)</label>
+            <input type="text" id="evo-modal-name" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl text-sm outline-none text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500" placeholder="Ex: João Silva" value="${esc(savedName)}">
+          </div>
+          <div>
+            <label class="block text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">WhatsApp (Recomendado)</label>
+            <input type="tel" id="evo-modal-whatsapp" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl text-sm outline-none text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500" placeholder="Ex: (11) 99999-9999" value="${esc(savedWhatsapp)}">
+          </div>
+          <label class="flex items-start gap-2.5 cursor-pointer mt-2">
+            <input type="checkbox" id="evo-modal-consent" class="mt-1 rounded border-slate-300 dark:border-slate-700 text-indigo-600 focus:ring-indigo-500" ${savedWhatsapp ? 'checked' : ''}>
+            <span class="text-xs text-slate-600 dark:text-slate-400 leading-tight">Autorizo a Plena Informática a entrar em contato sobre esta solicitação.</span>
+          </label>
+          <div id="evo-modal-error" class="text-xs text-rose-500 font-bold hidden"></div>
+        </div>
+
+        <div class="flex items-center justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
+          <button id="evo-modal-cancel" class="px-4 py-2 text-xs font-bold text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 transition-colors">Cancelar</button>
+          <button id="evo-modal-submit" class="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs shadow-md transition-colors">Enviar Solicitação</button>
+        </div>
+      </div>
+    `;
+
+    document.getElementById('evo-modal-cancel').addEventListener('click', () => {
+        modal.remove();
+    });
+
+    document.getElementById('evo-modal-submit').addEventListener('click', () => {
+        const nameVal = document.getElementById('evo-modal-name').value.trim();
+        const whatsappVal = document.getElementById('evo-modal-whatsapp').value.trim();
+        const consentChecked = document.getElementById('evo-modal-consent').checked;
+        const errorEl = document.getElementById('evo-modal-error');
+
+        if (whatsappVal !== '' && !consentChecked) {
+            errorEl.textContent = 'Autorize o contato para enviar seu telefone.';
+            errorEl.classList.remove('hidden');
+            return;
+        }
+        errorEl.classList.add('hidden');
+
+        // Save local
+        localStorage.setItem(prefix + '_customer_name', nameVal);
+        localStorage.setItem(prefix + '_customer_whatsapp', whatsappVal);
+
+        modal.remove();
+        notify(`Registrando interesse comercial: ${featureTitle}...`, 'info');
+
+        try {
+            const licenseKey = localStorage.getItem('barbearia_license') || localStorage.getItem('plena_license') || '';
+            const email = localStorage.getItem('barbearia_email') || localStorage.getItem('ml_license_email') || '';
+
+            fetch('../api_licenca_ml.php?action=register_evolution_lead', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    license_key: licenseKey,
+                    email: email,
+                    system_id: 'gestao-barbearia',
+                    feature_key: featureKey,
+                    feature_title: featureTitle,
+                    source: 'evolution_module',
+                    interest_type: interestType,
+                    current_plan_code: currentPlanCode,
+                    target_plan_code: targetPlanCode,
+                    customer_name: nameVal,
+                    customer_whatsapp: whatsappVal,
+                    contact_consent: consentChecked
+                })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data && data.status === 'success') {
+                    notify(`Interesse registrado! O recurso "${featureTitle}" estará disponível na evolução online.`, 'success');
+                } else {
+                    notify(`Interesse registrado localmente. Não foi possível enviar agora.`, 'warning');
+                }
+            })
+            .catch(err => {
+                console.warn('Erro ao registrar interesse (offline):', err);
+                notify(`Não foi possível registrar no momento devido à falta de conexão.`, 'error');
+            });
+        } catch (e) {
+            console.error('Falha ao processar registro comercial:', e);
+            notify(`Não foi possível registrar no momento.`, 'error');
+        }
+    });
 }
 function toggleSidebar() {
     const sidebar = document.getElementById('sidebar');

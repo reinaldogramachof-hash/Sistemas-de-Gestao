@@ -1,4 +1,4 @@
-﻿import { readFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
@@ -302,8 +302,8 @@ test('systems catalog keeps Portuguese labels and has no mojibake markers', () =
   const combined = `${html}\n${php}`;
 
   assert.match(html, /Gestão Gastro/);
-  assert.match(html, /Básico/);
-  assert.match(html, /R\$ 97\/mês/);
+  assert.match(html, /Online Essencial/);
+  assert.match(html, /R\$ 89\/mês/);
   assert.match(html, /Mesas e garçom mobile/);
   assert.match(html, /Configuração/);
   assert.match(html, /Relatórios avançados/);
@@ -313,7 +313,7 @@ test('systems catalog keeps Portuguese labels and has no mojibake markers', () =
   assert.match(html, /Comissões/);
   assert.match(html, /Gestão Beleza/);
   assert.match(html, /Salões, estética e pacotes/);
-  assert.doesNotMatch(combined, /GestÃ|BÃ|mÃ|AÃ|nÃ|Ã§|Ã£|Ã¡|Ã©|Ãª|Ã³|Ãº|Ã­|â€|ðŸ|�/);
+  assert.doesNotMatch(combined, /GestÃ|BÃ|mÃ|AÃ|nÃ|Ã§|Ã£|Ã¡|Ã©|Ãª|Ã³|Ãº|Ã­|â€|ðŸ|\uFFFD/);
 });
 
 
@@ -329,4 +329,64 @@ test('Fase 1: api_provisioning.php catalog contains gestao-assistencia and has 4
   assert.match(php, /'trial'\s*=>\s*\[/);
 
   assert.match(html, /<option value=\"gestao-assistencia\">Gestão Assistência<\/option>/);
+});
+
+test('Fase B.1.1: admin and PHP catalog validate 4 canonical systems, public names, and approved prices in HTML and PHP', () => {
+  const html = read('admin/index.html');
+  const php = read('api_provisioning.php');
+
+  // 4 sistemas presentes no fallback do Admin
+  assert.match(html, /'gestao-gastro':\s*\{/);
+  assert.match(html, /'gestao-barbearia':\s*\{/);
+  assert.match(html, /'gestao-beleza':\s*\{/);
+  assert.match(html, /'gestao-assistencia':\s*\{/);
+
+  // 4 sistemas presentes no catálogo PHP
+  assert.match(php, /'gestao-gastro'\s*=>\s*\[/);
+  assert.match(php, /'gestao-barbearia'\s*=>\s*\[/);
+  assert.match(php, /'gestao-beleza'\s*=>\s*\[/);
+  assert.match(php, /'gestao-assistencia'\s*=>\s*\[/);
+
+  // Nomes públicos unificados (Online Essencial / Online Premium)
+  assert.match(html, /name:\s*'Online Essencial'/);
+  assert.match(html, /name:\s*'Online Premium'/);
+  assert.match(php, /'name'\s*=>\s*'Online Essencial'/);
+  assert.match(php, /'name'\s*=>\s*'Online Premium'/);
+
+  // Preços canônicos aprovados no Admin HTML (priceCents)
+  assert.match(html, /priceCents:\s*8900/);  // Gastro Essencial
+  assert.match(html, /priceCents:\s*18900/); // Gastro Premium
+  assert.match(html, /priceCents:\s*5990/);  // Barbearia / Beleza Essencial
+  assert.match(html, /priceCents:\s*9900/);  // Barbearia / Beleza Premium
+  assert.match(html, /priceCents:\s*9790/);  // Assistência Essencial
+  assert.match(html, /priceCents:\s*14990/); // Assistência Premium
+
+  // Preços canônicos aprovados no backend PHP (price_cents)
+  assert.match(php, /'price_cents'\s*=>\s*8900/);  // Gastro Essencial
+  assert.match(php, /'price_cents'\s*=>\s*18900/); // Gastro Premium
+  assert.match(php, /'price_cents'\s*=>\s*5990/);  // Barbearia / Beleza Essencial
+  assert.match(php, /'price_cents'\s*=>\s*9900/);  // Barbearia / Beleza Premium
+  assert.match(php, /'price_cents'\s*=>\s*9790/);  // Assistência Essencial
+  assert.match(php, /'price_cents'\s*=>\s*14990/); // Assistência Premium
+
+  // Bloqueio de valores legados/antigos no HTML e no PHP
+  assert.doesNotMatch(html, /priceCents:\s*6900/);  // Beleza antigo
+  assert.doesNotMatch(html, /priceCents:\s*12900/); // Beleza antigo
+  assert.doesNotMatch(html, /priceCents:\s*9700/);  // Gastro antigo
+  assert.doesNotMatch(html, /priceCents:\s*19700/); // Gastro antigo
+
+  assert.doesNotMatch(php, /'price_cents'\s*=>\s*6900/);  // Beleza antigo
+  assert.doesNotMatch(php, /'price_cents'\s*=>\s*12900/); // Beleza antigo
+  assert.doesNotMatch(php, /'price_cents'\s*=>\s*9700/);  // Gastro antigo
+  assert.doesNotMatch(php, /'price_cents'\s*=>\s*19700/); // Gastro antigo
+
+  // Módulos prometidos da Assistência Premium no PHP e Admin
+  assert.match(php, /'portal_cliente'/);
+  assert.match(php, /'whatsapp_auto'/);
+  assert.match(php, /'relatorios_avancados'/);
+  assert.match(php, /'gestao_garantias'/);
+  assert.match(html, /\['portal_cliente',/);
+  assert.match(html, /\['whatsapp_auto',/);
+  assert.match(html, /\['relatorios_avancados',/);
+  assert.match(html, /\['gestao_garantias',/);
 });
